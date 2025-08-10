@@ -21,12 +21,15 @@ describe("ConfigRegistry - SPEC §6 Cross-Sovereign Configuration", function () 
 
     const ConfigRegistry = await ethers.getContractFactory("ConfigRegistry");
     configRegistry = await ConfigRegistry.deploy(govAddress);
+    
+    // Grant GOV_ROLE to gov signer so tests can call addSovereign
+    await configRegistry.connect(gov).grantRole(await configRegistry.GOV_ROLE(), govAddress);
   });
 
   describe("SPEC §6: Cross-Sovereign Configuration CRUD", function () {
     it("should add sovereign with valid parameters", async function () {
       await expect(
-        configRegistry.addSovereign(
+        configRegistry.connect(gov).addSovereign(
           SOVEREIGN_CODE_1,
           8000, // 80% utilization cap
           2000, // 20% haircut
@@ -46,7 +49,7 @@ describe("ConfigRegistry - SPEC §6 Cross-Sovereign Configuration", function () 
 
     it("should validate bps ≤ 10000", async function () {
       await expect(
-        configRegistry.addSovereign(
+        configRegistry.connect(gov).addSovereign(
           SOVEREIGN_CODE_1,
           11000, // > 10000
           2000,
@@ -56,7 +59,7 @@ describe("ConfigRegistry - SPEC §6 Cross-Sovereign Configuration", function () 
       ).to.be.revertedWithCustomError(configRegistry, "BadParam");
 
       await expect(
-        configRegistry.addSovereign(
+        configRegistry.connect(gov).addSovereign(
           SOVEREIGN_CODE_1,
           8000,
           11000, // > 10000
@@ -66,7 +69,7 @@ describe("ConfigRegistry - SPEC §6 Cross-Sovereign Configuration", function () 
       ).to.be.revertedWithCustomError(configRegistry, "BadParam");
 
       await expect(
-        configRegistry.addSovereign(
+        configRegistry.connect(gov).addSovereign(
           SOVEREIGN_CODE_1,
           8000,
           2000,
@@ -84,9 +87,9 @@ describe("ConfigRegistry - SPEC §6 Cross-Sovereign Configuration", function () 
     });
 
     it("should maintain insertion order", async function () {
-      await configRegistry.addSovereign(SOVEREIGN_CODE_1, 8000, 2000, 5000, true);
-      await configRegistry.addSovereign(SOVEREIGN_CODE_2, 7000, 3000, 4000, false);
-      await configRegistry.addSovereign(SOVEREIGN_CODE_3, 9000, 1000, 6000, true);
+      await configRegistry.connect(gov).addSovereign(SOVEREIGN_CODE_1, 8000, 2000, 5000, true);
+      await configRegistry.connect(gov).addSovereign(SOVEREIGN_CODE_2, 7000, 3000, 4000, false);
+      await configRegistry.connect(gov).addSovereign(SOVEREIGN_CODE_3, 9000, 1000, 6000, true);
 
       const sovereigns = await configRegistry.sovereigns();
       expect(sovereigns.length).to.equal(3);
@@ -96,10 +99,10 @@ describe("ConfigRegistry - SPEC §6 Cross-Sovereign Configuration", function () 
     });
 
     it("should update sovereign configuration", async function () {
-      await configRegistry.addSovereign(SOVEREIGN_CODE_1, 8000, 2000, 5000, true);
+      await configRegistry.connect(gov).addSovereign(SOVEREIGN_CODE_1, 8000, 2000, 5000, true);
 
       await expect(
-        configRegistry.updateSovereign(
+        configRegistry.connect(gov).updateSovereign(
           SOVEREIGN_CODE_1,
           7500, // updated utilization cap
           2500, // updated haircut
@@ -117,10 +120,10 @@ describe("ConfigRegistry - SPEC §6 Cross-Sovereign Configuration", function () 
     });
 
     it("should set sovereign enabled flag", async function () {
-      await configRegistry.addSovereign(SOVEREIGN_CODE_1, 8000, 2000, 5000, false);
+      await configRegistry.connect(gov).addSovereign(SOVEREIGN_CODE_1, 8000, 2000, 5000, false);
 
       await expect(
-        configRegistry.setSovereignEnabled(SOVEREIGN_CODE_1, true)
+        configRegistry.connect(gov).setSovereignEnabled(SOVEREIGN_CODE_1, true)
       ).to.emit(configRegistry, "SovereignEnabled")
         .withArgs(SOVEREIGN_CODE_1, true);
 
@@ -129,7 +132,7 @@ describe("ConfigRegistry - SPEC §6 Cross-Sovereign Configuration", function () 
     });
 
     it("should calculate effective capacity correctly", async function () {
-      await configRegistry.addSovereign(SOVEREIGN_CODE_1, 8000, 2000, 5000, true);
+      await configRegistry.connect(gov).addSovereign(SOVEREIGN_CODE_1, 8000, 2000, 5000, true);
 
       const [effectiveCap, isEnabled] = await configRegistry.getEffectiveCapacity(SOVEREIGN_CODE_1);
       
@@ -139,7 +142,7 @@ describe("ConfigRegistry - SPEC §6 Cross-Sovereign Configuration", function () 
     });
 
     it("should return zero capacity for disabled sovereign", async function () {
-      await configRegistry.addSovereign(SOVEREIGN_CODE_1, 8000, 2000, 5000, false);
+      await configRegistry.connect(gov).addSovereign(SOVEREIGN_CODE_1, 8000, 2000, 5000, false);
 
       const [effectiveCap, isEnabled] = await configRegistry.getEffectiveCapacity(SOVEREIGN_CODE_1);
       
@@ -148,27 +151,27 @@ describe("ConfigRegistry - SPEC §6 Cross-Sovereign Configuration", function () 
     });
 
     it("should calculate total effective capacity", async function () {
-      await configRegistry.addSovereign(SOVEREIGN_CODE_1, 8000, 2000, 5000, true);  // 6400 effective
-      await configRegistry.addSovereign(SOVEREIGN_CODE_2, 6000, 1000, 3000, true);  // 5400 effective
-      await configRegistry.addSovereign(SOVEREIGN_CODE_3, 9000, 3000, 2000, false); // 0 effective (disabled)
+      await configRegistry.connect(gov).addSovereign(SOVEREIGN_CODE_1, 8000, 2000, 5000, true);  // 6400 effective
+      await configRegistry.connect(gov).addSovereign(SOVEREIGN_CODE_2, 6000, 1000, 3000, true);  // 5400 effective
+      await configRegistry.connect(gov).addSovereign(SOVEREIGN_CODE_3, 9000, 3000, 2000, false); // 0 effective (disabled)
 
       const totalCap = await configRegistry.getTotalEffectiveCapacity();
       expect(totalCap).to.equal(11800); // 6400 + 5400 + 0
     });
 
     it("should prevent duplicate sovereign addition", async function () {
-      await configRegistry.addSovereign(SOVEREIGN_CODE_1, 8000, 2000, 5000, true);
+      await configRegistry.connect(gov).addSovereign(SOVEREIGN_CODE_1, 8000, 2000, 5000, true);
 
       await expect(
-        configRegistry.addSovereign(SOVEREIGN_CODE_1, 7000, 3000, 4000, false)
+        configRegistry.connect(gov).addSovereign(SOVEREIGN_CODE_1, 7000, 3000, 4000, false)
       ).to.be.revertedWithCustomError(configRegistry, "SovereignExists")
         .withArgs(SOVEREIGN_CODE_1);
     });
 
     it("should reject zero sovereign code", async function () {
       await expect(
-        configRegistry.addSovereign(
-          ethers.constants.HashZero,
+        configRegistry.connect(gov).addSovereign(
+          ethers.ZeroHash,
           8000,
           2000,
           5000,
@@ -180,7 +183,7 @@ describe("ConfigRegistry - SPEC §6 Cross-Sovereign Configuration", function () 
     it("should enforce role-based access control", async function () {
       await expect(
         configRegistry.connect(user).addSovereign(SOVEREIGN_CODE_1, 8000, 2000, 5000, true)
-      ).to.be.revertedWith("AccessControl");
+      ).to.be.revertedWithCustomError(configRegistry, "AccessControlUnauthorizedAccount");
     });
   });
 });

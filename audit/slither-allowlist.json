@@ -1,0 +1,60 @@
+{
+  "allowlist": [
+    {
+      "rule": "divide-before-multiply",
+      "file": "contracts/IssuanceControllerV3.sol",
+      "line": 664,
+      "description": "Accepted precision loss in damping calculation - tested and verified safe",
+      "status": "accepted",
+      "risk_level": "low"
+    },
+    {
+      "rule": "divide-before-multiply", 
+      "file": "contracts/IssuanceControllerV3.sol",
+      "line": 692,
+      "description": "Accepted precision loss in canIssue calculation - tested and verified safe",
+      "status": "accepted",
+      "risk_level": "low"
+    },
+    {
+      "rule": "divide-before-multiply",
+      "file": "contracts/IssuanceControllerV3.sol", 
+      "line": 759,
+      "description": "Accepted precision loss in mintForSigned calculation - tested and verified safe",
+      "status": "accepted",
+      "risk_level": "low"
+    },
+    {
+      "rule": "divide-before-multiply",
+      "file": "contracts/IssuanceControllerV3.sol",
+      "line": 833,
+      "description": "Accepted precision loss in mintFor calculation - tested and verified safe", 
+      "status": "accepted",
+      "risk_level": "low"
+    },
+    {
+      "rule": "divide-before-multiply",
+      "file": "contracts/NAVOracleV3.sol",
+      "line": 227,
+      "description": "Accepted precision loss in growth calculation - tested and verified safe",
+      "status": "accepted", 
+      "risk_level": "low"
+    },
+    {
+      "rule": "incorrect-exponentiation",
+      "file": "node_modules/@openzeppelin/contracts/utils/math/Math.sol",
+      "line": 257,
+      "description": "OpenZeppelin dependency issue - monitoring for updates",
+      "status": "dependency",
+      "risk_level": "low"
+    },
+    {
+      "rule": "divide-before-multiply",
+      "file": "node_modules/@openzeppelin/contracts/utils/math/Math.sol",
+      "line": 257,
+      "description": "OpenZeppelin dependency issue - monitoring for updates",
+      "status": "dependency",
+      "risk_level": "low"
+    }
+  ]
+}

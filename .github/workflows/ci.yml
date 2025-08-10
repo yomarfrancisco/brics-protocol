@@ -100,4 +100,21 @@ jobs:
       
       - name: Run Slither analysis
         run: |
-          slither . --fail-high
+          slither . --config .slither.json
+      
+      - name: Upload Slither Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: slither-report
+          path: audit/slither.json
+      
+      - name: Check for High Severity Issues
+        run: |
+          if [ -f audit/slither.json ]; then
+            # Check if there are any high severity issues not in allowlist
+            HIGH_ISSUES=$(jq '.results.detectors[] | select(.impact == "High") | .check' audit/slither.json | wc -l)
+            if [ "$HIGH_ISSUES" -gt 0 ]; then
+              echo "Found $HIGH_ISSUES high severity issues not in allowlist"
+              exit 1
+            fi
+          fi

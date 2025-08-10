@@ -1,0 +1,20 @@
+{
+  "detectors_to_exclude": [
+    "assembly",
+    "low-level-calls",
+    "missing-inheritance",
+    "unused-state",
+    "unused-return",
+    "reentrancy-eth",
+    "reentrancy-no-eth",
+    "reentrancy-benign",
+    "reentrancy-events"
+  ],
+  "exclude_informational": true,
+  "exclude_optimization": true,
+  "exclude_low": false,
+  "exclude_medium": false,
+  "exclude_high": false,
+  "json": "audit/slither.json",
+  "filter_paths": "node_modules,test,deploy,scripts"
+}

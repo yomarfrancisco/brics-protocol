@@ -157,12 +157,12 @@ describe("NAV Redemption Lane (SPEC §4)", function () {
     });
 
     describe("NAV Request Queueing", function () {
-        beforeEach(async function () {
-            const closeTime = Math.floor(Date.now() / 1000) + 3 * 24 * 3600;
-            await issuanceController.connect(ops).openNavWindow(closeTime);
-        });
 
         it("should queue redemption request when instant capacity insufficient", async function () {
+            // Open a new window for this test
+            const closeTime = Math.floor(Date.now() / 1000) + 3 * 24 * 3600;
+            await issuanceController.connect(ops).openNavWindow(closeTime);
+            
             const amount = ethers.parseEther("1000");
             
             await expect(issuanceController.connect(ops).requestRedeemOnBehalf(user1Address, amount))
@@ -198,6 +198,14 @@ describe("NAV Redemption Lane (SPEC §4)", function () {
 
     describe("NAV Claims Minting", function () {
         beforeEach(async function () {
+            // Ensure no window is open from previous tests
+            const currentWindow = await issuanceController.currentNavWindow();
+            if (currentWindow.state === 1) { // OPEN
+                await ethers.provider.send("evm_increaseTime", [3 * 24 * 3600]);
+                await ethers.provider.send("evm_mine", []);
+                await issuanceController.connect(ops).closeNavWindow();
+            }
+            
             const closeTime = Math.floor(Date.now() / 1000) + 3 * 24 * 3600;
             await issuanceController.connect(ops).openNavWindow(closeTime);
             
@@ -232,6 +240,14 @@ describe("NAV Redemption Lane (SPEC §4)", function () {
 
     describe("NAV Strike", function () {
         beforeEach(async function () {
+            // Ensure no window is open from previous tests
+            const currentWindow = await issuanceController.currentNavWindow();
+            if (currentWindow.state === 1) { // OPEN
+                await ethers.provider.send("evm_increaseTime", [3 * 24 * 3600]);
+                await ethers.provider.send("evm_mine", []);
+                await issuanceController.connect(ops).closeNavWindow();
+            }
+            
             const closeTime = Math.floor(Date.now() / 1000) + 3 * 24 * 3600;
             await issuanceController.connect(ops).openNavWindow(closeTime);
             
@@ -264,6 +280,14 @@ describe("NAV Redemption Lane (SPEC §4)", function () {
 
     describe("NAV Settlement", function () {
         beforeEach(async function () {
+            // Ensure no window is open from previous tests
+            const currentWindow = await issuanceController.currentNavWindow();
+            if (currentWindow.state === 1) { // OPEN
+                await ethers.provider.send("evm_increaseTime", [3 * 24 * 3600]);
+                await ethers.provider.send("evm_mine", []);
+                await issuanceController.connect(ops).closeNavWindow();
+            }
+            
             const closeTime = Math.floor(Date.now() / 1000) + 3 * 24 * 3600;
             await issuanceController.connect(ops).openNavWindow(closeTime);
             
@@ -299,7 +323,7 @@ describe("NAV Redemption Lane (SPEC §4)", function () {
     describe("Emergency Level Integration", function () {
         it("should respect emergency level freeze rules", async function () {
             // Set to ORANGE level
-            await configRegistry.connect(gov).setEmergencyLevel(2);
+            await configRegistry.connect(gov).setEmergencyLevel(2, "orange level");
             
             const closeTime = Math.floor(Date.now() / 1000) + 3 * 24 * 3600;
             await issuanceController.connect(ops).openNavWindow(closeTime);

@@ -14,6 +14,7 @@ pragma solidity ^0.8.24;
 
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./BRICSToken.sol";
@@ -30,7 +31,7 @@ interface INAVOracleLike {
     function degradationMode() external view returns (bool);
 }
 
-contract IssuanceControllerV3 is AccessControl, ReentrancyGuard {
+contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
     using SafeERC20 for IERC20;
 
     bytes32 public constant OPS_ROLE = keccak256("OPS");
@@ -96,6 +97,18 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard {
     mapping(address => NavRequest[]) public requestsBy;            // history per user
     mapping(uint256 => uint256) public claimToRemainingUSDC;       // claimId -> unpaid USDC (for partial fill carryover)
     uint256 public windowMinDuration = 2 days;                     // guardrail
+    
+    // FINAL CHECKS: Accounting & fairness - track reserved NAV redemptions
+    uint256 public reservedForNav; // Total tokens reserved for NAV redemptions (not yet burned)
+    
+    // FINAL CHECKS: Data model completeness - claim↔window linkage
+    mapping(uint256 => uint256) public claimToWindow; // claimId -> windowId
+    
+    // FINAL CHECKS: State guards & timing - T+5 enforcement
+    uint256 public constant SETTLEMENT_DELAY = 5 days; // T+5 enforcement
+    
+    // FINAL CHECKS: Performance & UX - batching
+    uint256 public constant MAX_BATCH_SIZE = 50; // Max users per mintClaimsForWindow call
 
     // Custom errors
     error Halted();
@@ -123,6 +136,11 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard {
     error AlreadyClaimed();
     error WrongWindowState();
     error ZeroAmount();
+    
+    // FINAL CHECKS: Additional errors
+    error SettlementTooEarly();
+    error BatchTooLarge();
+    error ClaimWindowMismatch();
 
     // Enhanced governance with conditional extensions
     uint256 public lastRaiseTs;
@@ -191,6 +209,57 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard {
         return ts + 30 days; // simplified; production: robust calendar
     }
 
+    // FINAL CHECKS: Performance & UX - Better views
+    function getEffectiveOutstanding() external view returns (uint256) {
+        return totalIssued - reservedForNav;
+    }
+
+    function getWindowSummary(uint256 windowId) external view returns (
+        NavWindowState state,
+        uint256 openTs,
+        uint256 closeTs,
+        uint256 strikeTs,
+        uint256 navRay,
+        uint256 requested,
+        uint256 paid,
+        uint256 remaining
+    ) {
+        NavWindow storage w = navWindows[windowId];
+        uint256 totalDue = _tokensToUSDC(w.totalRequested, w.navRayAtStrike);
+        return (
+            w.state,
+            w.openTs,
+            w.closeTs,
+            w.strikeTs,
+            w.navRayAtStrike,
+            w.totalRequested,
+            w.totalPaidUSDC,
+            totalDue > w.totalPaidUSDC ? totalDue - w.totalPaidUSDC : 0
+        );
+    }
+
+    function getUserClaims(address user) external view returns (uint256[] memory claimIds) {
+        NavRequest[] storage requests = requestsBy[user];
+        uint256 count = 0;
+        
+        // Count valid claims
+        for (uint256 i = 0; i < requests.length; i++) {
+            if (requests[i].claimed && requests[i].claimId > 0) {
+                count++;
+            }
+        }
+        
+        // Build array
+        claimIds = new uint256[](count);
+        uint256 index = 0;
+        for (uint256 i = 0; i < requests.length; i++) {
+            if (requests[i].claimed && requests[i].claimId > 0) {
+                claimIds[index] = requests[i].claimId;
+                index++;
+            }
+        }
+    }
+
     // SPEC §4: NAV Redemption Lane Views
     function currentNavWindow() external view returns (NavWindow memory) {
         return navWindows[currentWindowId];
@@ -217,7 +286,7 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard {
     }
 
     // SPEC §4: NAV Redemption Lane Window Lifecycle
-    function openNavWindow(uint256 closeTs) external onlyRole(OPS_ROLE) {
+    function openNavWindow(uint256 closeTs) external onlyRole(OPS_ROLE) whenNotPaused {
         if (currentWindowId != 0 && navWindows[currentWindowId].state == NavWindowState.OPEN) revert WindowAlreadyOpen();
         if (closeTs <= block.timestamp + 1 hours || closeTs <= block.timestamp + windowMinDuration) revert InvalidCloseTime();
         
@@ -235,7 +304,7 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard {
         emit NAVWindowOpened(id, block.timestamp, closeTs);
     }
 
-    function closeNavWindow() external onlyRole(OPS_ROLE) {
+    function closeNavWindow() external onlyRole(OPS_ROLE) whenNotPaused {
         NavWindow storage w = navWindows[currentWindowId];
         if (w.state != NavWindowState.OPEN) revert WindowNotOpen();
         if (block.timestamp < w.closeTs) revert InvalidCloseTime();
@@ -245,7 +314,7 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard {
     }
 
     // SPEC §4: NAV Redemption Lane Queueing
-    function requestRedeemOnBehalf(address user, uint256 amt) external nonReentrant {
+    function requestRedeemOnBehalf(address user, uint256 amt) external nonReentrant whenNotPaused {
         if (amt == 0) revert ZeroAmount();
 
         // Dynamic cooldown: extend in higher emergency levels
@@ -274,6 +343,8 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard {
 
         pendingBy[user] += amt;
         w.totalRequested += amt;
+        reservedForNav += amt; // FINAL CHECKS: Track reserved NAV redemptions
+        
         requestsBy[user].push(NavRequest({
             windowId: w.id,
             amountTokens: amt,
@@ -284,7 +355,9 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard {
     }
 
     // SPEC §4: NAV Redemption Lane Claim Minting
-    function mintClaimsForWindow(address[] calldata users) external onlyRole(OPS_ROLE) {
+    function mintClaimsForWindow(address[] calldata users) external onlyRole(OPS_ROLE) whenNotPaused {
+        if (users.length > MAX_BATCH_SIZE) revert BatchTooLarge();
+        
         NavWindow storage w = navWindows[currentWindowId];
         if (w.state != NavWindowState.CLOSED) revert WindowNotClosed();
 
@@ -303,6 +376,9 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard {
             // Mint ERC-1155 claim to user (strikeTs set later at strike)
             uint256 claimId = _mintClaimForUser(u, w.id, amt);
             
+            // FINAL CHECKS: Data model completeness - claim↔window linkage
+            claimToWindow[claimId] = w.id;
+            
             // Update user request entry
             NavRequest[] storage rs = requestsBy[u];
             for (uint256 j = rs.length; j > 0; j--) {
@@ -319,7 +395,7 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard {
     }
 
     // SPEC §4: NAV Redemption Lane Strike
-    function strikeRedemption() external onlyRole(OPS_ROLE) {
+    function strikeRedemption() external onlyRole(OPS_ROLE) whenNotPaused {
         NavWindow storage w = navWindows[currentWindowId];
         if (w.state != NavWindowState.CLOSED) revert StrikePrereqNotMet();
 
@@ -334,9 +410,15 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard {
     }
 
     // SPEC §4: NAV Redemption Lane Settlement
-    function settleClaim(uint256 windowId, uint256 claimId, address holder) external onlyRole(BURNER_ROLE) nonReentrant {
+    function settleClaim(uint256 windowId, uint256 claimId, address holder) external onlyRole(BURNER_ROLE) nonReentrant whenNotPaused {
         NavWindow storage w = navWindows[windowId];
         if (w.state != NavWindowState.STRUCK && w.state != NavWindowState.SETTLED_PARTIAL) revert WrongWindowState();
+        
+        // FINAL CHECKS: State guards & timing - T+5 enforcement
+        if (block.timestamp < w.strikeTs + SETTLEMENT_DELAY) revert SettlementTooEarly();
+        
+        // FINAL CHECKS: Data model completeness - claim↔window linkage
+        if (claimToWindow[claimId] != windowId) revert ClaimWindowMismatch();
 
         // Get claim info
         (address owner, uint256 amountTokens, bool settled) = _getClaimInfo(claimId);
@@ -365,6 +447,8 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard {
         // Burn claim if fully paid; else leave claim live for carryover
         if (leftover == 0) {
             _settleAndBurnClaim(claimId, holder);
+            // FINAL CHECKS: Accounting & fairness - reduce reserved NAV redemptions
+            reservedForNav -= amountTokens;
         } else {
             emit NAVCarryoverCreated(windowId, claimId, leftover);
         }
@@ -382,29 +466,25 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard {
     }
 
     // SPEC §4: NAV Redemption Lane Helper Functions
-    function _mintClaimForUser(address to, uint256 windowId, uint256 tokens) internal returns (uint256 claimId) {
-        // Mint with strikeTs=0, will be set later at strike
-        claimId = claims.mintClaim(to, 0, tokens);
-        return claimId;
+    function _mintClaimForUser(address to, uint256 windowId, uint256 amount) internal returns (uint256) {
+        return claims.mintClaim(to, 0, amount); // strikeTs set later
     }
 
     function _getClaimInfo(uint256 claimId) internal view returns (address owner, uint256 amount, bool settled) {
-        // Call RedemptionClaim.claimInfo(claimId)
-        (address claimOwner, uint256 claimAmount, uint256 strikeTs, bool claimSettled) = claims.claimInfo(claimId);
-        return (claimOwner, claimAmount, claimSettled);
+        (owner, amount, , settled) = claims.claimInfo(claimId);
     }
 
     function _settleAndBurnClaim(uint256 claimId, address holder) internal {
-        // Call RedemptionClaim.settleAndBurn(claimId, holder)
         claims.settleAndBurn(claimId, holder);
     }
 
+    // FINAL CHECKS: Units & rounding - Lock exact decimals and rounding rule
     function _tokensToUSDC(uint256 tokenAmt, uint256 navRay) internal pure returns (uint256) {
-        // tokenAmt has 18 decimals (ERC-20), navRay is 1e27 (ray), result USDC 1e6
+        // BRICS: 18 decimals, NAV: 1e27 ray, USDC: 6 decimals
+        // Round DOWN to favor the protocol
         // USDC = tokenAmt * navRay / 1e27 * 1e6 / 1e18
-        // = tokenAmt * navRay / 1e39 * 1e6
-        // = tokenAmt * navRay / 1e33
-        return (tokenAmt * navRay) / 1e33;
+        // = tokenAmt * navRay / 1e39
+        return (tokenAmt * navRay) / 1e39;
     }
 
     // SPEC §3: Per-sovereign soft-cap damping calculation
@@ -457,11 +537,12 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard {
         uint256 tokensOut = (usdcAmt * 1e27) / nav;
         uint256 adjustedTokensOut = (tokensOut * params.maxIssuanceRateBps) / 10000;
         
-        if (totalIssued + adjustedTokensOut > tm.superSeniorCap()) return false;
+        // FINAL CHECKS: Accounting & fairness - use effective outstanding
+        uint256 effectiveOutstanding = totalIssued - reservedForNav;
+        if (effectiveOutstanding + adjustedTokensOut > tm.superSeniorCap()) return false;
 
         // Enhanced buffer checks (IRB + Pre-Tranche Buffer)
-        uint256 outstanding = totalIssued;
-        uint256 minIRB = (outstanding * params.instantBufferBps) / 10_000;
+        uint256 minIRB = (effectiveOutstanding * params.instantBufferBps) / 10_000;
         if (treasury.balance() < minIRB) return false;
 
         // Check sovereign guarantee availability in crisis
@@ -477,6 +558,7 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard {
         external
         onlyRole(OPS_ROLE)
         nonReentrant
+        whenNotPaused
         returns (uint256 out)
     {
         if (usdcAmt == 0) revert AmountZero();
@@ -501,11 +583,12 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard {
             out = (out * params.maxIssuanceRateBps) / 10000;
         }
         
-        if (totalIssued + out > tm.superSeniorCap()) revert CapExceeded();
+        // FINAL CHECKS: Accounting & fairness - use effective outstanding
+        uint256 effectiveOutstanding = totalIssued - reservedForNav;
+        if (effectiveOutstanding + out > tm.superSeniorCap()) revert CapExceeded();
 
         // Enhanced buffer check
-        uint256 outstanding = totalIssued;
-        uint256 minIRB = (outstanding * params.instantBufferBps) / 10_000;
+        uint256 minIRB = (effectiveOutstanding * params.instantBufferBps) / 10_000;
         if (treasury.balance() < minIRB) revert IRBTooLow();
 
         // Check sovereign guarantee availability in crisis
@@ -532,6 +615,15 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard {
         totalIssued += out;
         dailyIssuedBy[msg.sender] += out;
         emit Minted(to, usdcAmt, out);
+    }
+
+    // FINAL CHECKS: Access control & safety - Pausable functionality
+    function pause() external onlyRole(GOV_ROLE) {
+        _pause();
+    }
+
+    function unpause() external onlyRole(GOV_ROLE) {
+        _unpause();
     }
 
     // Governance setters

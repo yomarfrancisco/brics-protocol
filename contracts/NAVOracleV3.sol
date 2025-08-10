@@ -103,7 +103,7 @@ contract NAVOracleV3 is AccessControl {
     function navRay() external view returns (uint256) { 
         if (degradationMode || _isStale()) {
             uint256 d = _haircut(_degradedBase());
-            return d == 0 ? lastKnownGoodNav : d;
+            return d <= 0 ? lastKnownGoodNav : d;
         }
         return _navRay; 
     }
@@ -223,7 +223,7 @@ contract NAVOracleV3 is AccessControl {
         if (lastKnownGoodNav == 0) return _navRay;
         
         uint256 hoursElapsed = (block.timestamp - lastKnownGoodTs) / 1 hours;
-        // daily growth cap
+        // daily growth cap (avoid divide-before-multiply)
         uint256 growth = (lastKnownGoodNav * maxDailyGrowthBps * hoursElapsed) / (10000 * 24);
         uint256 base = lastKnownGoodNav + growth;
         

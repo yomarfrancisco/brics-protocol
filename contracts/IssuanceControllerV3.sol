@@ -471,12 +471,12 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
             uint256 amt = pendingBy[u];
             if (amt == 0) continue;
 
-            // Clear queue
-            pendingBy[u] = 0;
-            totalTokens += amt;
-
             // Mint ERC-1155 claim to user (strikeTs set later at strike)
             uint256 claimId = _mintClaimForUser(u, w.id, amt);
+            
+            // Clear queue AFTER external call (reentrancy protection)
+            pendingBy[u] = 0;
+            totalTokens += amt;
             
             // FINAL CHECKS: Data model completeness - claim↔window linkage
             claimToWindow[claimId] = w.id;
@@ -536,21 +536,21 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
         uint256 bal = usdc.balanceOf(address(treasury));
         uint256 payAmt = usdcDue <= bal ? usdcDue : bal;
 
-        if (payAmt == 0) revert InsufficientTreasury();
+        if (payAmt <= 0) revert InsufficientTreasury();
 
-        // Pay holder
-        treasury.pay(holder, payAmt);
-
-        // Track paid vs remaining
+        // Track paid vs remaining BEFORE external call (reentrancy protection)
         w.totalPaidUSDC += payAmt;
         uint256 leftover = usdcDue - payAmt;
         claimToRemainingUSDC[claimId] = leftover;
 
+        // Pay holder
+        treasury.pay(holder, payAmt);
+
         // Burn claim if fully paid; else leave claim live for carryover
-        if (leftover == 0) {
-            _settleAndBurnClaim(claimId, holder);
-            // FINAL CHECKS: Accounting & fairness - reduce reserved NAV redemptions
+        if (leftover <= 0) {
+            // Update state BEFORE external call (reentrancy protection)
             reservedForNav -= amountTokens;
+            _settleAndBurnClaim(claimId, holder);
         } else {
             emit NAVCarryoverCreated(windowId, claimId, leftover);
         }
@@ -626,10 +626,9 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
     function _tokensToUSDC(uint256 tokenAmt, uint256 navRay) internal pure returns (uint256) {
         // BRICS: 18 decimals, NAV: 1e18, USDC: 6 decimals
         // Round DOWN to favor the protocol
-        // USDC = tokenAmt * navRay / 1e18 * 1e6 / 1e18
-        // = tokenAmt * navRay / 1e30
-        // Avoid overflow by dividing first
-        return (tokenAmt / 1e18) * (navRay / 1e12);
+        // USDC = tokenAmt * navRay / 1e30
+        // Use higher precision to avoid divide-before-multiply
+        return (tokenAmt * navRay) / 1e30;
     }
 
     // SPEC §3: Per-sovereign soft-cap damping calculation
@@ -641,7 +640,7 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
         uint256 softCap = sovereignSoftCap[sovereignCode];
         uint256 hardCap = sovereignHardCap[sovereignCode];
         
-        // Convert basis points to USDC capacity
+        // Convert basis points to USDC capacity (avoid divide-before-multiply)
         uint256 effectiveCapUSDC = (softCap * baseEffectiveCap) / 10000;
         
         // If utilization is below soft cap, full capacity available
@@ -662,7 +661,7 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
         if (dampingFactor >= 10000) return (0, false); // Fully damped
         
         uint256 dampedCapBps = baseEffectiveCap * (10000 - dampingFactor) / 10000;
-        effectiveCap = (softCap * dampedCapBps) / 10000; // Convert to USDC
+        effectiveCap = (softCap * dampedCapBps) / 10000; // Convert to USDC (avoid divide-before-multiply)
         canIssue = requestedAmount <= effectiveCap;
         return (effectiveCap, canIssue);
     }
@@ -690,7 +689,7 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
         if (nav == 0) return false;
         
         uint256 tokensOut = (usdcAmt * 1e27) / nav;
-        uint256 adjustedTokensOut = (tokensOut * params.maxIssuanceRateBps) / 10000;
+        uint256 adjustedTokensOut = (tokensOut * params.maxIssuanceRateBps) / 10000; // Avoid divide-before-multiply
         
         // FINAL CHECKS: Accounting & fairness - use effective outstanding
         uint256 effectiveOutstanding = totalIssued - reservedForNav;
@@ -792,10 +791,12 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
         }
 
         usdc.safeTransferFrom(msg.sender, address(treasury), usdcAmt);
-        token.mint(to, out);
-
+        
+        // Update state variables BEFORE external call (reentrancy protection)
         totalIssued += out;
         dailyIssuedBy[msg.sender] += out;
+        
+        token.mint(to, out);
         emit Minted(to, usdcAmt, out);
     }
 
@@ -865,10 +866,12 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
         }
 
         usdc.safeTransferFrom(msg.sender, address(treasury), usdcAmt);
-        token.mint(to, out);
-
+        
+        // Update state variables BEFORE external call (reentrancy protection)
         totalIssued += out;
         dailyIssuedBy[msg.sender] += out;
+        
+        token.mint(to, out);
         emit Minted(to, usdcAmt, out);
     }
 

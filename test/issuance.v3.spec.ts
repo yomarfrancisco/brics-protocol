@@ -240,7 +240,7 @@ describe("IssuanceControllerV3 - SPEC §3 Per-Sovereign Soft-Cap Damping", funct
     it("should block mint above hard cap", async function () {
       // Mint up to hard cap
       await usdc.mint(opsAddress, HARD_CAP);
-      await usdc.connect(ops).approve(issuanceController.address, HARD_CAP);
+      await usdc.connect(ops).approve(await issuanceController.getAddress(), HARD_CAP);
       
       await issuanceController.connect(ops).mintFor(
         userAddress,
@@ -252,7 +252,7 @@ describe("IssuanceControllerV3 - SPEC §3 Per-Sovereign Soft-Cap Damping", funct
 
       // Try to mint more - should fail
       await usdc.mint(opsAddress, ethers.parseEther("100000"));
-      await usdc.connect(ops).approve(issuanceController.address, ethers.parseEther("100000"));
+      await usdc.connect(ops).approve(await issuanceController.getAddress(), ethers.parseEther("100000"));
       
       await expect(
         issuanceController.connect(ops).mintFor(

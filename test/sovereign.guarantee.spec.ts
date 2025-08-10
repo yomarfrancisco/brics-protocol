@@ -321,7 +321,7 @@ describe("Sovereign Guarantee Integration", function () {
       
       const mintAmount = ethers.parseEther("100000");
       await usdc.mint(opsAddress, mintAmount);
-      await usdc.connect(ops).approve(issuanceController.address, mintAmount);
+      await usdc.connect(ops).approve(await issuanceController.getAddress(), mintAmount);
 
       await expect(
         issuanceController.connect(ops).mintFor(
@@ -345,7 +345,7 @@ describe("Sovereign Guarantee Integration", function () {
 
       const mintAmount = ethers.parseEther("100000");
       await usdc.mint(opsAddress, mintAmount);
-      await usdc.connect(ops).approve(issuanceController.address, mintAmount);
+      await usdc.connect(ops).approve(await issuanceController.getAddress(), mintAmount);
 
       await expect(
         issuanceController.connect(ops).mintFor(

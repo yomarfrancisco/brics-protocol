@@ -118,3 +118,131 @@ When working on this project, always:
 5. **Think institutional-grade, not DeFi-native**
 
 **Key Question**: How does this change affect crisis response, sovereign guarantee activation, or legal framework compliance?
+
+---
+
+## Contract Interaction Map
+
+### 1. High-Level Flow
+
+```
+[Investor Wallet] 
+   ↕ (mint/redeem calls via)
+[NASASAGateway] 
+   ↔ IssuanceControllerV3 
+       ↔ BRICSToken (mint/burn)
+       ↔ Treasury (USDC transfers)
+       ↔ PreTrancheBuffer (instant redeems)
+       ↔ RedemptionClaim (monthly claims)
+       ↔ TrancheManagerV2 (cap checks, detachment)
+       ↔ ConfigRegistry (emergency params)
+       ↔ NAVOracleV3 (NAV pricing)
+
+[Banks] → Aggregate risk data → Off-chain Risk Engine → ConfigRegistry & Emergency State updates on-chain
+```
+
+### 2. Contract Interaction Details
+
+#### OperationalAgreement.sol
+- **Writes to**: MemberRegistry.setMember, MemberRegistry.setPool
+- **Purpose**: Grants/revokes membership & pool whitelist
+- **Called by**: NASASA, SPV, approved Operators
+
+#### MemberRegistry.sol
+- **Reads**: isMember, isWhitelistedPool
+- **Writes**: setMember, setPool
+- **Used by**: BRICSToken (_update), PreTrancheBuffer, RedemptionClaim for transfer gating
+
+#### BRICSToken.sol
+- **Reads from**: MemberRegistry (transfer gating)
+- **Writes**: ERC-20 balances via _mint, _burn
+- **Called by**: IssuanceControllerV3 (mint/burn)
+
+#### ConfigRegistry.sol
+- **Reads from**: Many contracts (getCurrentParams, emergencyLevel)
+- **Writes**: setEmergencyLevel, param setters
+- **Called by**: Off-chain emergency scripts, governance
+
+#### NAVOracleV3.sol
+- **Reads**: NAV values in IssuanceControllerV3, TrancheManagerV2
+- **Writes**: setNAV (multi-sig signed), emergencySetNAV (emergency signers)
+- **Feeds**: Live NAV to mint/redeem logic
+
+#### TrancheManagerV2.sol
+- **Reads from**: ConfigRegistry.emergencyLevel(), oracle.lastTs()
+- **Writes**: adjustSuperSeniorCap, raiseBRICSDetachment, emergencyExpandToSoftCap
+- **Called by**: IssuanceControllerV3 (cap checks), governance (detachment changes)
+
+#### PreTrancheBuffer.sol
+- **Reads**: MemberRegistry.isMember
+- **Writes**: USDC transfers to members for instant redeems
+- **Called by**: IssuanceControllerV3 (process instant redemption)
+
+#### IssuanceControllerV3.sol
+- **Reads from**: NAVOracleV3, ConfigRegistry, TrancheManagerV2, Treasury, PreTrancheBuffer
+- **Writes**: Mint BRICSToken, burn BRICSToken, issue RedemptionClaim
+- **Core logic**: Validates canIssue() conditions (tail corr, sov util, IRB %, caps)
+- **Called by**: NASASAGateway for member interactions
+
+#### RedemptionClaim.sol
+- **Reads**: MemberRegistry.isMember, ConfigRegistry.emergencyLevel()
+- **Writes**: Mint/burn ERC-1155 claims
+- **Called by**: IssuanceControllerV3 when processing monthly NAV redemptions
+
+#### MezzanineVault.sol
+- **Independent ERC-4626 vault with whitelist**
+- **Feeds**: Underwriter reinvestment returns to buffers
+
+#### SovereignClaimToken.sol
+- **Independent ERC-721 SBT**
+- **Called by**: Governance to unlock/exercise claim after loss events
+- **Off-chain legal execution required to settle**
+
+#### Treasury.sol
+- **Reads**: balance()
+- **Writes**: pay() and fund()
+- **Called by**: IssuanceControllerV3 for USDC custody, buffer requirements
+
+### 3. Off-chain → On-chain Integration
+
+#### Off-chain Risk Engine
+- **Reads**: aggregate loan sector PD, exposure, tenor, size buckets, sovereign util
+- **Calculates**: tail correlation, emergency level, buffer requirements
+- **Writes**: ConfigRegistry.setEmergencyLevel() and param updates
+
+#### Oracle Feed
+- **Off-chain model → NAVOracleV3.setNAV() (multi-sig)**
+- **Emergency mode**: NAVOracleV3.emergencySetNAV() by NASASA + Old Mutual
+
+### 4. Key Call Sequences
+
+#### Mint BRICS
+```
+Investor → NASASAGateway → IssuanceControllerV3.mintFor()
+  ↳ Checks: canIssue() [ConfigRegistry, TrancheManagerV2, NAVOracleV3, Treasury]
+  ↳ Transfers USDC to Treasury
+  ↳ Mints BRICSToken to investor
+```
+
+#### Instant Redeem
+```
+Investor → NASASAGateway → IssuanceControllerV3.requestRedeemOnBehalf()
+  ↳ Checks PreTrancheBuffer capacity
+  ↳ Burns BRICSToken
+  ↳ Transfers USDC to investor
+```
+
+#### Monthly NAV Redeem
+```
+Investor → NASASAGateway → IssuanceControllerV3.requestRedeemOnBehalf()
+  ↳ If not instant: issues RedemptionClaim ERC-1155
+  ↳ Settlement after strike date (T+5)
+```
+
+#### Sovereign Claim Event
+```
+ECC/Gov triggers SovereignClaimToken.unlockClaim()
+  ↳ Off-chain legal process: 7d notice, 90d execution
+  ↳ Settlement USDC to Treasury
+  ↳ Buffers and redemptions replenished
+```

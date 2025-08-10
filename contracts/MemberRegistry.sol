@@ -1,5 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
+
+/**
+ * @title MemberRegistry
+ * @dev Membership gating and pool whitelisting for transfer control
+ * @spec §2 Membership & Transfer Control
+ * @trace SPEC §2: Membership checks, pool whitelisting, canSend/canReceive
+ */
+
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 
 contract MemberRegistry is AccessControl {

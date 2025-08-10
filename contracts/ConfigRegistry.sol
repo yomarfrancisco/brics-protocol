@@ -1,5 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
+
+/**
+ * @title ConfigRegistry
+ * @dev Global risk parameters, emergency levels, and cross-sovereign configuration
+ * @spec §6 Cross-Sovereign Configuration
+ * @trace SPEC §6: CRUD operations, bps validation, insertion order, enabled flag
+ */
+
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 
 // Custom errors
@@ -31,16 +39,23 @@ contract ConfigRegistry is AccessControl {
     }
     mapping(EmergencyLevel => EmergencyParams) public emergencyParams;
 
-    // Sovereign registry
-    struct SovereignCfg { bool exists; uint256 utilCapBps; uint256 haircutBps; uint256 weightBps; }
+    // Sovereign registry - SPEC §6: Cross-sovereign config CRUD
+    struct SovereignCfg { 
+        bool exists; 
+        uint256 utilCapBps; 
+        uint256 haircutBps; 
+        uint256 weightBps; 
+        bool enabled; // SPEC §6: "enabled" flag gating capacity
+    }
     mapping(bytes32 => SovereignCfg) public sovereign;
     bytes32[] public sovereignList;
 
     event ParamSet(bytes32 key, uint256 value);
     event EmergencyLevelSet(uint8 level, string reason);
     event EmergencyParamsSet(uint8 level, EmergencyParams params);
-    event SovereignAdded(bytes32 indexed code, uint256 utilCapBps, uint256 haircutBps, uint256 weightBps);
-    event SovereignUpdated(bytes32 indexed code, uint256 utilCapBps, uint256 haircutBps, uint256 weightBps);
+    event SovereignAdded(bytes32 indexed code, uint256 utilCapBps, uint256 haircutBps, uint256 weightBps, bool enabled);
+    event SovereignUpdated(bytes32 indexed code, uint256 utilCapBps, uint256 haircutBps, uint256 weightBps, bool enabled);
+    event SovereignEnabled(bytes32 indexed code, bool enabled);
 
     constructor(address gov){
         _grantRole(DEFAULT_ADMIN_ROLE, gov);
@@ -97,25 +112,65 @@ contract ConfigRegistry is AccessControl {
     function currentAmmMaxSlippageBps() external view returns (uint256) { return emergencyParams[emergencyLevel].ammMaxSlippageBps; }
     function currentMaxDetachmentBps() external view returns (uint16) { return emergencyParams[emergencyLevel].maxDetachmentBps; }
 
-    // Sovereign registry
-    function addSovereign(bytes32 code, uint256 utilCapBps, uint256 haircutBps, uint256 weightBps) external onlyRole(GOV_ROLE) {
+    // Sovereign registry - SPEC §6: Cross-sovereign config CRUD
+    function addSovereign(bytes32 code, uint256 utilCapBps, uint256 haircutBps, uint256 weightBps, bool enabled) external onlyRole(GOV_ROLE) {
         if (code == bytes32(0)) revert BadParam();
         if (sovereign[code].exists) revert SovereignExists(code);
         if (utilCapBps > 10000 || haircutBps > 10000 || weightBps > 10000) revert BadParam();
-        sovereign[code] = SovereignCfg({ exists: true, utilCapBps: utilCapBps, haircutBps: haircutBps, weightBps: weightBps });
+        sovereign[code] = SovereignCfg({ 
+            exists: true, 
+            utilCapBps: utilCapBps, 
+            haircutBps: haircutBps, 
+            weightBps: weightBps,
+            enabled: enabled
+        });
         sovereignList.push(code);
-        emit SovereignAdded(code, utilCapBps, haircutBps, weightBps);
+        emit SovereignAdded(code, utilCapBps, haircutBps, weightBps, enabled);
     }
-    function updateSovereign(bytes32 code, uint256 utilCapBps, uint256 haircutBps, uint256 weightBps) external onlyRole(GOV_ROLE) {
+    
+    function updateSovereign(bytes32 code, uint256 utilCapBps, uint256 haircutBps, uint256 weightBps, bool enabled) external onlyRole(GOV_ROLE) {
         if (!sovereign[code].exists) revert UnknownSovereign(code);
         if (utilCapBps > 10000 || haircutBps > 10000 || weightBps > 10000) revert BadParam();
         SovereignCfg storage s = sovereign[code];
-        s.utilCapBps = utilCapBps; s.haircutBps = haircutBps; s.weightBps = weightBps;
-        emit SovereignUpdated(code, utilCapBps, haircutBps, weightBps);
+        s.utilCapBps = utilCapBps; 
+        s.haircutBps = haircutBps; 
+        s.weightBps = weightBps;
+        s.enabled = enabled;
+        emit SovereignUpdated(code, utilCapBps, haircutBps, weightBps, enabled);
     }
+    
+    function setSovereignEnabled(bytes32 code, bool enabled) external onlyRole(GOV_ROLE) {
+        if (!sovereign[code].exists) revert UnknownSovereign(code);
+        sovereign[code].enabled = enabled;
+        emit SovereignEnabled(code, enabled);
+    }
+    
     function getSovereign(bytes32 code) external view returns (SovereignCfg memory) {
         if (!sovereign[code].exists) revert UnknownSovereign(code);
         return sovereign[code];
     }
+    
     function sovereigns() external view returns (bytes32[] memory) { return sovereignList; }
+    
+    // SPEC §3: Per-sovereign soft-cap damping helper functions
+    function getEffectiveCapacity(bytes32 sovereignCode) external view returns (uint256 effectiveCap, bool isEnabled) {
+        if (!sovereign[sovereignCode].exists) revert UnknownSovereign(sovereignCode);
+        SovereignCfg memory cfg = sovereign[sovereignCode];
+        if (!cfg.enabled) return (0, false);
+        
+        // Effective capacity = cap * (1 - haircutBps/10000)
+        effectiveCap = cfg.utilCapBps * (10000 - cfg.haircutBps) / 10000;
+        isEnabled = true;
+    }
+    
+    function getTotalEffectiveCapacity() external view returns (uint256 totalCap) {
+        for (uint256 i = 0; i < sovereignList.length; i++) {
+            bytes32 code = sovereignList[i];
+            SovereignCfg memory cfg = sovereign[code];
+            if (cfg.enabled) {
+                uint256 effectiveCap = cfg.utilCapBps * (10000 - cfg.haircutBps) / 10000;
+                totalCap += effectiveCap;
+            }
+        }
+    }
 }

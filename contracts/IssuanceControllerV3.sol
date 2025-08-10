@@ -1,6 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+/**
+ * @title IssuanceControllerV3
+ * @dev Core mint/redeem logic with emergency controls and per-sovereign soft-cap damping
+ * @spec §3 Per-Sovereign Soft-Cap Damping
+ * @spec §5 Oracle Signer & Degradation
+ * @trace SPEC §3: Effective capacity calculation, linear damping slope, emergency pause
+ * @trace SPEC §5: EIP-712 verification (TODO), DEGRADED mode handling (TODO)
+ */
+
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -48,6 +57,12 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard {
     mapping(address => uint256) public dailyIssuedBy;
     uint256 public dailyIssueCap = 1_000_000e18; // default 1M BRICS/day per address
 
+    // SPEC §3: Per-sovereign soft-cap damping tracking
+    mapping(bytes32 => uint256) public sovereignUtilization; // sovereign code => utilization amount
+    mapping(bytes32 => uint256) public sovereignSoftCap; // sovereign code => soft cap
+    mapping(bytes32 => uint256) public sovereignHardCap; // sovereign code => hard cap
+    uint256 public dampingSlopeK = 5000; // 50% damping slope (bps)
+
     // Custom errors
     error Halted();
     error Locked();
@@ -58,6 +73,9 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard {
     error CooldownActive();
     error AmountZero();
     error IssueCapExceeded();
+    error SovereignCapExceeded(bytes32 sovereignCode);
+    error SovereignDisabled(bytes32 sovereignCode);
+    error DampingSlopeExceeded(bytes32 sovereignCode);
 
     // Enhanced governance with conditional extensions
     uint256 public lastRaiseTs;
@@ -77,6 +95,9 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard {
     event DetachmentReverted(uint16 lo, uint16 hi);
     event RatificationExtended(uint256 newDeadline);
     event DailyIssueCapSet(uint256 newCap);
+    event SovereignCapSet(bytes32 indexed sovereignCode, uint256 softCap, uint256 hardCap);
+    event SovereignUtilizationUpdated(bytes32 indexed sovereignCode, uint256 utilization);
+    event DampingSlopeSet(uint256 newSlope);
 
     constructor(
         address gov,
@@ -110,7 +131,38 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard {
         return ts + 30 days; // simplified; production: robust calendar
     }
 
-    function canIssue(uint256 usdcAmt, uint256 tailCorrPpm, uint256 sovUtilBps) external view returns (bool) {
+    // SPEC §3: Per-sovereign soft-cap damping calculation
+    function _calculateEffectiveCapacity(bytes32 sovereignCode, uint256 requestedAmount) internal view returns (uint256 effectiveCap, bool canIssue) {
+        (uint256 baseEffectiveCap, bool isEnabled) = cfg.getEffectiveCapacity(sovereignCode);
+        if (!isEnabled) return (0, false);
+        
+        uint256 currentUtilization = sovereignUtilization[sovereignCode];
+        uint256 softCap = sovereignSoftCap[sovereignCode];
+        uint256 hardCap = sovereignHardCap[sovereignCode];
+        
+        // If utilization is below soft cap, full capacity available
+        if (currentUtilization <= softCap) {
+            effectiveCap = baseEffectiveCap;
+            canIssue = requestedAmount <= effectiveCap;
+            return (effectiveCap, canIssue);
+        }
+        
+        // If utilization is above hard cap, no capacity available
+        if (currentUtilization >= hardCap) {
+            return (0, false);
+        }
+        
+        // Linear damping slope between softCap and hardCap
+        // effectiveCap = baseEffectiveCap * (1 - k * (utilization - softCap) / (hardCap - softCap))
+        uint256 dampingFactor = dampingSlopeK * (currentUtilization - softCap) / (hardCap - softCap);
+        if (dampingFactor >= 10000) return (0, false); // Fully damped
+        
+        effectiveCap = baseEffectiveCap * (10000 - dampingFactor) / 10000;
+        canIssue = requestedAmount <= effectiveCap;
+        return (effectiveCap, canIssue);
+    }
+
+    function canIssue(uint256 usdcAmt, uint256 tailCorrPpm, uint256 sovUtilBps, bytes32 sovereignCode) external view returns (bool) {
         // Check emergency level constraints
         ConfigRegistry.EmergencyParams memory params = cfg.getCurrentParams();
         
@@ -118,6 +170,10 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard {
         if (tm.issuanceLocked()) return false;
         if (tailCorrPpm > cfg.maxTailCorrPpm()) return false;
         if (sovUtilBps > cfg.maxSovUtilBps()) return false;
+
+        // SPEC §3: Check sovereign-specific capacity
+        (uint256 effectiveCap, bool canIssueSovereign) = _calculateEffectiveCapacity(sovereignCode, usdcAmt);
+        if (!canIssueSovereign) return false;
 
         // Apply issuance rate limit
         uint256 nav = oracle.navRay();
@@ -135,7 +191,7 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard {
         return true;
     }
 
-    function mintFor(address to, uint256 usdcAmt, uint256 tailCorrPpm, uint256 sovUtilBps)
+    function mintFor(address to, uint256 usdcAmt, uint256 tailCorrPpm, uint256 sovUtilBps, bytes32 sovereignCode)
         external
         onlyRole(OPS_ROLE)
         nonReentrant
@@ -148,6 +204,10 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard {
         if (tm.issuanceLocked()) revert Locked();
         if (tailCorrPpm > cfg.maxTailCorrPpm()) revert TailExceeded();
         if (sovUtilBps > cfg.maxSovUtilBps()) revert SovUtilExceeded();
+
+        // SPEC §3: Check sovereign-specific capacity
+        (uint256 effectiveCap, bool canIssueSovereign) = _calculateEffectiveCapacity(sovereignCode, usdcAmt);
+        if (!canIssueSovereign) revert SovereignCapExceeded(sovereignCode);
 
         uint256 nav = oracle.navRay();
         require(nav > 0, "nav=0");
@@ -173,6 +233,10 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard {
             dailyIssuedBy[msg.sender] = 0;
         }
         if (dailyIssuedBy[msg.sender] + out > dailyIssueCap) revert IssueCapExceeded();
+
+        // SPEC §3: Update sovereign utilization
+        sovereignUtilization[sovereignCode] += usdcAmt;
+        emit SovereignUtilizationUpdated(sovereignCode, sovereignUtilization[sovereignCode]);
 
         usdc.safeTransferFrom(msg.sender, address(treasury), usdcAmt);
         token.mint(to, out);
@@ -216,6 +280,20 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard {
     function setRedeemCooldown(uint256 seconds_) external onlyRole(GOV_ROLE) {
         redeemCooldown = seconds_;
         emit RedeemCooldownSet(seconds_);
+    }
+
+    // SPEC §3: Sovereign cap management
+    function setSovereignCap(bytes32 sovereignCode, uint256 softCap, uint256 hardCap) external onlyRole(GOV_ROLE) {
+        require(softCap <= hardCap, "soft cap > hard cap");
+        sovereignSoftCap[sovereignCode] = softCap;
+        sovereignHardCap[sovereignCode] = hardCap;
+        emit SovereignCapSet(sovereignCode, softCap, hardCap);
+    }
+    
+    function setDampingSlope(uint256 newSlope) external onlyRole(GOV_ROLE) {
+        require(newSlope <= 10000, "slope > 100%");
+        dampingSlopeK = newSlope;
+        emit DampingSlopeSet(newSlope);
     }
 
     function strikeRedemption() external onlyRole(OPS_ROLE) {

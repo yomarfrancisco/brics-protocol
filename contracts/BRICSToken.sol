@@ -1,6 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+/**
+ * @title BRICSToken
+ * @dev ERC-20 token with transfer restrictions and NAV redemption support
+ * @spec §2 Membership & Transfer Control
+ * @spec §4 NAV Redemption Lane
+ * @trace SPEC §2: Transfer restrictions, membership checks
+ * @trace SPEC §4: BURNER_ROLE executor (implemented), NAV window controls (TODO)
+ */
+
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import "./MemberRegistry.sol";

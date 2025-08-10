@@ -1,6 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+/**
+ * @title MezzanineVault
+ * @dev ERC-4626 vault for mezzanine tranche with reinvestment controls
+ * @spec ERC-4626 Standard Implementation
+ * @trace ERC-4626: Standard vault functionality with whitelist and reinvestment controls
+ */
+
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {ERC4626} from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";

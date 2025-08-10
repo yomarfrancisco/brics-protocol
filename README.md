@@ -121,6 +121,7 @@ npx hardhat confirmSovereign --confirmed true --reason "crisis response"
 - **[Repository Map](docs/REPO_MAP.md)**: Contract responsibilities and architecture
 - **[Implementation Roadmap](docs/IMPLEMENTATION_ROADMAP.md)**: Development timeline and priorities
 - **[Context Guide](docs/CONTEXT_GUIDE.md)**: Developer quick reference
+- **[AI Context](docs/AI_CONTEXT.md)**: Complete technical context for AI assistants and developers
 
 ## Architecture Overview
 

@@ -22,8 +22,7 @@ describe("ConfigRegistry - SPEC §6 Cross-Sovereign Configuration", function () 
     const ConfigRegistry = await ethers.getContractFactory("ConfigRegistry");
     configRegistry = await ConfigRegistry.deploy(govAddress);
     
-    // Grant GOV_ROLE to gov signer so tests can call addSovereign
-    await configRegistry.connect(gov).grantRole(await configRegistry.GOV_ROLE(), govAddress);
+    // govAddress already has GOV_ROLE from constructor
   });
 
   describe("SPEC §6: Cross-Sovereign Configuration CRUD", function () {

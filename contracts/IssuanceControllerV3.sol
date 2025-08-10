@@ -413,16 +413,28 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
         lastRedeemReq[user] = block.timestamp;
         
         // 1) Try instant redemption path first
-        uint256 instantCapacity = preBuffer.availableInstantCapacity(user);
         uint256 nav = oracle.navRay();
-        // For NAV 1.0, use direct conversion to avoid overflow
-        uint256 usdcEquivalent = amt / 1e12; // Convert from 18 decimals to 6 decimals
-        if (usdcEquivalent <= instantCapacity) {
-            // Process instant redemption
-            // Effects before external interaction for safety
+        require(nav > 0, "nav=0");
+        
+        // Convert token amount to USDC using NAV
+        uint256 usdcOut = (amt * nav) / 1e27;
+        
+        uint256 instantCapacity = preBuffer.availableInstantCapacity(user);
+        if (usdcOut <= instantCapacity) {
+            // Check user has sufficient tokens
+            require(token.balanceOf(user) >= amt, "insufficient tokens");
+            
+            // Burn exactly the token amount (18d)
             token.burn(user, amt);
-            totalIssued -= amt;
-            preBuffer.instantRedeem(user, usdcEquivalent);
+            
+            // Pay out USDC (6d)
+            preBuffer.instantRedeem(user, usdcOut);
+            
+            // Keep totals in token units (only if totalIssued is tracked)
+            if (totalIssued >= amt) {
+                unchecked { totalIssued -= amt; }
+            }
+            
             emit InstantRedeemProcessed(user, amt, "PreTrancheBuffer");
             return;
         }

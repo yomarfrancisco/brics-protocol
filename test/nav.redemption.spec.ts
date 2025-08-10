@@ -92,11 +92,15 @@ describe("NAV Redemption Lane (SPEC §4)", function () {
         await bricsToken.connect(gov).grantRole(await bricsToken.BURNER_ROLE(), await issuanceController.getAddress());
         await redemptionClaim.connect(gov).grantRole(await redemptionClaim.ISSUER_ROLE(), await issuanceController.getAddress());
         await redemptionClaim.connect(gov).grantRole(await redemptionClaim.BURNER_ROLE(), burnerAddress);
+        await redemptionClaim.connect(gov).grantRole(await redemptionClaim.BURNER_ROLE(), await issuanceController.getAddress());
         await issuanceController.connect(gov).grantRole(await issuanceController.OPS_ROLE(), opsAddress);
         await issuanceController.connect(gov).grantRole(await issuanceController.BURNER_ROLE(), burnerAddress);
         await memberRegistry.connect(gov).setRegistrar(await operationalAgreement.getAddress());
         await operationalAgreement.connect(gov).approveMember(user1Address);
         await operationalAgreement.connect(gov).approveMember(user2Address);
+        
+        // Grant PAY_ROLE to issuance controller for treasury settlement
+        await treasury.connect(gov).grantRole(await treasury.PAY_ROLE(), await issuanceController.getAddress());
 
         // Setup initial state
         await navOracle.setNAV(ethers.parseEther("1.0")); // 1.0 NAV
@@ -331,8 +335,8 @@ describe("NAV Redemption Lane (SPEC §4)", function () {
         });
 
         it("should handle partial fills and carryover", async function () {
-            // Reduce treasury balance to force partial fill
-            await treasury.connect(gov).pay(govAddress, ethers.parseUnits("999000", 6)); // Leave 1000 USDC
+            // Drain treasury almost completely to force partial fill
+            await treasury.connect(gov).pay(govAddress, ethers.parseUnits("1099999", 6)); // Leave only 1 USDC
             
             const claimId = 1;
             

@@ -67,13 +67,22 @@
 | Sovereign backstop | TrancheManagerV2 soft-cap | contracts/TrancheManagerV2.sol | ✅ Implemented |
 | Governance attestation | IssuanceController ratification | contracts/IssuanceControllerV3.sol:60-70 | ✅ Implemented |
 
+### §9. Enhanced Buffer Coordination
+| SPEC Requirement | Implementation | File | Status |
+|------------------|----------------|------|--------|
+| Treasury.getLiquidityStatus() | Treasury.getLiquidityStatus() | contracts/Treasury.sol:45-65 | ✅ Implemented |
+| PreTrancheBuffer.getBufferStatus() | PreTrancheBuffer.getBufferStatus() | contracts/PreTrancheBuffer.sol:150-160 | ✅ Implemented |
+| _liquidityOk() controller gate | IssuanceControllerV3._liquidityOk() | contracts/IssuanceControllerV3.sol:570-585 | ✅ Implemented |
+| Buffer coordination events | BufferShortfall, BufferRestored, AutoPauseTriggered | contracts/Treasury.sol:20-24 | ✅ Implemented |
+| Emergency auto-pause logic | _liquidityOk() integration in canIssue/mintFor | contracts/IssuanceControllerV3.sol:660, 747 | ✅ Implemented |
+| Config linkage | Emergency params from ConfigRegistry | contracts/IssuanceControllerV3.sol:575-580 | ✅ Implemented |
+
 ## Implementation Status Summary
-- ✅ **Implemented**: 29 requirements
+- ✅ **Implemented**: 35 requirements
 - ❌ **Missing**: 4 requirements
-- 📊 **Coverage**: 87.9%
+- 📊 **Coverage**: 89.7%
 
 ## Priority Implementation Tasks
 1. **§3**: Per-sovereign soft-cap damping logic (effective capacity calculation)
 2. **§4**: NAV redemption lane controls (window lifecycle)
 3. **§6**: Sovereign "enabled" flag
-4. **§9**: Enhanced Buffer Coordination (next priority)

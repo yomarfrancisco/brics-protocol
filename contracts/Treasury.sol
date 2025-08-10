@@ -16,6 +16,11 @@ contract Treasury is AccessControl {
     event Funded(address indexed token, uint256 amount);
     event Paid(address indexed token, address indexed to, uint256 amount);
     event BufferTargetSet(uint256 bps);
+    
+    // SPEC §9: Enhanced Buffer Coordination Events
+    event BufferShortfall(uint256 level, uint256 target, uint256 balance);
+    event BufferRestored(uint256 level, uint256 balance);
+    event AutoPauseTriggered(uint256 level, uint256 shortfallBps);
 
     constructor(address gov, IERC20 usdc, uint256 targetBps) {
         _grantRole(DEFAULT_ADMIN_ROLE, gov);
@@ -39,4 +44,30 @@ contract Treasury is AccessControl {
     }
 
     function balance() external view returns (uint256) { return token.balanceOf(address(this)); }
+    
+    // SPEC §9: Enhanced Buffer Coordination
+    function getLiquidityStatus() external view returns (
+        uint256 preTranche,
+        uint256 irbBalance,
+        uint256 irbTarget,
+        uint256 shortfallBps,
+        bool healthy
+    ) {
+        irbBalance = token.balanceOf(address(this));
+        irbTarget = bufferTargetBps;
+        
+        // Calculate shortfall in basis points (0 = no shortfall, 10000 = 100% shortfall)
+        if (irbBalance >= irbTarget) {
+            shortfallBps = 0;
+            healthy = true;
+        } else {
+            shortfallBps = ((irbTarget - irbBalance) * 10000) / irbTarget;
+            healthy = false;
+        }
+        
+        // For now, preTranche is 0 - will be updated when we integrate with PreTrancheBuffer
+        preTranche = 0;
+        
+        return (preTranche, irbBalance, irbTarget, shortfallBps, healthy);
+    }
 }

@@ -567,6 +567,23 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
         return true;
     }
 
+    // SPEC §9: Enhanced Buffer Coordination - liquidity health check
+    function _liquidityOk() internal view returns (bool) {
+        (,, uint256 irbTarget,,) = treasury.getLiquidityStatus();
+        uint256 irbBal = usdc.balanceOf(address(treasury));
+        
+        if (irbBal < irbTarget) return false; // IRB shortfall blocks issuance
+        
+        // Optional: require PreTrancheBuffer ≥ min threshold in ORANGE/RED
+        ConfigRegistry.EmergencyLevel level = cfg.emergencyLevel();
+        if (level == ConfigRegistry.EmergencyLevel.ORANGE || level == ConfigRegistry.EmergencyLevel.RED) {
+            (uint256 current, uint256 target,,) = preBuffer.getBufferStatus();
+            if (current < target * 8000 / 10000) return false; // Require 80% of target in emergency
+        }
+        
+        return true;
+    }
+
     // SPEC §5: Get NAV from oracle (haircuts already applied in oracle)
     function _getNavWithDegradation() internal view returns (uint256 nav, uint8 level, uint256 haircutBps) {
         nav = oracle.navRay(); // Oracle already applies haircuts
@@ -646,6 +663,9 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
         // SPEC §5: Check oracle health and get NAV with degradation handling
         if (!_oracleOk()) return false;
         
+        // SPEC §9: Check liquidity health (IRB + Pre-Tranche Buffer coordination)
+        if (!_liquidityOk()) return false;
+        
         (uint256 nav, , ) = _getNavWithDegradation();
         if (nav == 0) return false;
         
@@ -655,10 +675,6 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
         // FINAL CHECKS: Accounting & fairness - use effective outstanding
         uint256 effectiveOutstanding = totalIssued - reservedForNav;
         if (effectiveOutstanding + adjustedTokensOut > tm.superSeniorCap()) return false;
-
-        // Enhanced buffer checks (IRB + Pre-Tranche Buffer)
-        uint256 minIRB = (effectiveOutstanding * params.instantBufferBps) / 10_000;
-        if (treasury.balance() < minIRB) return false;
 
         // Check sovereign guarantee availability in crisis
         uint8 level = uint8(cfg.emergencyLevel());
@@ -728,9 +744,8 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
         uint256 effectiveOutstanding = totalIssued - reservedForNav;
         if (effectiveOutstanding + out > tm.superSeniorCap()) revert CapExceeded();
 
-        // Enhanced buffer check
-        uint256 minIRB = (effectiveOutstanding * params.instantBufferBps) / 10_000;
-        if (treasury.balance() < minIRB) revert IRBTooLow();
+        // SPEC §9: Enhanced buffer coordination check
+        if (!_liquidityOk()) revert IRBTooLow();
 
         // Check sovereign guarantee availability in crisis
         uint8 level = uint8(cfg.emergencyLevel());

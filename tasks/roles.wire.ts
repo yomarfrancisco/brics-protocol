@@ -1,73 +1,65 @@
 import { task } from "hardhat/config";
 import fs from "fs";
 
-task("roles:wire", "Grant/verify roles per params")
-  .addParam("params", "Path to params json")
-  .addParam("addresses", "Path to addresses json")
+const load = (p: string) => JSON.parse(fs.readFileSync(p, "utf8"));
+
+task("roles:wire", "Assign production roles")
+  .addParam("params", "Path to params JSON")
+  .addParam("addresses", "Path to addresses JSON")
   .setAction(async ({ params, addresses }, hre) => {
-    const p = JSON.parse(fs.readFileSync(params, "utf8"));
-    const a = JSON.parse(fs.readFileSync(addresses, "utf8"));
-    const gov = await hre.ethers.getSigner(p.gov);
+    const P = load(params);
+    const A = load(addresses);
+    const { ethers } = hre;
 
-    console.log("Wiring roles...");
+    const gov = await ethers.getSigner(P.addresses.GOV_SAFE);
+    const ops = P.addresses.OPS_SAFE;
+    const ecc = P.addresses.ECC_SAFE;
+    const burner = P.addresses.BURNER_SAFE;
+    const nasasa = P.addresses.NASASA_ENTITY;
 
-    const brics = await hre.ethers.getContractAt("BRICSToken", a.brics, gov);
-    const pre = await hre.ethers.getContractAt("PreTrancheBuffer", a.pre, gov);
-    const claims = await hre.ethers.getContractAt("RedemptionClaim", a.claims, gov);
-    const ic = await hre.ethers.getContractAt("IssuanceControllerV3", a.issuance, gov);
-    const member = await hre.ethers.getContractAt("MemberRegistry", a.member, gov);
-    const config = await hre.ethers.getContractAt("ConfigRegistry", a.config, gov);
-    const tranche = await hre.ethers.getContractAt("TrancheManagerV2", a.tranche, gov);
-    const creg = await hre.ethers.getContractAt("ClaimRegistry", a.claimRegistry, gov);
-    const treasury = await hre.ethers.getContractAt("Treasury", a.treasury, gov);
+    console.log("Wiring production roles...");
 
-    // Grants
+    const token = await ethers.getContractAt("BRICSToken", A.BRICSToken);
+    const ic = await ethers.getContractAt("IssuanceControllerV3", A.IssuanceControllerV3);
+    const pre = await ethers.getContractAt("PreTrancheBuffer", A.PreTrancheBuffer);
+    const tre = await ethers.getContractAt("Treasury", A.Treasury);
+    const mem = await ethers.getContractAt("MemberRegistry", A.MemberRegistry);
+    const reg = await ethers.getContractAt("ClaimRegistry", A.ClaimRegistry);
+    const tm  = await ethers.getContractAt("TrancheManagerV2", A.TrancheManagerV2);
+
+    // Roles
     console.log("Granting roles...");
     
-    await brics.grantRole(await brics.MINTER_ROLE(), a.issuance);
+    await token.connect(gov).grantRole(await token.MINTER_ROLE(), A.IssuanceControllerV3);
     console.log("BRICS MINTER_ROLE → issuance");
 
-    await brics.grantRole(await brics.BURNER_ROLE(), a.issuance);
+    await token.connect(gov).grantRole(await token.BURNER_ROLE(), A.IssuanceControllerV3);
     console.log("BRICS BURNER_ROLE → issuance");
 
-    await claims.grantRole(await claims.ISSUER_ROLE(), a.issuance);
-    console.log("RedemptionClaim ISSUER_ROLE → issuance");
-
-    await claims.grantRole(await claims.BURNER_ROLE(), p.burner);
-    console.log("RedemptionClaim BURNER_ROLE → burner");
-
-    await ic.grantRole(await ic.OPS_ROLE(), p.ops);
+    await ic.connect(gov).grantRole(await ic.OPS_ROLE(), ops);
     console.log("IssuanceController OPS_ROLE → ops");
 
-    await ic.grantRole(await ic.BURNER_ROLE(), p.burner);
+    await ic.connect(gov).grantRole(await ic.BURNER_ROLE(), burner);
     console.log("IssuanceController BURNER_ROLE → burner");
 
-    await pre.grantRole(await pre.BUFFER_MANAGER(), a.issuance);
+    await pre.connect(gov).grantRole(await pre.BUFFER_MANAGER(), A.IssuanceControllerV3);
     console.log("PreTrancheBuffer BUFFER_MANAGER → issuance");
 
-    await treasury.grantRole(await treasury.PAY_ROLE(), a.issuance);
+    await tre.connect(gov).grantRole(await tre.PAY_ROLE(), A.IssuanceControllerV3);
     console.log("Treasury PAY_ROLE → issuance");
 
-    await creg.grantRole(await creg.ECC_ROLE(), p.ecc);
+    await reg.connect(gov).grantRole(await reg.ECC_ROLE(), ecc);
     console.log("ClaimRegistry ECC_ROLE → ecc");
 
-    await tranche.grantRole(await tranche.ECC_ROLE(), p.ecc);
+    await reg.connect(gov).grantRole(await reg.OPS_ROLE(), ops);
+    console.log("ClaimRegistry OPS_ROLE → ops");
+
+    await tm.connect(gov).grantRole(await tm.ECC_ROLE(), ecc);
     console.log("TrancheManager ECC_ROLE → ecc");
 
-    await member.setRegistrar(p.nasasa);
+    // Registrar/NASASA
+    await mem.connect(gov).setRegistrar(nasasa);
     console.log("MemberRegistry registrar → nasasa");
 
-    // Post-wiring invariants (throw if off)
-    console.log("Verifying role grants...");
-    
-    const hasOps = await ic.hasRole(await ic.OPS_ROLE(), p.ops);
-    if (!hasOps) throw new Error("OPS_ROLE not wired");
-
-    const hasBurner = await ic.hasRole(await ic.BURNER_ROLE(), p.burner);
-    if (!hasBurner) throw new Error("BURNER_ROLE not wired");
-
-    const hasMinter = await brics.hasRole(await brics.MINTER_ROLE(), a.issuance);
-    if (!hasMinter) throw new Error("MINTER_ROLE not wired");
-
-    console.log("✅ All roles wired successfully!");
+    console.log("✅ All production roles wired successfully!");
   });

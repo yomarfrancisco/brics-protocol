@@ -1,0 +1,109 @@
+{
+  "network": "localhost",
+  "chainId": 31337,
+  "version": "v4.0.0",
+  "txs": [
+    {
+      "name": "ConfigRegistry",
+      "addr": "0x54B8d8E2455946f2A5B8982283f2359812e815ce",
+      "block": 200,
+      "args": [
+        "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+      ]
+    },
+    {
+      "name": "MemberRegistry",
+      "addr": "0xf090f16dEc8b6D24082Edd25B1C8D26f2bC86128",
+      "block": 201,
+      "args": [
+        "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+      ]
+    },
+    {
+      "name": "NAVOracleV3",
+      "addr": "0xd9140951d8aE6E5F625a02F5908535e16e3af964",
+      "block": 202,
+      "args": [
+        "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+        "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ]
+    },
+    {
+      "name": "TrancheManagerV2",
+      "addr": "0x56D13Eb21a625EdA8438F55DF2C31dC3632034f5",
+      "block": 203,
+      "args": [
+        "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+        "0xd9140951d8aE6E5F625a02F5908535e16e3af964",
+        "0x54B8d8E2455946f2A5B8982283f2359812e815ce"
+      ]
+    },
+    {
+      "name": "Treasury",
+      "addr": "0xE8addD62feD354203d079926a8e563BC1A7FE81e",
+      "block": 204,
+      "args": [
+        "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+        "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+        300
+      ]
+    },
+    {
+      "name": "PreTrancheBuffer",
+      "addr": "0xe039608E695D21aB11675EBBA00261A0e750526c",
+      "block": 205,
+      "args": [
+        "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+        "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+        "0xf090f16dEc8b6D24082Edd25B1C8D26f2bC86128",
+        "0x54B8d8E2455946f2A5B8982283f2359812e815ce"
+      ]
+    },
+    {
+      "name": "BRICSToken",
+      "addr": "0x071586BA1b380B00B793Cc336fe01106B0BFbE6D",
+      "block": 206,
+      "args": [
+        "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+        "0xf090f16dEc8b6D24082Edd25B1C8D26f2bC86128"
+      ]
+    },
+    {
+      "name": "RedemptionClaim",
+      "addr": "0xe70f935c32dA4dB13e7876795f1e175465e6458e",
+      "block": 207,
+      "args": [
+        "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+        "0xf090f16dEc8b6D24082Edd25B1C8D26f2bC86128",
+        "0x54B8d8E2455946f2A5B8982283f2359812e815ce"
+      ]
+    },
+    {
+      "name": "ClaimRegistry",
+      "addr": "0x3C15538ED063e688c8DF3d571Cb7a0062d2fB18D",
+      "block": 208,
+      "args": [
+        "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+      ]
+    },
+    {
+      "name": "IssuanceControllerV3",
+      "addr": "0xccf1769D8713099172642EB55DDFFC0c5A444FE9",
+      "block": 209,
+      "args": [
+        "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+        "0x071586BA1b380B00B793Cc336fe01106B0BFbE6D",
+        "0x56D13Eb21a625EdA8438F55DF2C31dC3632034f5",
+        "0x54B8d8E2455946f2A5B8982283f2359812e815ce",
+        "0xd9140951d8aE6E5F625a02F5908535e16e3af964",
+        "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+        "0xE8addD62feD354203d079926a8e563BC1A7FE81e",
+        "0xe70f935c32dA4dB13e7876795f1e175465e6458e",
+        "0xe039608E695D21aB11675EBBA00261A0e750526c",
+        "0x3C15538ED063e688c8DF3d571Cb7a0062d2fB18D"
+      ]
+    }
+  ],
+  "commit": "local",
+  "timestamp": "2025-08-10T23:08:35.196Z"
+}

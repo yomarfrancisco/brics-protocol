@@ -21,53 +21,41 @@ error InvalidDegradationLevel();
 contract NAVOracleV3 is AccessControl {
     bytes32 public constant ORACLE_ADMIN = keccak256("ORACLE_ADMIN");
     bytes32 public constant MODEL_SIGNER = keccak256("MODEL_SIGNER");
-    bytes32 public constant EMERGENCY_SIGNER = keccak256("EMERGENCY_SIGNER"); // NASASA + Old Mutual
+    bytes32 public constant EMERGENCY_SIGNER = keccak256("EMERGENCY_SIGNER");
 
-    // EIP-712 Domain Separator
-    function DOMAIN_SEPARATOR() public view returns (bytes32) {
-        return keccak256(
-            abi.encode(
-                keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
-                keccak256(bytes("BRICS NAV Oracle")),
-                keccak256(bytes("1")),
-                block.chainid,
-                address(this)
-            )
-        );
-    }
-
-    // EIP-712 Type Hash for NAV Update
-    bytes32 public constant NAV_UPDATE_TYPEHASH = keccak256(
-        "NAVUpdate(uint256 navRay,uint256 timestamp,uint256 nonce,bytes32 modelHash)"
-    );
+    // EIP-712 Constants
+    string public constant EIP712_NAME = "BRICS_NAV";
+    string public constant EIP712_VERSION = "1";
+    bytes32 public constant NAV_TYPEHASH = keccak256("SetNAV(uint256 navRay,uint256 ts,uint256 nonce,bytes32 modelHash)");
+    
+    // Cached domain separator for efficiency
+    bytes32 private _DOMAIN_SEPARATOR;
+    uint256 private _cachedChainId;
 
     uint256 private _navRay;
     uint256 private _lastTs;
     uint256 private _nonce;
     bytes32 private _modelHash;
-    uint8   private _quorum = 3;
+    uint8 private _quorum = 3;
 
     // SPEC §5: Enhanced degradation mode parameters
-    bool    public degradationMode;
-    uint256 public staleThreshold = 6 hours;
-    uint256 public maxDailyGrowthBps = 50; // 0.5% max daily growth when stale
-    uint256 public stressMultiplierBps = 15000; // 150% stress multiplier
+    bool public degradationMode;
+    uint256 public staleThreshold = 6 hours;          // configurable
+    uint256 public maxDailyGrowthBps = 50;            // 0.50%/day cap in degradation
+    uint256 public bandFloorBps = 9500;               // 95% of lastKnownGoodNav
+    uint256 public bandCeilBps = 10500;               // 105% of lastKnownGoodNav
     uint256 public lastKnownGoodNav;
     uint256 public lastKnownGoodTs;
 
-    // SPEC §5: Conservative degradation with haircuts
-    enum DegradationLevel { NORMAL, STALE, DEGRADED, EMERGENCY_OVERRIDE }
-    DegradationLevel public currentDegradationLevel = DegradationLevel.NORMAL;
-    
-    // Haircut tiers: 2%, 5%, 10%
-    uint256 public constant STALE_HAIRCUT_BPS = 200;      // 2%
-    uint256 public constant DEGRADED_HAIRCUT_BPS = 500;   // 5%
-    uint256 public constant EMERGENCY_HAIRCUT_BPS = 1000; // 10%
-    
-    // Time thresholds for degradation levels
-    uint256 public STALE_THRESHOLD = 2 hours;
-    uint256 public DEGRADED_THRESHOLD = 6 hours;
-    uint256 public EMERGENCY_THRESHOLD = 24 hours;
+    // SPEC §5: Haircut tiers applied to *computed* degraded NAV before return
+    uint16 public tier1Bps = 200;      // 2%
+    uint16 public tier2Bps = 500;      // 5%
+    uint16 public tier3Bps = 1000;     // 10%
+
+    // Tier selection thresholds by staleness
+    uint256 public t1After = 6 hours;
+    uint256 public t2After = 24 hours;
+    uint256 public t3After = 72 hours;
 
     mapping(address => bool) public isSigner;
     mapping(address => bool) public isEmergencySigner;
@@ -81,19 +69,41 @@ contract NAVOracleV3 is AccessControl {
     event EmergencyNAVSet(uint256 navRay, uint256 ts, address signer);
     
     // SPEC §5: Enhanced events
-    event DegradationLevelChanged(DegradationLevel from, DegradationLevel to, uint256 timestamp);
-    event HaircutApplied(DegradationLevel level, uint256 originalNav, uint256 haircutNav, uint256 haircutBps);
+    event DegradationEntered(uint256 ts, uint256 lastNav);
+    event DegradationExited(uint256 ts, uint256 nav);
+    event HaircutParamsSet(uint16 t1, uint16 t2, uint16 t3, uint256 s1, uint256 s2, uint256 s3);
+    event BandsSet(uint256 floorBps, uint256 ceilBps, uint256 maxDailyGrowthBps);
+    event StaleThresholdSet(uint256 seconds_);
 
     constructor(address admin, bytes32 modelHash_) {
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
         _grantRole(ORACLE_ADMIN, admin);
+        _cachedChainId = block.chainid;
+        _DOMAIN_SEPARATOR = _domainSeparatorV4();
         _modelHash = modelHash_;
         emit ModelHashSet(modelHash_);
     }
 
+    // SPEC §5: Cached domain separator for efficiency
+    function _domainSeparatorV4() internal view returns (bytes32) {
+        return keccak256(abi.encode(
+            keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
+            keccak256(bytes(EIP712_NAME)),
+            keccak256(bytes(EIP712_VERSION)),
+            block.chainid,
+            address(this)
+        ));
+    }
+
+    // Debug function to expose domain separator
+    function domainSeparator() external view returns (bytes32) {
+        return _domainSeparatorV4();
+    }
+
     function navRay() external view returns (uint256) { 
         if (degradationMode || _isStale()) {
-            return _getDegradedNAV();
+            uint256 d = _haircut(_degradedBase());
+            return d == 0 ? lastKnownGoodNav : d;
         }
         return _navRay; 
     }
@@ -104,16 +114,28 @@ contract NAVOracleV3 is AccessControl {
     function quorum() external view returns (uint8) { return _quorum; }
 
     // SPEC §5: Get current degradation level
-    function getDegradationLevel() external view returns (DegradationLevel) {
-        return _getCurrentDegradationLevel();
+    function getDegradationLevel() external view returns (uint8) {
+        if (degradationMode) return 3; // EMERGENCY_OVERRIDE
+        
+        uint256 timeSinceLastUpdate = block.timestamp - _lastTs;
+        
+        if (timeSinceLastUpdate >= t3After) {
+            return 3; // EMERGENCY_OVERRIDE
+        } else if (timeSinceLastUpdate >= t2After) {
+            return 2; // DEGRADED
+        } else if (timeSinceLastUpdate >= t1After) {
+            return 1; // STALE
+        }
+        
+        return 0; // NORMAL
     }
 
     // SPEC §5: Get haircut percentage for current level
     function getCurrentHaircutBps() external view returns (uint256) {
-        DegradationLevel level = _getCurrentDegradationLevel();
-        if (level == DegradationLevel.STALE) return STALE_HAIRCUT_BPS;
-        if (level == DegradationLevel.DEGRADED) return DEGRADED_HAIRCUT_BPS;
-        if (level == DegradationLevel.EMERGENCY_OVERRIDE) return EMERGENCY_HAIRCUT_BPS;
+        uint8 level = this.getDegradationLevel();
+        if (level == 1) return tier1Bps;      // STALE
+        if (level == 2) return tier2Bps;      // DEGRADED
+        if (level == 3) return tier3Bps;      // EMERGENCY_OVERRIDE
         return 0; // NORMAL
     }
 
@@ -123,40 +145,56 @@ contract NAVOracleV3 is AccessControl {
     }
     
     function setSigner(address s, bool ok) external onlyRole(ORACLE_ADMIN) { 
-        isSigner[s]=ok; 
+        isSigner[s] = ok; 
         emit SignerSet(s, ok); 
     }
     
     function setEmergencySigner(address s, bool ok) external onlyRole(ORACLE_ADMIN) { 
-        isEmergencySigner[s]=ok; 
+        isEmergencySigner[s] = ok; 
         emit EmergencySignerSet(s, ok); 
     }
     
     function setQuorum(uint8 q) external onlyRole(ORACLE_ADMIN) { 
-        require(q>0, "q>0"); 
-        _quorum=q; 
+        require(q > 0, "q>0"); 
+        _quorum = q; 
         emit QuorumSet(q); 
     }
 
+    // SPEC §5: Enhanced toggle with proper events
     function toggleDegradationMode(bool enabled) external onlyRole(ORACLE_ADMIN) {
-        degradationMode = enabled;
-        if (enabled && !_isStale()) {
-            lastKnownGoodNav = _navRay;
-            lastKnownGoodTs = _lastTs;
+        if (enabled && !degradationMode) {
+            if (_navRay > 0) { 
+                lastKnownGoodNav = _navRay; 
+                lastKnownGoodTs = _lastTs; 
+            }
+            degradationMode = true;
+            emit DegradationEntered(block.timestamp, lastKnownGoodNav);
+        } else if (!enabled && degradationMode) {
+            degradationMode = false;
+            emit DegradationExited(block.timestamp, _navRay);
         }
         emit DegradationModeToggled(enabled);
     }
 
-    // SPEC §5: Set degradation thresholds
-    function setDegradationThresholds(
-        uint256 staleThreshold_,
-        uint256 degradedThreshold_,
-        uint256 emergencyThreshold_
-    ) external onlyRole(ORACLE_ADMIN) {
-        require(staleThreshold_ < degradedThreshold_ && degradedThreshold_ < emergencyThreshold_, "invalid thresholds");
-        STALE_THRESHOLD = staleThreshold_;
-        DEGRADED_THRESHOLD = degradedThreshold_;
-        EMERGENCY_THRESHOLD = emergencyThreshold_;
+    // SPEC §5: Admin setters for all parameters
+    function setHaircutParams(uint16 t1, uint16 t2, uint16 t3, uint256 s1, uint256 s2, uint256 s3) external onlyRole(ORACLE_ADMIN) {
+        require(t1 <= 2000 && t2 <= 3000 && t3 <= 5000, "haircut too big");
+        tier1Bps = t1; tier2Bps = t2; tier3Bps = t3; 
+        t1After = s1; t2After = s2; t3After = s3;
+        emit HaircutParamsSet(t1, t2, t3, s1, s2, s3);
+    }
+
+    function setBands(uint256 floorBps_, uint256 ceilBps_, uint256 maxGrowthBps_) external onlyRole(ORACLE_ADMIN) {
+        require(floorBps_ <= 10000 && ceilBps_ >= 10000, "bad bands");
+        bandFloorBps = floorBps_; 
+        bandCeilBps = ceilBps_; 
+        maxDailyGrowthBps = maxGrowthBps_;
+        emit BandsSet(floorBps_, ceilBps_, maxGrowthBps_);
+    }
+
+    function setStaleThreshold(uint256 s) external onlyRole(ORACLE_ADMIN) {
+        staleThreshold = s; 
+        emit StaleThresholdSet(s);
     }
 
     // DEV-ONLY helper for local deployments to bootstrap NAV
@@ -166,6 +204,13 @@ contract NAVOracleV3 is AccessControl {
         lastKnownGoodNav = navRay_;
         lastKnownGoodTs = ts;
         _nonce = _nonce + 1;
+        
+        // Reset degradation mode when seeding fresh NAV
+        if (degradationMode) {
+            degradationMode = false;
+            emit DegradationExited(block.timestamp, _navRay);
+        }
+        
         emit NAVUpdated(navRay_, ts, _nonce, _modelHash);
     }
 
@@ -173,81 +218,48 @@ contract NAVOracleV3 is AccessControl {
         return block.timestamp > _lastTs + staleThreshold;
     }
 
-    // SPEC §5: Enhanced degradation level calculation
-    function _getCurrentDegradationLevel() internal view returns (DegradationLevel) {
-        if (degradationMode) return DegradationLevel.EMERGENCY_OVERRIDE;
+    // SPEC §5: Enhanced degradation math with band clamping
+    function _degradedBase() internal view returns (uint256) {
+        if (lastKnownGoodNav == 0) return _navRay;
         
-        uint256 timeSinceLastUpdate = block.timestamp - _lastTs;
+        uint256 hoursElapsed = (block.timestamp - lastKnownGoodTs) / 1 hours;
+        // daily growth cap
+        uint256 growth = (lastKnownGoodNav * maxDailyGrowthBps * hoursElapsed) / (10000 * 24);
+        uint256 base = lastKnownGoodNav + growth;
         
-        if (timeSinceLastUpdate >= EMERGENCY_THRESHOLD) {
-            return DegradationLevel.EMERGENCY_OVERRIDE;
-        } else if (timeSinceLastUpdate >= DEGRADED_THRESHOLD) {
-            return DegradationLevel.DEGRADED;
-        } else if (timeSinceLastUpdate >= STALE_THRESHOLD) {
-            return DegradationLevel.STALE;
-        }
+        // band clamp
+        uint256 floor_ = (lastKnownGoodNav * bandFloorBps) / 10000;
+        uint256 ceil_ = (lastKnownGoodNav * bandCeilBps) / 10000;
+        if (base < floor_) base = floor_;
+        if (base > ceil_) base = ceil_;
         
-        return DegradationLevel.NORMAL;
+        return base;
     }
 
-    // SPEC §5: Enhanced degraded NAV calculation with haircuts
-    function _getDegradedNAV() internal view returns (uint256) {
-        if (lastKnownGoodNav == 0) return _navRay; // fallback to last known
-        
-        DegradationLevel level = _getCurrentDegradationLevel();
-        uint256 baseNav = lastKnownGoodNav;
-        
-        // Apply growth cap and stress multiplier
-        uint256 timeElapsed = block.timestamp - lastKnownGoodTs;
-        uint256 maxGrowth = (baseNav * maxDailyGrowthBps * timeElapsed) / (10000 * 1 days);
-        uint256 stressAdjustment = (baseNav * stressMultiplierBps) / 10000;
-        
-        uint256 adjustedNav = baseNav + maxGrowth + stressAdjustment;
-        
-        // Apply haircut based on degradation level
-        uint256 haircutBps = 0;
-        if (level == DegradationLevel.STALE) {
-            haircutBps = STALE_HAIRCUT_BPS;
-        } else if (level == DegradationLevel.DEGRADED) {
-            haircutBps = DEGRADED_HAIRCUT_BPS;
-        } else if (level == DegradationLevel.EMERGENCY_OVERRIDE) {
-            haircutBps = EMERGENCY_HAIRCUT_BPS;
-        }
-        
-        if (haircutBps > 0) {
-            uint256 haircutAmount = (adjustedNav * haircutBps) / 10000;
-            adjustedNav = adjustedNav - haircutAmount;
-            
-            // Emit event for tracking (in a real implementation, this would be in a function that can emit)
-            // emit HaircutApplied(level, adjustedNav + haircutAmount, adjustedNav, haircutBps);
-        }
-        
-        return adjustedNav;
+    // SPEC §5: Haircut application based on staleness
+    function _haircut(uint256 x) internal view returns (uint256) {
+        uint256 age = block.timestamp - lastKnownGoodTs;
+        uint16 bps =
+            age >= t3After ? tier3Bps :
+            age >= t2After ? tier2Bps :
+            age >= t1After ? tier1Bps : 0;
+        return (x * (10000 - bps)) / 10000;
     }
 
-    // SPEC §5: Enhanced setNAV with EIP-712 signature verification
-    function setNAV(
-        uint256 navRay_,
-        uint256 ts,
-        uint256 nonce_,
-        bytes[] calldata sigs
-    ) external {
+    // SPEC §5: EIP-712 hash function
+    function _hashSetNAV(uint256 navRay_, uint256 ts, uint256 nonce_) internal view returns (bytes32) {
+        bytes32 structHash = keccak256(abi.encode(NAV_TYPEHASH, navRay_, ts, nonce_, _modelHash));
+        return keccak256(abi.encodePacked("\x19\x01", _domainSeparatorV4(), structHash));
+    }
+
+    // SPEC §5: Enhanced setNAV with EIP-712 M-of-N & replay safety
+    function setNAV(uint256 navRay_, uint256 ts, uint256 nonce_, bytes[] calldata sigs) external {
         if (degradationMode) revert DegradationActive();
-        
-        // SPEC §5: Timestamp and nonce validation
-        if (ts < _lastTs) revert("ts rewind");
-        if (ts < block.timestamp - 1 hours) revert ExpiredTimestamp(); // Allow 1 hour tolerance
-        if (nonce_ != _nonce + 1) revert InvalidNonce();
-        if (sigs.length < _quorum) revert("sigs<q");
+        require(ts >= _lastTs, "ts rewind");
+        require(nonce_ == _nonce + 1, "bad nonce");
+        require(sigs.length >= _quorum, "sigs<q");
 
-        // SPEC §5: EIP-712 signature verification
-        bytes32 structHash = keccak256(
-            abi.encode(NAV_UPDATE_TYPEHASH, navRay_, ts, nonce_, _modelHash)
-        );
-        bytes32 digest = keccak256(
-            abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR(), structHash)
-        );
-
+        bytes32 digest = _hashSetNAV(navRay_, ts, nonce_);
         uint256 valid;
         for (uint256 i; i < sigs.length; ++i) {
             address recovered = _recover(digest, sigs[i]);
@@ -255,68 +267,37 @@ contract NAVOracleV3 is AccessControl {
         }
         if (valid < _quorum) revert QuorumNotMet();
 
-        // Update NAV and reset degradation
-        _updateNAV(navRay_, ts, nonce_);
-        
-        // SPEC §5: Update degradation level
-        DegradationLevel oldLevel = currentDegradationLevel;
-        currentDegradationLevel = DegradationLevel.NORMAL;
-        if (oldLevel != DegradationLevel.NORMAL) {
-            emit DegradationLevelChanged(oldLevel, DegradationLevel.NORMAL, block.timestamp);
-        }
-    }
-
-    // SPEC §5: Enhanced emergency NAV setting with EIP-712
-    function emergencySetNAV(uint256 navRay_, uint256 ts, bytes calldata sig) external {
-        require(degradationMode || _getCurrentDegradationLevel() >= DegradationLevel.DEGRADED, "not in degradation");
-        
-        // SPEC §5: EIP-712 signature verification for emergency
-        bytes32 structHash = keccak256(
-            abi.encode(
-                keccak256("EmergencyNAVUpdate(uint256 navRay,uint256 timestamp)"),
-                navRay_,
-                ts
-            )
-        );
-        bytes32 digest = keccak256(
-            abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR(), structHash)
-        );
-        
-        address recovered = _recover(digest, sig);
-        require(isEmergencySigner[recovered], "not emergency signer");
-        
-        // Update NAV
-        _navRay = navRay_;
-        _lastTs = ts;
-        
-        // SPEC §5: Set to emergency override level
-        DegradationLevel oldLevel = currentDegradationLevel;
-        currentDegradationLevel = DegradationLevel.EMERGENCY_OVERRIDE;
-        if (oldLevel != DegradationLevel.EMERGENCY_OVERRIDE) {
-            emit DegradationLevelChanged(oldLevel, DegradationLevel.EMERGENCY_OVERRIDE, block.timestamp);
-        }
-        
-        emit EmergencyNAVSet(navRay_, ts, recovered);
-    }
-
-    // SPEC §5: Internal NAV update function
-    function _updateNAV(uint256 navRay_, uint256 ts, uint256 nonce_) internal {
         _navRay = navRay_;
         _lastTs = ts;
         _nonce = nonce_;
         lastKnownGoodNav = navRay_;
         lastKnownGoodTs = ts;
+
+        if (degradationMode) {
+            degradationMode = false;
+            emit DegradationExited(block.timestamp, _navRay);
+        }
         emit NAVUpdated(navRay_, ts, nonce_, _modelHash);
     }
 
-    // SPEC §5: Force degradation level update (for testing and monitoring)
-    function updateDegradationLevel() external {
-        DegradationLevel newLevel = _getCurrentDegradationLevel();
-        if (newLevel != currentDegradationLevel) {
-            DegradationLevel oldLevel = currentDegradationLevel;
-            currentDegradationLevel = newLevel;
-            emit DegradationLevelChanged(oldLevel, newLevel, block.timestamp);
-        }
+    // SPEC §5: Enhanced emergency NAV setting with proper EIP-712
+    function emergencySetNAV(uint256 navRay_, uint256 ts, bytes calldata sig) external {
+        require(degradationMode || _isStale(), "not in degradation");
+        
+        bytes32 digest = keccak256(abi.encodePacked(
+            "\x19\x01", _domainSeparatorV4(),
+            keccak256(abi.encode(
+                keccak256("EmergencySetNAV(uint256 navRay,uint256 ts,bytes32 modelHash)"),
+                navRay_, ts, _modelHash
+            ))
+        ));
+        
+        address recovered = _recover(digest, sig);
+        require(isEmergencySigner[recovered], "not emergency signer");
+
+        _navRay = navRay_;
+        _lastTs = ts;
+        emit EmergencyNAVSet(navRay_, ts, recovered);
     }
 
     function _recover(bytes32 digest, bytes memory sig) internal pure returns (address) {

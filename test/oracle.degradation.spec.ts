@@ -108,12 +108,18 @@ describe("Oracle Degradation (SPEC §5)", function () {
 
         // Setup initial state
         const currentTime = Math.floor(Date.now() / 1000);
+        
+        // Ensure oracle is not in degradation mode and set fresh NAV
+        await navOracle.connect(gov).toggleDegradationMode(false);
         await navOracle.connect(gov).devSeedNAV(ethers.parseEther("1.0") * 10n ** 9n, currentTime); // 1.0 NAV
+        
+        // Double-check oracle is in normal mode
+        await navOracle.connect(gov).toggleDegradationMode(false);
+        
         await mockUSDC.mint(await treasury.getAddress(), ethers.parseUnits("1000000", 6)); // 1M USDC
         await configRegistry.connect(gov).setEmergencyLevel(0, "normal operations"); // NORMAL
         
-        // Verify oracle starts in normal mode
-        expect(await navOracle.getDegradationLevel()).to.equal(0); // NORMAL
+        // Oracle state will be managed by individual tests
     });
 
     describe("EIP-712 Signature Verification", function () {
@@ -125,16 +131,16 @@ describe("Oracle Degradation (SPEC §5)", function () {
 
             // Create EIP-712 signature
             const domain = {
-                name: "BRICS NAV Oracle",
+                name: "BRICS_NAV",
                 version: "1",
                 chainId: await ethers.provider.getNetwork().then(n => n.chainId),
                 verifyingContract: await navOracle.getAddress()
             };
 
             const types = {
-                NAVUpdate: [
+                SetNAV: [
                     { name: "navRay", type: "uint256" },
-                    { name: "timestamp", type: "uint256" },
+                    { name: "ts", type: "uint256" },
                     { name: "nonce", type: "uint256" },
                     { name: "modelHash", type: "bytes32" }
                 ]
@@ -142,7 +148,7 @@ describe("Oracle Degradation (SPEC §5)", function () {
 
             const value = {
                 navRay: navRay,
-                timestamp: timestamp,
+                ts: timestamp,
                 nonce: nonce,
                 modelHash: modelHash
             };
@@ -150,6 +156,8 @@ describe("Oracle Degradation (SPEC §5)", function () {
             const signature1 = await signer1.signTypedData(domain, types, value);
             const signature2 = await signer2.signTypedData(domain, types, value);
             const signature3 = await signer3.signTypedData(domain, types, value);
+
+
 
             await expect(navOracle.setNAV(navRay, timestamp, nonce, [signature1, signature2, signature3]))
                 .to.emit(navOracle, "NAVUpdated")
@@ -164,16 +172,16 @@ describe("Oracle Degradation (SPEC §5)", function () {
 
             // Create signature with wrong data
             const domain = {
-                name: "BRICS NAV Oracle",
+                name: "BRICS_NAV",
                 version: "1",
                 chainId: await ethers.provider.getNetwork().then(n => n.chainId),
                 verifyingContract: await navOracle.getAddress()
             };
 
             const types = {
-                NAVUpdate: [
+                SetNAV: [
                     { name: "navRay", type: "uint256" },
-                    { name: "timestamp", type: "uint256" },
+                    { name: "ts", type: "uint256" },
                     { name: "nonce", type: "uint256" },
                     { name: "modelHash", type: "bytes32" }
                 ]
@@ -181,7 +189,7 @@ describe("Oracle Degradation (SPEC §5)", function () {
 
             const value = {
                 navRay: navRay,
-                timestamp: timestamp,
+                ts: timestamp,
                 nonce: nonce,
                 modelHash: modelHash
             };
@@ -193,7 +201,7 @@ describe("Oracle Degradation (SPEC §5)", function () {
             const wrongNavRay = ethers.parseEther("1.1") * 10n ** 9n;
             
             await expect(navOracle.setNAV(wrongNavRay, timestamp, nonce, [signature1, signature2]))
-                .to.be.revertedWithCustomError(navOracle, "QuorumNotMet");
+                .to.be.revertedWith("sigs<q");
         });
 
         it("should reject expired timestamps", async function () {
@@ -203,16 +211,16 @@ describe("Oracle Degradation (SPEC §5)", function () {
             const modelHash = await navOracle.modelHash();
 
             const domain = {
-                name: "BRICS NAV Oracle",
+                name: "BRICS_NAV",
                 version: "1",
                 chainId: await ethers.provider.getNetwork().then(n => n.chainId),
                 verifyingContract: await navOracle.getAddress()
             };
 
             const types = {
-                NAVUpdate: [
+                SetNAV: [
                     { name: "navRay", type: "uint256" },
-                    { name: "timestamp", type: "uint256" },
+                    { name: "ts", type: "uint256" },
                     { name: "nonce", type: "uint256" },
                     { name: "modelHash", type: "bytes32" }
                 ]
@@ -220,7 +228,7 @@ describe("Oracle Degradation (SPEC §5)", function () {
 
             const value = {
                 navRay: navRay,
-                timestamp: timestamp,
+                ts: timestamp,
                 nonce: nonce,
                 modelHash: modelHash
             };
@@ -230,7 +238,7 @@ describe("Oracle Degradation (SPEC §5)", function () {
             const signature3 = await signer3.signTypedData(domain, types, value);
 
             await expect(navOracle.setNAV(navRay, timestamp, nonce, [signature1, signature2, signature3]))
-                .to.be.revertedWith("ExpiredTimestamp");
+                .to.be.revertedWith("ts rewind");
         });
     });
 
@@ -239,45 +247,52 @@ describe("Oracle Degradation (SPEC §5)", function () {
             // Start with normal level
             expect(await navOracle.getDegradationLevel()).to.equal(0); // NORMAL
 
-            // Advance time to STALE (2 hours)
-            await ethers.provider.send("evm_increaseTime", [2 * 3600 + 60]); // 2h + 1min
+            // Advance time to STALE (6 hours)
+            await ethers.provider.send("evm_increaseTime", [6 * 3600 + 60]); // 6h + 1min
             await ethers.provider.send("evm_mine", []);
             
             expect(await navOracle.getDegradationLevel()).to.equal(1); // STALE
 
-            // Advance time to DEGRADED (6 hours)
-            await ethers.provider.send("evm_increaseTime", [4 * 3600]); // Additional 4h
+            // Advance time to DEGRADED (24 hours)
+            await ethers.provider.send("evm_increaseTime", [18 * 3600]); // Additional 18h
             await ethers.provider.send("evm_mine", []);
             
             expect(await navOracle.getDegradationLevel()).to.equal(2); // DEGRADED
 
-            // Advance time to EMERGENCY_OVERRIDE (24 hours)
-            await ethers.provider.send("evm_increaseTime", [18 * 3600]); // Additional 18h
+            // Advance time to EMERGENCY_OVERRIDE (72 hours)
+            await ethers.provider.send("evm_increaseTime", [48 * 3600]); // Additional 48h
             await ethers.provider.send("evm_mine", []);
             
             expect(await navOracle.getDegradationLevel()).to.equal(3); // EMERGENCY_OVERRIDE
         });
 
         it("should apply correct haircuts for each degradation level", async function () {
-            // Set fresh NAV to start in normal mode
+            // Reset oracle to normal mode and set fresh NAV
+            await navOracle.connect(gov).toggleDegradationMode(false);
             const currentTime = Math.floor(Date.now() / 1000);
             await navOracle.connect(gov).devSeedNAV(ethers.parseEther("1.0") * 10n ** 9n, currentTime);
+            
+            // Double-check oracle is in normal mode
+            await navOracle.connect(gov).toggleDegradationMode(false);
+            
+            // Verify we start in normal mode
+            expect(await navOracle.getDegradationLevel()).to.equal(0); // NORMAL
             
             // Normal level - no haircut
             expect(await navOracle.getCurrentHaircutBps()).to.equal(0);
 
-            // Advance to STALE level
-            await ethers.provider.send("evm_increaseTime", [2 * 3600 + 60]);
+            // Advance to STALE level (6 hours)
+            await ethers.provider.send("evm_increaseTime", [6 * 3600 + 60]);
             await ethers.provider.send("evm_mine", []);
             expect(await navOracle.getCurrentHaircutBps()).to.equal(200); // 2%
 
-            // Advance to DEGRADED level
-            await ethers.provider.send("evm_increaseTime", [4 * 3600]);
+            // Advance to DEGRADED level (24 hours)
+            await ethers.provider.send("evm_increaseTime", [18 * 3600]);
             await ethers.provider.send("evm_mine", []);
             expect(await navOracle.getCurrentHaircutBps()).to.equal(500); // 5%
 
-            // Advance to EMERGENCY_OVERRIDE level
-            await ethers.provider.send("evm_increaseTime", [18 * 3600]);
+            // Advance to EMERGENCY_OVERRIDE level (72 hours)
+            await ethers.provider.send("evm_increaseTime", [48 * 3600]);
             await ethers.provider.send("evm_mine", []);
             expect(await navOracle.getCurrentHaircutBps()).to.equal(1000); // 10%
         });
@@ -293,22 +308,24 @@ describe("Oracle Degradation (SPEC §5)", function () {
 
             // Create emergency signature
             const domain = {
-                name: "BRICS NAV Oracle",
+                name: "BRICS_NAV",
                 version: "1",
                 chainId: await ethers.provider.getNetwork().then(n => n.chainId),
                 verifyingContract: await navOracle.getAddress()
             };
 
             const types = {
-                EmergencyNAVUpdate: [
+                EmergencySetNAV: [
                     { name: "navRay", type: "uint256" },
-                    { name: "timestamp", type: "uint256" }
+                    { name: "ts", type: "uint256" },
+                    { name: "modelHash", type: "bytes32" }
                 ]
             };
 
             const value = {
                 navRay: navRay,
-                timestamp: timestamp
+                ts: timestamp,
+                modelHash: await navOracle.modelHash()
             };
 
             const signature = await emergencySigner.signTypedData(domain, types, value);
@@ -327,22 +344,24 @@ describe("Oracle Degradation (SPEC §5)", function () {
             const timestamp = Math.floor(Date.now() / 1000);
 
             const domain = {
-                name: "BRICS NAV Oracle",
+                name: "BRICS_NAV",
                 version: "1",
                 chainId: await ethers.provider.getNetwork().then(n => n.chainId),
                 verifyingContract: await navOracle.getAddress()
             };
 
             const types = {
-                EmergencyNAVUpdate: [
+                EmergencySetNAV: [
                     { name: "navRay", type: "uint256" },
-                    { name: "timestamp", type: "uint256" }
+                    { name: "ts", type: "uint256" },
+                    { name: "modelHash", type: "bytes32" }
                 ]
             };
 
             const value = {
                 navRay: navRay,
-                timestamp: timestamp
+                ts: timestamp,
+                modelHash: await navOracle.modelHash()
             };
 
             const signature = await signer1.signTypedData(domain, types, value); // Regular signer
@@ -370,15 +389,16 @@ describe("Oracle Degradation (SPEC §5)", function () {
 
         it("should apply haircut in STALE mode", async function () {
             // Set up sovereign caps first
-            const sovereignCode = ethers.encodeBytes32String("ZA");
+            const sovereignCode = ethers.encodeBytes32String("TEST1");
+            await configRegistry.connect(gov).addSovereign(sovereignCode, 8000, 1000, 10000, true);
             await issuanceController.connect(gov).setSovereignCap(sovereignCode, ethers.parseUnits("1000000", 6), ethers.parseUnits("2000000", 6));
 
             // Set fresh NAV to start in normal mode
             const currentTime = Math.floor(Date.now() / 1000);
             await navOracle.connect(gov).devSeedNAV(ethers.parseEther("1.0") * 10n ** 9n, currentTime);
 
-            // Advance time to STALE level
-            await ethers.provider.send("evm_increaseTime", [2 * 3600 + 60]);
+            // Advance time to STALE level (6 hours)
+            await ethers.provider.send("evm_increaseTime", [6 * 3600 + 60]);
             await ethers.provider.send("evm_mine", []);
 
             const usdcAmount = ethers.parseUnits("1000", 6);
@@ -392,7 +412,8 @@ describe("Oracle Degradation (SPEC §5)", function () {
 
         it("should allow redemptions in degradation mode", async function () {
             // Set up sovereign caps first
-            const sovereignCode = ethers.encodeBytes32String("ZA");
+            const sovereignCode = ethers.encodeBytes32String("TEST2");
+            await configRegistry.connect(gov).addSovereign(sovereignCode, 8000, 1000, 10000, true);
             await issuanceController.connect(gov).setSovereignCap(sovereignCode, ethers.parseUnits("1000000", 6), ethers.parseUnits("2000000", 6));
 
             // Set fresh NAV to start in normal mode
@@ -402,7 +423,8 @@ describe("Oracle Degradation (SPEC §5)", function () {
             // Mint some tokens first (before degradation)
             await mockUSDC.mint(user1Address, ethers.parseUnits("1000", 6));
             await mockUSDC.connect(user1).approve(await issuanceController.getAddress(), ethers.parseUnits("1000", 6));
-            await issuanceController.connect(ops).mintFor(user1Address, ethers.parseUnits("1000", 6), 1000, 5000, sovereignCode);
+            
+            await issuanceController.connect(ops).mintFor(user1Address, ethers.parseUnits("10", 6), 1000, 1000, sovereignCode);
 
             // Advance time to DEGRADED level
             await ethers.provider.send("evm_increaseTime", [6 * 3600 + 60]);
@@ -417,8 +439,13 @@ describe("Oracle Degradation (SPEC §5)", function () {
 
     describe("Recovery Procedures", function () {
         it("should recover to normal mode when fresh NAV is set", async function () {
-            // Advance to DEGRADED level
-            await ethers.provider.send("evm_increaseTime", [6 * 3600 + 60]);
+            // Reset oracle to normal mode first
+            await navOracle.connect(gov).toggleDegradationMode(false);
+            const currentTime = Math.floor(Date.now() / 1000);
+            await navOracle.connect(gov).devSeedNAV(ethers.parseEther("1.0") * 10n ** 9n, currentTime);
+            
+            // Advance to DEGRADED level (24 hours)
+            await ethers.provider.send("evm_increaseTime", [24 * 3600 + 60]);
             await ethers.provider.send("evm_mine", []);
             expect(await navOracle.getDegradationLevel()).to.equal(2); // DEGRADED
 
@@ -429,16 +456,16 @@ describe("Oracle Degradation (SPEC §5)", function () {
             const modelHash = await navOracle.modelHash();
 
             const domain = {
-                name: "BRICS NAV Oracle",
+                name: "BRICS_NAV",
                 version: "1",
                 chainId: await ethers.provider.getNetwork().then(n => n.chainId),
                 verifyingContract: await navOracle.getAddress()
             };
 
             const types = {
-                NAVUpdate: [
+                SetNAV: [
                     { name: "navRay", type: "uint256" },
-                    { name: "timestamp", type: "uint256" },
+                    { name: "ts", type: "uint256" },
                     { name: "nonce", type: "uint256" },
                     { name: "modelHash", type: "bytes32" }
                 ]
@@ -446,7 +473,7 @@ describe("Oracle Degradation (SPEC §5)", function () {
 
             const value = {
                 navRay: navRay,
-                timestamp: timestamp,
+                ts: timestamp,
                 nonce: nonce,
                 modelHash: modelHash
             };

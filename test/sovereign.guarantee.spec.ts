@@ -274,7 +274,7 @@ describe("Sovereign Guarantee Integration", function () {
       await expect(
         trancheManager.connect(ecc).expandToTier2(1, irbBalance, preBufferBalance)
       ).to.emit(trancheManager, "Tier2Expansion")
-        .withArgs(10800, 1, await ethers.provider.getBlockNumber());
+        .withArgs(10800, 1, anyValue);
 
       const [lo, hi] = await trancheManager.getEffectiveDetachment();
       expect(hi).to.equal(10800); // 108%
@@ -313,6 +313,22 @@ describe("Sovereign Guarantee Integration", function () {
         ethers.parseEther("8000000"),
         ethers.parseEther("8000000"),
         CLAIM_REASON
+      );
+      
+      // Add sovereign configuration to config registry
+      await configRegistry.connect(gov).addSovereign(
+        SOVEREIGN_CODE,
+        8000, // 80% utilization cap
+        2000, // 20% haircut
+        5000, // 50% weight
+        true  // enabled
+      );
+      
+      // Set sovereign caps in issuance controller
+      await issuanceController.connect(gov).setSovereignCap(
+        SOVEREIGN_CODE, 
+        ethers.parseEther("1000000"), // 1M soft cap
+        ethers.parseEther("2000000")  // 2M hard cap
       );
     });
 

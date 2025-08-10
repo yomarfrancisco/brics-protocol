@@ -176,7 +176,28 @@ describe("NAV Redemption Lane (SPEC §4)", function () {
             await mockUSDC.connect(gov).approve(await preTrancheBuffer.getAddress(), ethers.parseUnits("500000", 6));
             await preTrancheBuffer.connect(gov).fundBuffer(ethers.parseUnits("500000", 6));
             
-            const amount = ethers.parseEther("100");
+            // Ensure issuance controller has BUFFER_MANAGER role
+            await preTrancheBuffer.connect(gov).grantRole(await preTrancheBuffer.BUFFER_MANAGER(), await issuanceController.getAddress());
+            
+            // Debug: Check if issuance controller has BUFFER_MANAGER role
+            const hasRole = await preTrancheBuffer.hasRole(await preTrancheBuffer.BUFFER_MANAGER(), await issuanceController.getAddress());
+            console.log("Issuance controller has BUFFER_MANAGER role:", hasRole);
+            
+            // Give user some BRICS tokens to redeem
+            await bricsToken.connect(gov).mint(user1Address, ethers.parseEther("1000"));
+            
+            // Use an amount that fits within the instant capacity (50 USDC)
+            // Convert USDC amount to BRICS tokens at NAV 1.0
+            const usdcAmount = ethers.parseUnits("40", 6); // 40 USDC
+            const amount = ethers.parseEther("40"); // 40 BRICS tokens (at NAV 1.0)
+            
+            // Debug: Check instant capacity
+            const instantCapacity = await preTrancheBuffer.availableInstantCapacity(user1Address);
+            const nav = await navOracle.navRay();
+            console.log("Instant capacity for user:", instantCapacity.toString());
+            console.log("Requested amount:", amount.toString());
+            console.log("NAV value:", nav.toString());
+            console.log("USDC equivalent:", (amount / ethers.parseUnits("1", 12)).toString());
             
             await expect(issuanceController.connect(ops).requestRedeemOnBehalf(user1Address, amount))
                 .to.emit(issuanceController, "InstantRedeemProcessed")
@@ -281,6 +302,9 @@ describe("NAV Redemption Lane (SPEC §4)", function () {
             
             // Ensure treasury has enough USDC for settlement
             await mockUSDC.mint(await treasury.getAddress(), ethers.parseUnits("100000", 6)); // Additional 100k USDC
+            
+            // Grant PAY_ROLE to issuance controller for settlement
+            await treasury.connect(gov).grantRole(await treasury.PAY_ROLE(), await issuanceController.getAddress());
             
             const closeTs = await openWindow(issuanceController, 2);
             

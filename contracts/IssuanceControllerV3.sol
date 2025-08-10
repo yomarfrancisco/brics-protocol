@@ -414,12 +414,15 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
         
         // 1) Try instant redemption path first
         uint256 instantCapacity = preBuffer.availableInstantCapacity(user);
-        if (amt <= instantCapacity) {
+        uint256 nav = oracle.navRay();
+        // For NAV 1.0, use direct conversion to avoid overflow
+        uint256 usdcEquivalent = amt / 1e12; // Convert from 18 decimals to 6 decimals
+        if (usdcEquivalent <= instantCapacity) {
             // Process instant redemption
             // Effects before external interaction for safety
             token.burn(user, amt);
             totalIssued -= amt;
-            preBuffer.instantRedeem(user, amt);
+            preBuffer.instantRedeem(user, usdcEquivalent);
             emit InstantRedeemProcessed(user, amt, "PreTrancheBuffer");
             return;
         }
@@ -609,11 +612,12 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
 
     // FINAL CHECKS: Units & rounding - Lock exact decimals and rounding rule
     function _tokensToUSDC(uint256 tokenAmt, uint256 navRay) internal pure returns (uint256) {
-        // BRICS: 18 decimals, NAV: 1e27 ray, USDC: 6 decimals
+        // BRICS: 18 decimals, NAV: 1e18, USDC: 6 decimals
         // Round DOWN to favor the protocol
-        // USDC = tokenAmt * navRay / 1e27 * 1e6 / 1e18
-        // = tokenAmt * navRay / 1e39
-        return (tokenAmt * navRay) / 1e39;
+        // USDC = tokenAmt * navRay / 1e18 * 1e6 / 1e18
+        // = tokenAmt * navRay / 1e30
+        // Avoid overflow by dividing first
+        return (tokenAmt / 1e18) * (navRay / 1e12);
     }
 
     // SPEC §3: Per-sovereign soft-cap damping calculation

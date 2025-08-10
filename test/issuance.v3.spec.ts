@@ -22,9 +22,9 @@ describe("IssuanceControllerV3 - SPEC §3 Per-Sovereign Soft-Cap Damping", funct
   let opsAddress: string;
   let govAddress: string;
 
-  const SOVEREIGN_CODE = ethers.utils.formatBytes32String("TEST_SOV");
-  const SOFT_CAP = ethers.utils.parseEther("1000000"); // 1M USDC
-  const HARD_CAP = ethers.utils.parseEther("2000000"); // 2M USDC
+  const SOVEREIGN_CODE = ethers.encodeBytes32String("TEST_SOV");
+  const SOFT_CAP = ethers.parseEther("1000000"); // 1M USDC
+  const HARD_CAP = ethers.parseEther("2000000"); // 2M USDC
 
   beforeEach(async function () {
     [owner, ops, gov, user] = await ethers.getSigners();
@@ -37,7 +37,7 @@ describe("IssuanceControllerV3 - SPEC §3 Per-Sovereign Soft-Cap Damping", funct
     usdc = await MockUSDC.deploy();
 
     const MockNAVOracle = await ethers.getContractFactory("MockNAVOracle");
-    navOracle = await MockNAVOracle.deploy(ethers.utils.parseEther("1.0")); // NAV = 1.0
+    navOracle = await MockNAVOracle.deploy(ethers.parseEther("1.0")); // NAV = 1.0
 
     const Treasury = await ethers.getContractFactory("Treasury");
     treasury = await Treasury.deploy(govAddress, usdc.address, 300); // 3% buffer
@@ -80,7 +80,7 @@ describe("IssuanceControllerV3 - SPEC §3 Per-Sovereign Soft-Cap Damping", funct
     await memberRegistry.setMember(userAddress, true);
 
     // Fund treasury
-    await usdc.mint(treasury.address, ethers.utils.parseEther("1000000"));
+    await usdc.mint(treasury.address, ethers.parseEther("1000000"));
   });
 
   describe("SPEC §3: Per-Sovereign Soft-Cap Damping", function () {
@@ -103,7 +103,7 @@ describe("IssuanceControllerV3 - SPEC §3 Per-Sovereign Soft-Cap Damping", funct
       const effectiveCap = 8000 * 0.8;
       
       const canIssue = await issuanceController.canIssue(
-        ethers.utils.parseEther("100000"), // 100k USDC
+        ethers.parseEther("100000"), // 100k USDC
         100000000, // 0.1 tail correlation
         1500, // 15% sovereign utilization
         SOVEREIGN_CODE
@@ -126,13 +126,13 @@ describe("IssuanceControllerV3 - SPEC §3 Per-Sovereign Soft-Cap Damping", funct
       );
 
       // Try to mint more - should fail
-      await usdc.mint(opsAddress, ethers.utils.parseEther("100000"));
-      await usdc.connect(ops).approve(issuanceController.address, ethers.utils.parseEther("100000"));
+      await usdc.mint(opsAddress, ethers.parseEther("100000"));
+      await usdc.connect(ops).approve(issuanceController.address, ethers.parseEther("100000"));
       
       await expect(
         issuanceController.connect(ops).mintFor(
           userAddress,
-          ethers.utils.parseEther("100000"),
+          ethers.parseEther("100000"),
           100000000,
           1500,
           SOVEREIGN_CODE
@@ -159,7 +159,7 @@ describe("IssuanceControllerV3 - SPEC §3 Per-Sovereign Soft-Cap Damping", funct
       expect(utilization).to.equal(SOFT_CAP);
 
       // Try to mint more - should be damped
-      const dampingAmount = ethers.utils.parseEther("100000");
+      const dampingAmount = ethers.parseEther("100000");
       await usdc.mint(opsAddress, dampingAmount);
       await usdc.connect(ops).approve(issuanceController.address, dampingAmount);
       
@@ -179,7 +179,7 @@ describe("IssuanceControllerV3 - SPEC §3 Per-Sovereign Soft-Cap Damping", funct
       
       await expect(
         issuanceController.canIssue(
-          ethers.utils.parseEther("100000"),
+          ethers.parseEther("100000"),
           100000000,
           1500,
           SOVEREIGN_CODE
@@ -193,7 +193,7 @@ describe("IssuanceControllerV3 - SPEC §3 Per-Sovereign Soft-Cap Damping", funct
       
       await expect(
         issuanceController.canIssue(
-          ethers.utils.parseEther("100000"),
+          ethers.parseEther("100000"),
           100000000,
           1500,
           SOVEREIGN_CODE
@@ -202,7 +202,7 @@ describe("IssuanceControllerV3 - SPEC §3 Per-Sovereign Soft-Cap Damping", funct
     });
 
     it("should update sovereign utilization correctly", async function () {
-      const mintAmount = ethers.utils.parseEther("100000");
+      const mintAmount = ethers.parseEther("100000");
       await usdc.mint(opsAddress, mintAmount);
       await usdc.connect(ops).approve(issuanceController.address, mintAmount);
       
@@ -219,7 +219,7 @@ describe("IssuanceControllerV3 - SPEC §3 Per-Sovereign Soft-Cap Damping", funct
     });
 
     it("should emit SovereignUtilizationUpdated event", async function () {
-      const mintAmount = ethers.utils.parseEther("100000");
+      const mintAmount = ethers.parseEther("100000");
       await usdc.mint(opsAddress, mintAmount);
       await usdc.connect(ops).approve(issuanceController.address, mintAmount);
       

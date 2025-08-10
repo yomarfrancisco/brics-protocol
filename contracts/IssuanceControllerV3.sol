@@ -20,6 +20,7 @@ import "./TrancheManagerV2.sol";
 import "./RedemptionClaim.sol";
 import "./Treasury.sol";
 import "./PreTrancheBuffer.sol";
+import "./ClaimRegistry.sol";
 
 interface INAVOracleLike {
     function navRay() external view returns (uint256);
@@ -42,6 +43,7 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard {
     Treasury         public treasury;
     RedemptionClaim  public claims;
     PreTrancheBuffer public preBuffer;
+    ClaimRegistry    public claimRegistry;
 
     uint256 public totalIssued;
     uint256 public nextStrike;
@@ -108,7 +110,8 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard {
         IERC20 _usdc,
         Treasury _treasury,
         RedemptionClaim _claims,
-        PreTrancheBuffer _preBuffer
+        PreTrancheBuffer _preBuffer,
+        ClaimRegistry _claimRegistry
     ) {
         _grantRole(DEFAULT_ADMIN_ROLE, gov);
         _grantRole(OPS_ROLE, gov);
@@ -121,6 +124,7 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard {
         treasury = _treasury;
         claims = _claims;
         preBuffer = _preBuffer;
+        claimRegistry = _claimRegistry;
         nextStrike = _endOfMonth(block.timestamp);
     }
 
@@ -188,6 +192,12 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard {
         uint256 minIRB = (outstanding * params.instantBufferBps) / 10_000;
         if (treasury.balance() < minIRB) return false;
 
+        // Check sovereign guarantee availability in crisis
+        uint8 level = uint8(cfg.emergencyLevel());
+        if (level == 3 && !claimRegistry.isSovereignGuaranteeAvailable()) {
+            return false; // No sovereign guarantee available
+        }
+
         return true;
     }
 
@@ -225,6 +235,12 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard {
         uint256 outstanding = totalIssued;
         uint256 minIRB = (outstanding * params.instantBufferBps) / 10_000;
         if (treasury.balance() < minIRB) revert IRBTooLow();
+
+        // Check sovereign guarantee availability in crisis
+        uint8 level = uint8(cfg.emergencyLevel());
+        if (level == 3 && !claimRegistry.isSovereignGuaranteeAvailable()) {
+            revert("No sovereign guarantee available");
+        }
 
         // Per-address issuance daily cap
         uint256 today = block.timestamp / 1 days;

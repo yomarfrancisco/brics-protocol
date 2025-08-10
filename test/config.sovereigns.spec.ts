@@ -10,9 +10,9 @@ describe("ConfigRegistry - SPEC §6 Cross-Sovereign Configuration", function () 
   let ownerAddress: string;
   let govAddress: string;
 
-  const SOVEREIGN_CODE_1 = ethers.utils.formatBytes32String("SOV_1");
-  const SOVEREIGN_CODE_2 = ethers.utils.formatBytes32String("SOV_2");
-  const SOVEREIGN_CODE_3 = ethers.utils.formatBytes32String("SOV_3");
+  const SOVEREIGN_CODE_1 = ethers.encodeBytes32String("SOV_1");
+  const SOVEREIGN_CODE_2 = ethers.encodeBytes32String("SOV_2");
+  const SOVEREIGN_CODE_3 = ethers.encodeBytes32String("SOV_3");
 
   beforeEach(async function () {
     [owner, gov, user] = await ethers.getSigners();

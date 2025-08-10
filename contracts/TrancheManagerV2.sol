@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import "./ConfigRegistry.sol";
+import "./ClaimRegistry.sol";
 
 // Custom errors
 error OnlyRaise();
@@ -45,6 +46,12 @@ contract TrancheManagerV2 is AccessControl {
     uint256 public softCapExpiry;                 // <= 30 days
     uint256 public constant SOFT_CAP_MAX_WINDOW = 30 days;
 
+    // Tier 2 expansion (106-108%) integration
+    ClaimRegistry public claimRegistry;
+    uint256 public constant TIER2_EXPANSION_DURATION = 14 days;
+    uint256 public tier2Expiry;
+    uint8 public expansionTier; // 0=none, 1=105%, 2=106-108%
+
     // Governance attestation
     uint256 public lastVoteYesBps;  // yes/total in bps
     uint256 public lastVoteTs;
@@ -57,12 +64,18 @@ contract TrancheManagerV2 is AccessControl {
     event SovereignGuaranteeConfirmed(bool confirmed);
     event TriggersBreachedSet(bool breached);
     event SupermajorityAttested(uint256 yesBps, uint256 ts);
+    event Tier2Expansion(uint16 newHi, uint256 claimId, uint256 expiry);
+    event Tier2Reverted(uint16 lo, uint16 hi, string reason);
 
     constructor(address gov, address oracle_, address config_) {
         _grantRole(DEFAULT_ADMIN_ROLE, gov);
         _grantRole(GOV_ROLE, gov);
         oracle = oracle_;
         config = config_;
+    }
+
+    function setClaimRegistry(address _claimRegistry) external onlyRole(GOV_ROLE) {
+        claimRegistry = ClaimRegistry(_claimRegistry);
     }
 
     function setTriggersBreached(bool breached) external {
@@ -97,8 +110,18 @@ contract TrancheManagerV2 is AccessControl {
     }
 
     function getEffectiveDetachment() external view returns (uint16 lo, uint16 hi) {
-        ConfigRegistry.EmergencyLevel level = ConfigRegistry(config).emergencyLevel();
-        if (level == ConfigRegistry.EmergencyLevel.RED && sovereignGuaranteeConfirmed) {
+        uint8 level = uint8(ConfigRegistry(config).emergencyLevel());
+        
+        // Check for Tier 2 expansion (106-108%) first
+        if (level == 3 && 
+            expansionTier == 2 && 
+            tier2Expiry != 0 && 
+            block.timestamp <= tier2Expiry) {
+            return (bricsLo, 10800); // 108%
+        }
+        
+        // Check for Tier 1 expansion (105%)
+        if (level == 3 && sovereignGuaranteeConfirmed) {
             if (softCapExpiry != 0 && block.timestamp <= softCapExpiry) {
                 return (bricsLo, 10500);
             }
@@ -131,8 +154,8 @@ contract TrancheManagerV2 is AccessControl {
     }
 
     function emergencyExpandToSoftCap() external onlyRole(ECC_ROLE) {
-        ConfigRegistry.EmergencyLevel level = ConfigRegistry(config).emergencyLevel();
-        if (level != ConfigRegistry.EmergencyLevel.RED) revert EmergencyLevelRequired();
+        uint8 level = uint8(ConfigRegistry(config).emergencyLevel());
+        if (level != 3) revert EmergencyLevelRequired();
         if (!sovereignGuaranteeConfirmed) revert SovereignNotConfirmed();
         if (bricsHi >= 10500) revert AlreadyExpanded();
         if (lastVoteYesBps < supermajorityThreshold) revert SupermajorityRequired();
@@ -151,6 +174,51 @@ contract TrancheManagerV2 is AccessControl {
         bricsHi = revertHi;
         lastDetachmentUpdateTs = block.timestamp;
         softCapExpiry = 0;
+        expansionTier = 0;
         emit SoftCapReverted(bricsLo, bricsHi, "soft-cap expired");
+    }
+
+    /**
+     * @dev Expand to Tier 2 (106-108%) with sovereign guarantee claim validation
+     * @param claimId Active sovereign claim ID
+     * @param irbBalance Current IRB balance
+     * @param preBufferBalance Current Pre-Tranche Buffer balance
+     */
+    function expandToTier2(
+        uint256 claimId,
+        uint256 irbBalance,
+        uint256 preBufferBalance
+    ) external onlyRole(ECC_ROLE) {
+        uint8 level = uint8(ConfigRegistry(config).emergencyLevel());
+        if (level != 3) revert EmergencyLevelRequired();
+        if (expansionTier >= 2) revert AlreadyExpanded();
+        
+        // Validate claim and buffer requirements
+        if (!claimRegistry.canExpandTier2(claimId, irbBalance, preBufferBalance)) {
+            revert("Tier 2 requirements not met");
+        }
+
+        bricsHi = 10800; // 108%
+        expansionTier = 2;
+        tier2Expiry = block.timestamp + TIER2_EXPANSION_DURATION;
+        lastDetachmentUpdateTs = block.timestamp;
+
+        emit Tier2Expansion(10800, claimId, tier2Expiry);
+        emit DetachmentRaised(bricsLo, bricsHi);
+    }
+
+    /**
+     * @dev Enforce Tier 2 expiry
+     */
+    function enforceTier2Expiry(uint16 revertHi) external onlyRole(ECC_ROLE) {
+        if (tier2Expiry == 0) revert("Tier 2 not active");
+        if (block.timestamp <= tier2Expiry) revert Cooldown();
+        
+        bricsHi = revertHi;
+        lastDetachmentUpdateTs = block.timestamp;
+        tier2Expiry = 0;
+        expansionTier = 0;
+        
+        emit Tier2Reverted(bricsLo, bricsHi, "Tier 2 expired");
     }
 }

@@ -14,6 +14,11 @@ async function main() {
   const claims = await RedemptionClaim.deploy(DAO, state.core.MemberRegistry, state.core.ConfigRegistry);
   await claims.waitForDeployment();
 
+  // ClaimRegistry
+  const ClaimRegistry = await ethers.getContractFactory("ClaimRegistry");
+  const claimRegistry = await ClaimRegistry.deploy(DAO);
+  await claimRegistry.waitForDeployment();
+
   // IssuanceControllerV3
   const IssuanceControllerV3 = await ethers.getContractFactory("IssuanceControllerV3");
   const controller = await IssuanceControllerV3.deploy(
@@ -25,12 +30,14 @@ async function main() {
     state.finance.USDC,
     state.finance.Treasury,
     await claims.getAddress(),
-    state.finance.PreTrancheBuffer
+    state.finance.PreTrancheBuffer,
+    await claimRegistry.getAddress()
   );
   await controller.waitForDeployment();
 
   state.issuance = {
     RedemptionClaim: await claims.getAddress(),
+    ClaimRegistry: await claimRegistry.getAddress(),
     IssuanceControllerV3: await controller.getAddress()
   };
   writeFileSync(path, JSON.stringify(state, null, 2));

@@ -14,7 +14,10 @@ const { SEPOLIA_RPC_URL, PRIVATE_KEY, ETHERSCAN_API_KEY } = process.env;
 const config: HardhatUserConfig = {
   solidity: {
     version: "0.8.24",
-    settings: { optimizer: { enabled: true, runs: 200 } }
+    settings: { 
+      optimizer: { enabled: true, runs: 200 },
+      viaIR: true
+    }
   },
   networks: {
     hardhat: {

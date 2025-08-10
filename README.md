@@ -1,257 +1,169 @@
-## BRICS Protocol – Developer Guide
+# BRICS Protocol: Institution-Grade Synthetic Risk Transfer for Emerging Markets
 
-### Overview
-Smart contracts and tooling for the BRICS super‑senior tranche protocol. The repo includes issuance/redemption control, tranche management, treasury/buffer, oracle, membership gating, and deployment scripts.
+## What It Is
+BRICS is a sovereign-backed, AI-governed, member-gated DeFi protocol that unlocks capital efficiency for emerging market bank loan portfolios. It transforms $2.3 trillion in performing loans into liquid, AAA-grade synthetic assets through multi-sovereign risk transfer mechanics and dynamic issuance controls.
 
-Key contracts:
-- `IssuanceControllerV3`: governs mint/redeem flows and governance ratification windows
-- `TrancheManagerV2`: detachment band, caps, emergency soft‑cap expansion window
-- `PreTrancheBuffer`: instant redemption buffer (USDC)
-- `Treasury`: funds custody for issuance/redemption
-- `NAVOracleV3`: on‑chain NAV with quorum and dev seeding for local testing
-- `MemberRegistry` + `OperationalAgreement`: membership gating and ops roles
+## What It Does
+The protocol mints BRICS tokens — super-senior tranche instruments (100–102% normal, expandable to 105–108% in crisis) that function like stablecoins but survive like AAA bonds. Risk is synthetically transferred via CDS from banks to institutional and on-chain investors, with 90%+ coverage from a multi-sovereign guarantee layer. AI-driven issuance throttles or halts when tail correlation, sovereign utilisation, or buffer health breach limits.
 
-Recent hardening highlights:
-- ReentrancyGuard on critical paths (issuance/redemption/buffer)
-- Custom errors replacing revert strings
-- Per‑address daily issuance cap (anti‑sybil)
-- Burn‑before‑external‑call in instant redemption path
-- Tranche soft‑cap (105%) with 30‑day expiry and governance attestation
-- Buffer accounting based on `balanceOf` to avoid drift
-- Local‑only `devSeedNAV` to bootstrap NAV in development
+## Core Liquidity & Risk Structure
+- **Bank Equity (0–5%)**: First-loss protection
+- **Mezzanine (5–10%)**: ERC-4626 vault with 5-year reinvestment from underwriters (e.g., Old Mutual, NASASA)
+- **Sovereign Guarantee (10–100%)**: Diversified across BRICS nations for cross-sovereign hedging; legally enforceable under PFMA/ISDA frameworks with 7-day notice, 90-day execution
+- **Pre-Tranche Buffer ($10M)**: Instant redemptions (daily limits)
+- **Instant Redemption Buffer (3–12%)**: AMM liquidity scaling with emergency level
+- **BRICS Super-Senior (100–108%)**: Detachment expansion in RED state with sovereign confirmation
 
----
+## Value Proposition
+- **For Banks**: Unlock 20–30% capital efficiency without selling assets
+- **For Investors**: Access emerging market credit with sovereign backing, crisis protection, and predictable exit paths (instant, monthly, or sovereign-bridge redemptions)
+- **For Sovereigns**: Monetise credit capacity through structured risk transfer to both domestic and global investors
+- **For the System**: Create liquid markets for previously illiquid emerging market assets, with Basel-aligned capital controls and AI-monitored systemic risk
 
-## Requirements
-- Node.js 20.x (project uses `.nvmrc` → 20.19.4)
-- npm 10+
-
-Optional:
-- A running local Hardhat node (for multi‑script deploys)
+**Result**: BRICS runs like a stablecoin but survives like a AAA bond — an adaptive sovereign credit infrastructure capable of scaling across multiple nations, dynamically hedging sovereign exposures, and enabling the largest capital efficiency transformation in emerging market banking history.
 
 ---
 
 ## Quick Start
+
+### Requirements
+- Node.js 20.x
+- npm 10+
+- Hardhat 2.19.0+
+
+### Installation
 ```bash
-nvm use           # picks up .nvmrc (20.19.4)
-npm ci            # install deps
-npm run build     # compile + typechain
-npm run test      # run unit tests
+npm ci
+npm run build
 ```
 
-If you see a Node 23 warning, ensure you are on Node 20.
-
----
-
-## Local Development
-### Start a persistent node
+### Local Development
 ```bash
-npx hardhat node --hostname 127.0.0.1
+npm run node
+npm run deploy:local
+npm test
 ```
 
-### Deploy to localhost (in another terminal)
-The deployment writes addresses to `deployments-localhost.json`.
+## Key Contracts
+
+### Core Protocol
+- **IssuanceControllerV3**: Mint/redeem logic with emergency controls and per-sovereign soft-cap damping
+- **TrancheManagerV2**: Detachment band management (100-108%) with sovereign guarantee integration
+- **NAVOracleV3**: On-chain NAV with quorum and degradation modes
+- **ConfigRegistry**: Global risk parameters and emergency level system
+- **ClaimRegistry**: Sovereign guarantee claim tracking and legal milestone management
+
+### Risk Management
+- **PreTrancheBuffer**: Instant redemption liquidity buffer
+- **BRICSToken**: ERC-20 token with transfer restrictions and membership gating
+- **MemberRegistry**: Membership gating and pool whitelisting
+- **MezzanineVault**: ERC-4626 vault for institutional investors
+- **Treasury**: Central treasury with buffer management
+
+### Emergency System
+- **SovereignClaimToken**: Sovereign guarantee claim representation
+- **RedemptionClaim**: Monthly redemption queue management
+- **OperationalAgreement**: Legal framework integration
+
+## Emergency Levels
+- **NORMAL (0)**: Standard operations, 100-102% detachment
+- **YELLOW (1)**: Elevated risk, reduced issuance rates
+- **ORANGE (2)**: High risk, issuance throttling, extended cooldowns
+- **RED (3)**: Crisis mode, issuance halted, sovereign guarantee activation
+
+## Sovereign Guarantee Integration
+The protocol features a sophisticated sovereign guarantee system with:
+- **Legal Framework**: PFMA authority, ISDA-style terms, 7-day notice, 90-day execution
+- **Multi-Sovereign Support**: Cross-sovereign hedging across BRICS nations
+- **Crisis Expansion**: Dynamic detachment expansion (105-108%) with sovereign confirmation
+- **Claim Lifecycle**: Complete legal milestone tracking with audit trails
+
+## Development Workflow
+
+### Testing
 ```bash
-npx hardhat run --network localhost deploy/00_env.ts && \
-npx hardhat run --network localhost deploy/01_core.ts && \
-npx hardhat run --network localhost deploy/02_finance.ts && \
-npx hardhat run --network localhost deploy/04_oracle.ts && \
-npx hardhat run --network localhost deploy/03_tranche.ts && \
-npx hardhat run --network localhost deploy/05_issuance_and_claims.ts && \
-npx hardhat run --network localhost deploy/90_roles_and_params.ts && \
-npx hardhat run --network localhost deploy/99_report.ts
+# Run all tests
+npm test
+
+# Run specific test suites
+npm test -- --grep "Sovereign Guarantee"
+npm test -- --grep "Per-Sovereign Soft-Cap Damping"
+npm test -- --grep "Emergency System"
 ```
 
-Oracle deploy seeds a dev NAV on localhost/hardhat via `devSeedNAV`.
-
-### Smoke: mint BRICS
+### Deployment
 ```bash
-npx hardhat run --network localhost scripts/smokeMint.ts
-```
+# Local deployment
+npm run deploy:local
 
----
-
-## Networks and .env
-Create a `.env` file for testnets (example for Sepolia):
-```bash
-SEPOLIA_RPC_URL=https://sepolia.infura.io/v3/<key>
-PRIVATE_KEY=0xabc...        # deployer
-ETHERSCAN_API_KEY=<key>
-
-# Optional multisigs/addresses
-DAO_MULTISIG=0x...
-ECC_MULTISIG=0x...
-SPV_OPS_MULTISIG=0x...
-TREASURY_OPS_MULTISIG=0x...
-USDC_ADDRESS=0xMockOrRealUSDCOnNetwork
-
-# Oracle model + signers (optional)
-MODEL_HASH=0x...
-MODEL_SIGNER_1=0x...
-MODEL_SIGNER_2=0x...
-MODEL_SIGNER_3=0x...
-EMERGENCY_SIGNER_NASASA=0x...
-EMERGENCY_SIGNER_OLDMUTUAL=0x...
-```
-
-### Deploy to Sepolia
-```bash
+# Sepolia testnet
 npm run deploy:sepolia
-# optional
-npm run verify:all
+
+# Mainnet (requires environment setup)
+npm run deploy:mainnet
 ```
 
----
-
-## NPM Scripts
-- `build`: Hardhat compile + TypeChain
-- `test`: Hardhat tests
-- `deploy:dev`: runs all deploy scripts on the in‑memory Hardhat network
-- `deploy:sepolia`: runs all deploy scripts on Sepolia
-- `verify:all`: verification helper
-- `lint:sol`: Solhint over `contracts/**/*.sol`
-- `lint:ts`: ESLint 9 – requires an `eslint.config.js` (see notes)
-
----
-
-## Tasks (operational helpers)
-Examples (use `--network localhost` or `sepolia`):
+### Governance Tasks
 ```bash
-# Approve a member
-npx hardhat member:approve --user 0xabc...
+# Set emergency level
+npx hardhat setEmergencyLevel --level 2 --reason "market stress"
 
-# Confirm sovereign guarantee (affects 105% soft-cap in RED)
-npx hardhat sovereign:confirm --confirmed true
+# Expand to crisis mode
+npx hardhat emergencyExpandSoftCap --reason "sovereign guarantee activated"
 
-# Raise detachment
-npx hardhat tranche:raise --lo 10100 --hi 10300
-
-# Set emergency level (0 NORMAL, 1 YELLOW, 2 ORANGE, 3 RED)
-npx hardhat set:level --level 3 --reason "stress"
-
-# Toggle oracle degradation mode
-npx hardhat oracle:degradation --enabled true
+# Trigger sovereign claim
+npx hardhat confirmSovereign --confirmed true --reason "crisis response"
 ```
 
----
+## Documentation
+- **[BRICS Protocol Core Specification](docs/BRICS_SPEC_CORE.md)**: Complete technical specification
+- **[Sovereign Guarantee Implementation](docs/SOVEREIGN_GUARANTEE_IMPLEMENTATION.md)**: Legal framework and crisis management
+- **[Repository Map](docs/REPO_MAP.md)**: Contract responsibilities and architecture
+- **[Implementation Roadmap](docs/IMPLEMENTATION_ROADMAP.md)**: Development timeline and priorities
+- **[Context Guide](docs/CONTEXT_GUIDE.md)**: Developer quick reference
 
-## Contract Notes
-- `IssuanceControllerV3`
-  - `mintFor` is `onlyRole(OPS_ROLE)`, non‑reentrant, rate‑limited per address/day, and checks emergency params and caps.
-  - Instant redeem path burns before interacting with `PreTrancheBuffer` and emits `InstantRedeemProcessed`.
-  - Governance ratification and optional extension windows are enforced via timestamps.
+## Architecture Overview
 
-- `TrancheManagerV2`
-  - Enforces only‑raise invariant and oracle freshness (unless in degradation mode).
-  - ECC can expand to 105% in RED if sovereign confirmed and governance attested; expires within 30 days and can be enforced to revert.
-
-- `PreTrancheBuffer`
-  - Uses USDC `balanceOf` for accounting; reentrancy‑guarded; daily per‑member cap throttled in ORANGE/RED.
-
-- `NAVOracleV3`
-  - Quorum‑based updates; local‑only `devSeedNAV` used during localhost deploys.
-
-- `OperationalAgreement`
-  - Ops roles and member/pool management; registrar binding is handled in deploy scripts.
-
----
-
-## Linting & Coverage
-- Solidity: `npm run lint:sol`
-  - Notes: Several warnings (e.g., `no-global-import`, `gas-custom-errors`) are intentionally pending.
-- TypeScript: ESLint v9 requires a flat config (`eslint.config.js`). Either add one or pin ESLint to v8.
-- Coverage (optional):
-```bash
-npx hardhat coverage
+### Capital Stack
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    BRICS Super-Senior                      │
+│                    (100-108% detachment)                   │
+├─────────────────────────────────────────────────────────────┤
+│                 Instant Redemption Buffer                  │
+│                    (3-12% scaling)                         │
+├─────────────────────────────────────────────────────────────┤
+│                  Pre-Tranche Buffer                        │
+│                      ($10M liquid)                         │
+├─────────────────────────────────────────────────────────────┤
+│                Sovereign Guarantee Layer                   │
+│                (10-100%, multi-sovereign)                  │
+├─────────────────────────────────────────────────────────────┤
+│                   Mezzanine Tranche                        │
+│              (5-10%, ERC-4626 vault)                       │
+├─────────────────────────────────────────────────────────────┤
+│                    Bank Equity                             │
+│                    (0-5% first loss)                       │
+└─────────────────────────────────────────────────────────────┘
 ```
 
----
+### Emergency Response System
+```
+Normal Operations (100-102%)
+    ↓
+Market Stress → YELLOW (reduced issuance)
+    ↓
+Credit Deterioration → ORANGE (throttling)
+    ↓
+Crisis Event → RED (sovereign guarantee activation)
+    ↓
+Sovereign Confirmation → 105% expansion
+    ↓
+Legal Milestones → 106-108% expansion
+```
 
-## Troubleshooting
-- Hardhat + Node 23: not supported. Use Node 20 (`nvm use`).
-- NAV = 0 locally: ensure `deploy/04_oracle.ts` ran on localhost; it seeds NAV via `devSeedNAV`.
-- Registrar errors: ensure `MemberRegistry.setRegistrar(OperationalAgreement)` has been called (handled in deploy flow).
-
----
-
-## Repository Layout
-- `contracts/`: Solidity sources
-- `deploy/`: sequenced deploy scripts writing `deployments-<network>.json`
-- `scripts/`: smoke scripts and utilities
-- `tasks/`: Hardhat task entry points
-- `test/`: unit tests
-- `offchain/`, `python-backend/`: ancillary off‑chain code
-
----
+## Contributing
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines and [SECURITY.md](SECURITY.md) for vulnerability reporting.
 
 ## License
-MIT
-
----
-
-## Post‑Deployment Operations & Integration Roadmap
-
-- Frontend + Wallet Integration
-  - Build a minimal React/Next UI (or Webflow embed) to display NAV, tranche cap, and buffer health.
-  - Connect wallet (ethers/viem) and wire mint/redeem to `IssuanceControllerV3`.
-  - Show redemption status (instant vs queued) using events and `pending` mapping.
-
-- Off‑chain AI + Oracle Wiring
-  - Stand up signer service for XGBoost risk engine and market feeds (CDS, rates).
-  - Produce quorum signatures and call `NAVOracleV3.setNAV` on schedule; monitor staleness.
-  - Use `degradationMode` during outages; emergency signer flow for `emergencySetNAV`.
-
-- Governance + DAO Hooks
-  - Define multisigs and role grants (DAO, ECC, SPV) in env.
-  - Add tasks for `attestSupermajority`, parameter updates, and expiry enforcement.
-  - Optional timelock for sensitive parameter changes (mainnet).
-
-- Mainnet Readiness
-  - Dry‑run on Sepolia with realistic params; publish addresses.
-  - Timelocks, guardian procedures, and initial liquidity provisioning (treasury/buffer).
-  - Final go/no‑go checklist and post‑launch monitoring.
-
-- Monitoring & Alerting
-  - Run `scripts/monitor.ts` as a daemon; send alerts on emergency level and soft‑cap windows.
-  - Off‑chain health checks for oracle signer quorum and NAV staleness.
-
-- Audit & Legal Handoff
-  - Assemble audit pack (spec, threat model, invariants, diagrams) and deliver to auditors.
-  - Link offering memorandum / legal docs for investor due diligence.
-
----
-
-## Code Examples (ethers.js)
-
-Mint BRICS (OPS):
-```ts
-const controller = await ethers.getContractAt("IssuanceControllerV3", addr);
-await usdc.approve(controller, amountUSDC);
-const tx = await controller.mintFor(user, amountUSDC, 0, 0);
-await tx.wait();
-```
-
-Request redeem (instant path if available):
-```ts
-const tx = await controller.requestRedeemOnBehalf(user, amount);
-await tx.wait();
-```
-
-Set emergency level (ECC/GOV):
-```ts
-const cfg = await ethers.getContractAt("ConfigRegistry", cfgAddr);
-await (cfg as any).setEmergencyLevel(3, "stress");
-```
-
-Confirm sovereign guarantee and expand to soft‑cap (GOV/ECC):
-```ts
-const tm = await ethers.getContractAt("TrancheManagerV2", tmAddr);
-await (tm as any).confirmSovereignGuarantee(true);
-await (tm as any).attestSupermajority(7000);
-await (tm as any).emergencyExpandToSoftCap();
-```
-
-Oracle update (dev/local):
-```bash
-NAV_RAY=1 npx hardhat run --network localhost scripts/oracleUpdate.ts
-```
+MIT License - see [LICENSE](LICENSE) for details.

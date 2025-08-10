@@ -1,6 +1,8 @@
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import "dotenv/config";
+import "solidity-coverage";
+import "hardhat-gas-reporter";
 import "./tasks/governance";
 import "./tasks/confirmSovereign";
 import "./tasks/mintMember";
@@ -40,6 +42,27 @@ const config: HardhatUserConfig = {
   typechain: {
     outDir: "typechain",
     target: "ethers-v6"
+  },
+  gasReporter: {
+    enabled: process.env.REPORT_GAS !== undefined,
+    currency: "USD",
+    gasPrice: 21,
+    showMethodSig: true,
+    showTimeSpent: true,
+    outputFile: "gas-report.txt",
+    noColors: true
+  },
+  coverage: {
+    reporter: ["text", "lcov", "html"],
+    exclude: [
+      "contracts/mocks/",
+      "test/",
+      "deploy/"
+    ]
+  },
+  mocha: {
+    timeout: 10000,
+    bail: 1
   }
 };
 

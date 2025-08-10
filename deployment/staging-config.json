@@ -1,0 +1,103 @@
+{
+  "version": "4.0.0-rc1",
+  "description": "BRICS Protocol Staging Configuration Snapshot",
+  "timestamp": "2024-08-10T20:53:00Z",
+  
+  "emergencyMatrix": {
+    "NORMAL": {
+      "level": 0,
+      "maxIssuanceRateBps": 10000,
+      "maxTailCorrPpm": 650000000,
+      "maxSovUtilBps": 2000,
+      "bufferTargetBps": 300
+    },
+    "YELLOW": {
+      "level": 1,
+      "maxIssuanceRateBps": 8000,
+      "maxTailCorrPpm": 600000000,
+      "maxSovUtilBps": 1800,
+      "bufferTargetBps": 400
+    },
+    "ORANGE": {
+      "level": 2,
+      "maxIssuanceRateBps": 5000,
+      "maxTailCorrPpm": 500000000,
+      "maxSovUtilBps": 1500,
+      "bufferTargetBps": 500
+    },
+    "RED": {
+      "level": 3,
+      "maxIssuanceRateBps": 0,
+      "maxTailCorrPpm": 400000000,
+      "maxSovUtilBps": 1000,
+      "bufferTargetBps": 600
+    }
+  },
+  
+  "sovereigns": {
+    "ZA": {
+      "code": "0x5a4100000000000000000000000000000000000000000000000000000000000000",
+      "name": "South Africa",
+      "enabled": true,
+      "effectiveCapacityBps": 6400,
+      "softCapUSDC": "1000000000000000000000000",
+      "hardCapUSDC": "2000000000000000000000000"
+    },
+    "BR": {
+      "code": "0x4252000000000000000000000000000000000000000000000000000000000000",
+      "name": "Brazil",
+      "enabled": true,
+      "effectiveCapacityBps": 6400,
+      "softCapUSDC": "1000000000000000000000000",
+      "hardCapUSDC": "2000000000000000000000000"
+    }
+  },
+  
+  "caps": {
+    "superSeniorCap": "10000000000000000000000000",
+    "dampingSlopeK": 10000
+  },
+  
+  "oracle": {
+    "quorumSigners": [],
+    "emergencySigners": [],
+    "modelHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "degradationLevels": {
+      "FRESH": 0,
+      "STALE": 1,
+      "DEGRADED": 2,
+      "EMERGENCY_OVERRIDE": 3
+    },
+    "haircuts": {
+      "STALE": 200,
+      "DEGRADED": 500,
+      "EMERGENCY_OVERRIDE": 1000
+    }
+  },
+  
+  "roles": {
+    "DEFAULT_ADMIN_ROLE": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "OPS_ROLE": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "GOV_ROLE": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "ECC_ROLE": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "MINTER_ROLE": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "BURNER_ROLE": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "PAY_ROLE": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "BUFFER_MANAGER": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "ISSUER_ROLE": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "REGISTRY_ADMIN": "0x0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  
+  "navRedemption": {
+    "windowMinDuration": 86400,
+    "settlementDelay": 432000,
+    "freezePeriod": 86400
+  },
+  
+  "sovereignGuarantee": {
+    "tier1Threshold": 106,
+    "tier2Threshold": 108,
+    "tier2Expiry": 2592000,
+    "advanceRateBps": 6000
+  }
+}

@@ -146,55 +146,29 @@ describe("IssuanceControllerV3 - SPEC §3 Per-Sovereign Soft-Cap Damping", funct
       const effectiveCap = 8000 * 0.8;
       
       // Debug: Check various conditions
-      console.log("Checking canIssue conditions...");
-      console.log("Sovereign code:", SOVEREIGN_CODE);
-      console.log("Amount:", ethers.parseEther("100000"));
       
       // Check each condition that could cause canIssue to return false
       const params = await configRegistry.getCurrentParams();
-      console.log("Emergency params:", params);
-      console.log("maxIssuanceRateBps:", params.maxIssuanceRateBps);
-      console.log("issuanceLocked:", await trancheManager.issuanceLocked());
-      console.log("maxTailCorrPpm:", await configRegistry.maxTailCorrPpm());
-      console.log("maxSovUtilBps:", await configRegistry.maxSovUtilBps());
-      console.log("tailCorrPpm:", 100000000);
-      console.log("sovUtilBps:", 1500);
       
       // Check oracle and liquidity conditions
-      console.log("Oracle degradation level:", await navOracle.getDegradationLevel());
-      console.log("Emergency level:", await configRegistry.emergencyLevel());
-      console.log("NAV:", await navOracle.navRay());
       
       // Check liquidity conditions
       const liquidityStatus = await treasury.getLiquidityStatus();
-      console.log("Liquidity status:", liquidityStatus);
       
       const bufferStatus = await preTrancheBuffer.getBufferStatus();
-      console.log("Buffer status:", bufferStatus);
       
       // Check sovereign-specific capacity calculation
       const effectiveCapacity = await configRegistry.getEffectiveCapacity(SOVEREIGN_CODE);
-      console.log("Effective capacity from config:", effectiveCapacity);
       
       const sovereignUtilization = await issuanceController.sovereignUtilization(SOVEREIGN_CODE);
-      console.log("Current sovereign utilization:", sovereignUtilization);
       
       const sovereignSoftCap = await issuanceController.sovereignSoftCap(SOVEREIGN_CODE);
       const sovereignHardCap = await issuanceController.sovereignHardCap(SOVEREIGN_CODE);
-      console.log("Sovereign soft cap:", sovereignSoftCap);
-      console.log("Sovereign hard cap:", sovereignHardCap);
       
       // Use the debug function to get the actual capacity values
       const debug = await issuanceController.getSovereignCapacityDebug(SOVEREIGN_CODE);
-      console.log("Debug values:", debug);
-      console.log("Soft cap USDC:", debug.softCapUSDC);
-      console.log("Cap BPS:", debug.capBps);
-      console.log("Cap USDC:", debug.capUSDC);
-      console.log("Used USDC:", debug.usedUSDC);
-      console.log("Remaining USDC:", debug.remUSDC);
       
       // Test with the exact remaining capacity
-      console.log("Testing with amount:", debug.remUSDC);
       
       // Check additional conditions that might be failing
       const superSeniorCap = await trancheManager.superSeniorCap();
@@ -202,17 +176,10 @@ describe("IssuanceControllerV3 - SPEC §3 Per-Sovereign Soft-Cap Damping", funct
       const reservedForNav = await issuanceController.reservedForNav();
       const effectiveOutstanding = totalIssued - reservedForNav;
       
-      console.log("superSeniorCap:", superSeniorCap);
-      console.log("totalIssued:", totalIssued);
-      console.log("reservedForNav:", reservedForNav);
-      console.log("effectiveOutstanding:", effectiveOutstanding);
       
       // Calculate tokens that would be minted
       const nav = await navOracle.navRay();
       const tokensOut = (debug.remUSDC * ethers.parseUnits("1", 27)) / nav;
-      console.log("tokensOut:", tokensOut);
-      console.log("effectiveOutstanding + tokensOut:", effectiveOutstanding + tokensOut);
-      console.log("Would exceed cap:", (effectiveOutstanding + tokensOut) > superSeniorCap);
       
       const canIssue = await issuanceController.canIssue(
         debug.remUSDC, // Use the exact remaining capacity
@@ -221,7 +188,6 @@ describe("IssuanceControllerV3 - SPEC §3 Per-Sovereign Soft-Cap Damping", funct
         SOVEREIGN_CODE
       );
       
-      console.log("canIssue result:", canIssue);
       
       expect(canIssue).to.be.true;
       
@@ -233,7 +199,6 @@ describe("IssuanceControllerV3 - SPEC §3 Per-Sovereign Soft-Cap Damping", funct
         SOVEREIGN_CODE
       );
       
-      console.log("canIssueTooMuch result:", canIssueTooMuch);
       expect(canIssueTooMuch).to.be.false;
     });
 
@@ -256,11 +221,9 @@ describe("IssuanceControllerV3 - SPEC §3 Per-Sovereign Soft-Cap Damping", funct
 
       // Check utilization after first mint
       const utilizationAfter = await issuanceController.sovereignUtilization(SOVEREIGN_CODE);
-      console.log("Utilization after first mint:", utilizationAfter.toString());
       
       // Get updated capacity
       const debugAfter = await issuanceController.getSovereignCapacityDebug(SOVEREIGN_CODE);
-      console.log("Remaining capacity after first mint:", debugAfter.remUSDC.toString());
 
       // Try to mint more - should fail
       await usdc.mint(opsAddress, ethers.parseEther("100000"));
@@ -273,7 +236,6 @@ describe("IssuanceControllerV3 - SPEC §3 Per-Sovereign Soft-Cap Damping", funct
         1500,
         SOVEREIGN_CODE
       );
-      console.log("canIssue for second mint:", canIssue);
       
       // Since canIssue returns true, the transaction should succeed
       // This indicates a potential issue with the capacity calculation logic
@@ -287,7 +249,6 @@ describe("IssuanceControllerV3 - SPEC §3 Per-Sovereign Soft-Cap Damping", funct
       
       // Verify that utilization increased
       const finalUtilization = await issuanceController.sovereignUtilization(SOVEREIGN_CODE);
-      console.log("Final utilization:", finalUtilization.toString());
       expect(finalUtilization).to.be.gt(utilizationAfter);
     });
 

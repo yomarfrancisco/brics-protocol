@@ -350,24 +350,14 @@ describe("Sovereign Guarantee Integration", function () {
         1500,      // sovereign utilization
         SOVEREIGN_CODE
       );
-      console.log("Can issue:", canIssue);
       
       // Debug sovereign capacity
       const debug = await issuanceController.getSovereignCapacityDebug(SOVEREIGN_CODE);
-      console.log("Sovereign debug:", {
-        softCapUSDC: debug.softCapUSDC.toString(),
-        capBps: debug.capBps.toString(),
-        capUSDC: debug.capUSDC.toString(),
-        usedUSDC: debug.usedUSDC.toString(),
-        remUSDC: debug.remUSDC.toString()
-      });
       
       // Debug other conditions
       const emergencyLevel = await configRegistry.emergencyLevel();
-      console.log("Emergency level:", emergencyLevel.toString());
       
       const superSeniorCap = await trancheManager.superSeniorCap();
-      console.log("Super senior cap:", superSeniorCap.toString());
       
       try {
         await issuanceController.connect(ops).mintFor(
@@ -378,7 +368,6 @@ describe("Sovereign Guarantee Integration", function () {
           SOVEREIGN_CODE
         );
       } catch (error) {
-        console.log("Issuance error:", error.message);
         throw error;
       }
     });

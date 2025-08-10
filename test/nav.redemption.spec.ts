@@ -185,7 +185,6 @@ describe("NAV Redemption Lane (SPEC §4)", function () {
             
             // Debug: Check if issuance controller has BUFFER_MANAGER role
             const hasRole = await preTrancheBuffer.hasRole(await preTrancheBuffer.BUFFER_MANAGER(), await issuanceController.getAddress());
-            console.log("Issuance controller has BUFFER_MANAGER role:", hasRole);
             
             // Give user some BRICS tokens to redeem
             await bricsToken.connect(gov).mint(user1Address, ethers.parseEther("1000"));
@@ -198,10 +197,6 @@ describe("NAV Redemption Lane (SPEC §4)", function () {
             // Debug: Check instant capacity
             const instantCapacity = await preTrancheBuffer.availableInstantCapacity(user1Address);
             const nav = await navOracle.navRay();
-            console.log("Instant capacity for user:", instantCapacity.toString());
-            console.log("Requested amount:", amount.toString());
-            console.log("NAV value:", nav.toString());
-            console.log("USDC equivalent:", (amount / ethers.parseUnits("1", 12)).toString());
             
             await expect(issuanceController.connect(ops).requestRedeemOnBehalf(user1Address, amount))
                 .to.emit(issuanceController, "InstantRedeemProcessed")

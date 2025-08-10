@@ -69,7 +69,6 @@ describe("NAV Redemption Lane - Simple Test", function () {
         expect(await navOracle.navRay()).to.equal(ethers.parseEther("1.0") * 10n ** 9n); // 1.0 NAV in ray format (1e27)
         expect(await configRegistry.emergencyLevel()).to.equal(0);
         
-        console.log("All contracts deployed successfully!");
     });
 
     it("should open and close NAV window", async function () {
@@ -169,7 +168,6 @@ describe("NAV Redemption Lane - Simple Test", function () {
         const closedWindow = await issuanceController.currentNavWindow();
         expect(closedWindow.state).to.equal(2); // CLOSED = 2
 
-        console.log("NAV window lifecycle test passed!");
     });
 });
 

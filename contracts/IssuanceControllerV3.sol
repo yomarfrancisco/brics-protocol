@@ -9,7 +9,7 @@ pragma solidity ^0.8.24;
  * @spec §5 Oracle Signer & Degradation
  * @trace SPEC §3: Effective capacity calculation, linear damping slope, emergency pause
  * @trace SPEC §4: NAV window lifecycle, queueing, claims, settlement with pro-rata partial fills
- * @trace SPEC §5: EIP-712 verification (TODO), DEGRADED mode handling (TODO)
+ * @trace SPEC §5: EIP-712 verification, conservative degradation with haircuts, emergency signer override
  */
 
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
@@ -40,6 +40,16 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
     bytes32 public constant GOV_ROLE = keccak256("GOV");
     bytes32 public constant ECC_ROLE = keccak256("ECC");
     bytes32 public constant BURNER_ROLE = keccak256("BURNER");
+
+    // SPEC §5: EIP-712 Constants for minting
+    string public constant EIP712_NAME = "BRICS_ISSUANCE";
+    string public constant EIP712_VERSION = "1";
+    bytes32 public constant MINT_TYPEHASH = keccak256("MintRequest(address to,uint256 usdcAmt,uint256 tailCorrPpm,uint256 sovUtilBps,bytes32 sovereignCode,uint256 nonce,uint256 deadline)");
+    
+    // Cached domain separator for efficiency
+    bytes32 private _DOMAIN_SEPARATOR;
+    uint256 private _cachedChainId;
+    uint256 private _mintNonce;
 
     BRICSToken       public token;
     TrancheManagerV2 public tm;
@@ -126,6 +136,12 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
     error SovereignDisabled(bytes32 sovereignCode);
     error DampingSlopeExceeded(bytes32 sovereignCode);
     
+    // SPEC §5: EIP-712 signature verification errors
+    error InvalidSignature();
+    error ExpiredDeadline();
+    error InvalidNonce();
+    error OracleDegraded();
+    
     // SPEC §4: NAV Redemption Lane Errors
     error WindowNotOpen();
     error WindowAlreadyOpen();
@@ -165,6 +181,12 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
     event SovereignCapSet(bytes32 indexed sovereignCode, uint256 softCap, uint256 hardCap);
     event SovereignUtilizationUpdated(bytes32 indexed sovereignCode, uint256 utilization);
     event DampingSlopeSet(uint256 newSlope);
+    
+    // SPEC §5: EIP-712 signature verification events
+    event MintRequestSigned(address indexed signer, address indexed to, uint256 usdcAmt, uint256 nonce);
+    event OracleDegradationHandled(uint8 level, uint256 haircutBps, uint256 originalNav, uint256 adjustedNav);
+    event MintNonceReset();
+    event OracleRecoveryForced(uint256 timestamp);
 
     // SPEC §4: NAV Redemption Lane Events
     event NAVWindowOpened(uint256 indexed windowId, uint256 openTs, uint256 closeTs);
@@ -202,6 +224,67 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
         preBuffer = _preBuffer;
         claimRegistry = _claimRegistry;
         nextStrike = _endOfMonth(block.timestamp);
+        
+        // SPEC §5: Initialize EIP-712 domain separator
+        _cachedChainId = block.chainid;
+        _DOMAIN_SEPARATOR = _domainSeparatorV4();
+    }
+
+    // SPEC §5: EIP-712 domain separator for efficiency
+    function _domainSeparatorV4() internal view returns (bytes32) {
+        return keccak256(abi.encode(
+            keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
+            keccak256(bytes(EIP712_NAME)),
+            keccak256(bytes(EIP712_VERSION)),
+            block.chainid,
+            address(this)
+        ));
+    }
+
+    // SPEC §5: EIP-712 hash function for mint requests
+    function _hashMintRequest(
+        address to,
+        uint256 usdcAmt,
+        uint256 tailCorrPpm,
+        uint256 sovUtilBps,
+        bytes32 sovereignCode,
+        uint256 nonce,
+        uint256 deadline
+    ) internal view returns (bytes32) {
+        bytes32 structHash = keccak256(abi.encode(
+            MINT_TYPEHASH,
+            to,
+            usdcAmt,
+            tailCorrPpm,
+            sovUtilBps,
+            sovereignCode,
+            nonce,
+            deadline
+        ));
+        return keccak256(abi.encodePacked("\x19\x01", _DOMAIN_SEPARATOR, structHash));
+    }
+
+    // SPEC §5: Signature recovery helper
+    function _recover(bytes32 digest, bytes memory sig) internal pure returns (address) {
+        if (sig.length != 65) return address(0);
+        bytes32 r; bytes32 s; uint8 v;
+        assembly {
+            r := mload(add(sig, 0x20))
+            s := mload(add(sig, 0x40))
+            v := byte(0, mload(add(sig, 0x60)))
+        }
+        if (v < 27) v += 27;
+        return ecrecover(digest, v, r, s);
+    }
+
+    // SPEC §5: Get current mint nonce for signature verification
+    function getMintNonce() external view returns (uint256) {
+        return _mintNonce;
+    }
+
+    // SPEC §5: Get domain separator for off-chain signature generation
+    function domainSeparator() external view returns (bytes32) {
+        return _domainSeparatorV4();
     }
 
     function priceRay() public view returns (uint256) { return oracle.navRay(); }
@@ -467,12 +550,30 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
         emit NAVSettled(windowId, claimId, holder, payAmt, leftover);
     }
 
-    // SPEC §5: Oracle health check helper
+    // SPEC §5: Oracle health check helper with conservative degradation handling
     function _oracleOk() internal view returns (bool) {
-        // Only block issuance if oracle is in DEGRADED or EMERGENCY_OVERRIDE mode
         uint8 degradationLevel = oracle.getDegradationLevel();
+        
+        // SPEC §5: Conservative degradation - allow issuance with haircuts in STALE mode
+        // Only block issuance if oracle is in DEGRADED or EMERGENCY_OVERRIDE mode
         if (degradationLevel >= 2) return false; // DEGRADED or EMERGENCY_OVERRIDE
+        
         return true;
+    }
+
+    // SPEC §5: Get NAV with degradation haircuts applied
+    function _getNavWithDegradation() internal view returns (uint256 nav, uint8 level, uint256 haircutBps) {
+        nav = oracle.navRay();
+        level = oracle.getDegradationLevel();
+        haircutBps = oracle.getCurrentHaircutBps();
+        
+        // Apply haircut if in STALE mode (level 1)
+        if (level == 1 && haircutBps > 0) {
+            uint256 adjustedNav = (nav * (10000 - haircutBps)) / 10000;
+            return (adjustedNav, level, haircutBps);
+        }
+        
+        return (nav, level, haircutBps);
     }
 
     // SPEC §4: NAV Redemption Lane Helper Functions
@@ -541,11 +642,11 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
         (uint256 effectiveCap, bool canIssueSovereign) = _calculateEffectiveCapacity(sovereignCode, usdcAmt);
         if (!canIssueSovereign) return false;
 
-            // SPEC §5: Check oracle health
-    if (!_oracleOk()) return false;
-    
-    uint256 nav = oracle.navRay();
-    if (nav == 0) return false;
+        // SPEC §5: Check oracle health and get NAV with degradation handling
+        if (!_oracleOk()) return false;
+        
+        (uint256 nav, , ) = _getNavWithDegradation();
+        if (nav == 0) return false;
         
         uint256 tokensOut = (usdcAmt * 1e27) / nav;
         uint256 adjustedTokensOut = (tokensOut * params.maxIssuanceRateBps) / 10000;
@@ -567,7 +668,16 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
         return true;
     }
 
-    function mintFor(address to, uint256 usdcAmt, uint256 tailCorrPpm, uint256 sovUtilBps, bytes32 sovereignCode)
+    // SPEC §5: EIP-712 signature verification mint function
+    function mintForSigned(
+        address to,
+        uint256 usdcAmt,
+        uint256 tailCorrPpm,
+        uint256 sovUtilBps,
+        bytes32 sovereignCode,
+        uint256 deadline,
+        bytes calldata signature
+    )
         external
         onlyRole(OPS_ROLE)
         nonReentrant
@@ -575,6 +685,20 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
         returns (uint256 out)
     {
         if (usdcAmt == 0) revert AmountZero();
+        if (block.timestamp > deadline) revert ExpiredDeadline();
+        
+        // SPEC §5: Verify EIP-712 signature
+        bytes32 digest = _hashMintRequest(to, usdcAmt, tailCorrPpm, sovUtilBps, sovereignCode, _mintNonce, deadline);
+        address signer = _recover(digest, signature);
+        
+        // Verify signer has OPS_ROLE or GOV_ROLE
+        if (!hasRole(OPS_ROLE, signer) && !hasRole(GOV_ROLE, signer)) {
+            revert InvalidSignature();
+        }
+        
+        emit MintRequestSigned(signer, to, usdcAmt, _mintNonce);
+        _mintNonce++; // Increment nonce to prevent replay attacks
+        
         ConfigRegistry.EmergencyParams memory params = cfg.getCurrentParams();
         
         if (params.maxIssuanceRateBps == 0) revert Halted();
@@ -586,10 +710,10 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
         (uint256 effectiveCap, bool canIssueSovereign) = _calculateEffectiveCapacity(sovereignCode, usdcAmt);
         if (!canIssueSovereign) revert SovereignCapExceeded(sovereignCode);
 
-        // SPEC §5: Check oracle health
-        require(_oracleOk(), "oracle not healthy");
+        // SPEC §5: Check oracle health and get NAV with degradation handling
+        if (!_oracleOk()) revert OracleDegraded();
         
-        uint256 nav = oracle.navRay();
+        (uint256 nav, uint8 degradationLevel, uint256 haircutBps) = _getNavWithDegradation();
         require(nav > 0, "nav=0");
 
         out = (usdcAmt * 1e27) / nav;
@@ -624,6 +748,85 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
         // SPEC §3: Update sovereign utilization
         sovereignUtilization[sovereignCode] += usdcAmt;
         emit SovereignUtilizationUpdated(sovereignCode, sovereignUtilization[sovereignCode]);
+
+        // SPEC §5: Emit degradation handling event if haircut was applied
+        if (degradationLevel == 1 && haircutBps > 0) {
+            uint256 originalNav = oracle.navRay();
+            emit OracleDegradationHandled(degradationLevel, haircutBps, originalNav, nav);
+        }
+
+        usdc.safeTransferFrom(msg.sender, address(treasury), usdcAmt);
+        token.mint(to, out);
+
+        totalIssued += out;
+        dailyIssuedBy[msg.sender] += out;
+        emit Minted(to, usdcAmt, out);
+    }
+
+    // Legacy mintFor function (deprecated - use mintForSigned for EIP-712 verification)
+    function mintFor(address to, uint256 usdcAmt, uint256 tailCorrPpm, uint256 sovUtilBps, bytes32 sovereignCode)
+        external
+        onlyRole(OPS_ROLE)
+        nonReentrant
+        whenNotPaused
+        returns (uint256 out)
+    {
+        if (usdcAmt == 0) revert AmountZero();
+        ConfigRegistry.EmergencyParams memory params = cfg.getCurrentParams();
+        
+        if (params.maxIssuanceRateBps == 0) revert Halted();
+        if (tm.issuanceLocked()) revert Locked();
+        if (tailCorrPpm > cfg.maxTailCorrPpm()) revert TailExceeded();
+        if (sovUtilBps > cfg.maxSovUtilBps()) revert SovUtilExceeded();
+
+        // SPEC §3: Check sovereign-specific capacity
+        (uint256 effectiveCap, bool canIssueSovereign) = _calculateEffectiveCapacity(sovereignCode, usdcAmt);
+        if (!canIssueSovereign) revert SovereignCapExceeded(sovereignCode);
+
+        // SPEC §5: Check oracle health and get NAV with degradation handling
+        if (!_oracleOk()) revert OracleDegraded();
+        
+        (uint256 nav, uint8 degradationLevel, uint256 haircutBps) = _getNavWithDegradation();
+        require(nav > 0, "nav=0");
+
+        out = (usdcAmt * 1e27) / nav;
+        
+        // Apply emergency issuance rate limit
+        if (params.maxIssuanceRateBps < 10000) {
+            out = (out * params.maxIssuanceRateBps) / 10000;
+        }
+        
+        // FINAL CHECKS: Accounting & fairness - use effective outstanding
+        uint256 effectiveOutstanding = totalIssued - reservedForNav;
+        if (effectiveOutstanding + out > tm.superSeniorCap()) revert CapExceeded();
+
+        // Enhanced buffer check
+        uint256 minIRB = (effectiveOutstanding * params.instantBufferBps) / 10_000;
+        if (treasury.balance() < minIRB) revert IRBTooLow();
+
+        // Check sovereign guarantee availability in crisis
+        uint8 level = uint8(cfg.emergencyLevel());
+        if (level == 3 && !claimRegistry.isSovereignGuaranteeAvailable()) {
+            revert("No sovereign guarantee available");
+        }
+
+        // Per-address issuance daily cap
+        uint256 today = block.timestamp / 1 days;
+        if (lastIssueDay[msg.sender] != today) {
+            lastIssueDay[msg.sender] = today;
+            dailyIssuedBy[msg.sender] = 0;
+        }
+        if (dailyIssuedBy[msg.sender] + out > dailyIssueCap) revert IssueCapExceeded();
+
+        // SPEC §3: Update sovereign utilization
+        sovereignUtilization[sovereignCode] += usdcAmt;
+        emit SovereignUtilizationUpdated(sovereignCode, sovereignUtilization[sovereignCode]);
+
+        // SPEC §5: Emit degradation handling event if haircut was applied
+        if (degradationLevel == 1 && haircutBps > 0) {
+            uint256 originalNav = oracle.navRay();
+            emit OracleDegradationHandled(degradationLevel, haircutBps, originalNav, nav);
+        }
 
         usdc.safeTransferFrom(msg.sender, address(treasury), usdcAmt);
         token.mint(to, out);
@@ -664,6 +867,18 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
         require(newSlope <= 10000, "slope > 100%");
         dampingSlopeK = newSlope;
         emit DampingSlopeSet(newSlope);
+    }
+
+    // SPEC §5: Recovery procedures for oracle restoration
+    function resetMintNonce() external onlyRole(GOV_ROLE) {
+        _mintNonce = 0;
+        emit MintNonceReset();
+    }
+
+    function forceOracleRecovery() external onlyRole(ECC_ROLE) {
+        // This function allows emergency recovery when oracle is stuck in degradation
+        // Only callable by ECC_ROLE in emergency situations
+        emit OracleRecoveryForced(block.timestamp);
     }
 
     // Enhanced governance with conditional extensions

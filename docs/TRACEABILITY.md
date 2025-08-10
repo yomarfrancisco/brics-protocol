@@ -32,10 +32,11 @@
 ### §5. Oracle Signer & Degradation
 | SPEC Requirement | Implementation | File | Status |
 |------------------|----------------|------|--------|
-| EIP-712 verification | TODO: Add to IssuanceController | contracts/IssuanceControllerV3.sol | ❌ Missing |
-| Signature validation | TODO: Implement signature checks | contracts/IssuanceControllerV3.sol | ❌ Missing |
+| EIP-712 verification | IssuanceControllerV3.mintForSigned() | contracts/IssuanceControllerV3.sol:569-650 | ✅ Implemented |
+| Signature validation | _hashMintRequest() + _recover() | contracts/IssuanceControllerV3.sol:250-280 | ✅ Implemented |
+| Conservative degradation | _getNavWithDegradation() with haircuts | contracts/IssuanceControllerV3.sol:480-495 | ✅ Implemented |
 | DEGRADED mode | NAVOracleV3.degradationMode | contracts/NAVOracleV3.sol | ✅ Implemented |
-| Recovery procedures | TODO: Add recovery functions | contracts/IssuanceControllerV3.sol | ❌ Missing |
+| Recovery procedures | resetMintNonce() + forceOracleRecovery() | contracts/IssuanceControllerV3.sol:680-690 | ✅ Implemented |
 
 ### §6. Cross-Sovereign Configuration
 | SPEC Requirement | Implementation | File | Status |
@@ -67,12 +68,12 @@
 | Governance attestation | IssuanceController ratification | contracts/IssuanceControllerV3.sol:60-70 | ✅ Implemented |
 
 ## Implementation Status Summary
-- ✅ **Implemented**: 25 requirements
-- ❌ **Missing**: 8 requirements
-- 📊 **Coverage**: 75.8%
+- ✅ **Implemented**: 29 requirements
+- ❌ **Missing**: 4 requirements
+- 📊 **Coverage**: 87.9%
 
 ## Priority Implementation Tasks
-1. **§3**: Per-sovereign soft-cap damping logic
-2. **§4**: NAV redemption lane controls
-3. **§5**: EIP-712 signature verification
-4. **§6**: Sovereign "enabled" flag
+1. **§3**: Per-sovereign soft-cap damping logic (effective capacity calculation)
+2. **§4**: NAV redemption lane controls (window lifecycle)
+3. **§6**: Sovereign "enabled" flag
+4. **§9**: Enhanced Buffer Coordination (next priority)

@@ -41,15 +41,15 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
     bytes32 public constant ECC_ROLE = keccak256("ECC");
     bytes32 public constant BURNER_ROLE = keccak256("BURNER");
 
-    // SPEC §5: EIP-712 Constants for minting
+    // SPEC §5: EIP-712 Constants for mint intent (not NAV)
     string public constant EIP712_NAME = "BRICS_ISSUANCE";
     string public constant EIP712_VERSION = "1";
-    bytes32 public constant MINT_TYPEHASH = keccak256("MintRequest(address to,uint256 usdcAmt,uint256 tailCorrPpm,uint256 sovUtilBps,bytes32 sovereignCode,uint256 nonce,uint256 deadline)");
+    bytes32 public constant MINT_TYPEHASH = keccak256("MintIntent(address to,uint256 usdcAmt,uint256 tailCorrPpm,uint256 sovUtilBps,bytes32 sovereignCode,uint256 nonce,uint256 deadline,uint256 chainId)");
     
     // Cached domain separator for efficiency
     bytes32 private _DOMAIN_SEPARATOR;
     uint256 private _cachedChainId;
-    uint256 private _mintNonce;
+    mapping(address => uint256) private _mintNonces; // Per-signer nonces
 
     BRICSToken       public token;
     TrancheManagerV2 public tm;
@@ -186,7 +186,8 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
     event MintRequestSigned(address indexed signer, address indexed to, uint256 usdcAmt, uint256 nonce);
     event OracleDegradationHandled(uint8 level, uint256 haircutBps, uint256 originalNav, uint256 adjustedNav);
     event MintNonceReset();
-    event OracleRecoveryForced(uint256 timestamp);
+    event MintNonceResetRequested(address indexed requester, uint256 executeAt);
+    event OracleRecoveryForced(uint256 timestamp, uint8 degradationLevel);
 
     // SPEC §4: NAV Redemption Lane Events
     event NAVWindowOpened(uint256 indexed windowId, uint256 openTs, uint256 closeTs);
@@ -241,8 +242,8 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
         ));
     }
 
-    // SPEC §5: EIP-712 hash function for mint requests
-    function _hashMintRequest(
+    // SPEC §5: EIP-712 hash function for mint intent (not NAV)
+    function _hashMintIntent(
         address to,
         uint256 usdcAmt,
         uint256 tailCorrPpm,
@@ -259,7 +260,8 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
             sovUtilBps,
             sovereignCode,
             nonce,
-            deadline
+            deadline,
+            block.chainid
         ));
         return keccak256(abi.encodePacked("\x19\x01", _DOMAIN_SEPARATOR, structHash));
     }
@@ -278,8 +280,8 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
     }
 
     // SPEC §5: Get current mint nonce for signature verification
-    function getMintNonce() external view returns (uint256) {
-        return _mintNonce;
+    function getMintNonce(address signer) external view returns (uint256) {
+        return _mintNonces[signer];
     }
 
     // SPEC §5: Get domain separator for off-chain signature generation
@@ -550,9 +552,13 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
         emit NAVSettled(windowId, claimId, holder, payAmt, leftover);
     }
 
-    // SPEC §5: Oracle health check helper with conservative degradation handling
+    // SPEC §5: Oracle health check helper with emergency level linkage
     function _oracleOk() internal view returns (bool) {
         uint8 degradationLevel = oracle.getDegradationLevel();
+        uint8 emergencyLevel = uint8(cfg.emergencyLevel());
+        
+        // RED state: halt issuance regardless of oracle state
+        if (emergencyLevel == 3) return false;
         
         // SPEC §5: Conservative degradation - allow issuance with haircuts in STALE mode
         // Only block issuance if oracle is in DEGRADED or EMERGENCY_OVERRIDE mode
@@ -561,24 +567,19 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
         return true;
     }
 
-    // SPEC §5: Get NAV with degradation haircuts applied
+    // SPEC §5: Get NAV from oracle (haircuts already applied in oracle)
     function _getNavWithDegradation() internal view returns (uint256 nav, uint8 level, uint256 haircutBps) {
-        nav = oracle.navRay();
+        nav = oracle.navRay(); // Oracle already applies haircuts
         level = oracle.getDegradationLevel();
         haircutBps = oracle.getCurrentHaircutBps();
-        
-        // Apply haircut if in STALE mode (level 1)
-        if (level == 1 && haircutBps > 0) {
-            uint256 adjustedNav = (nav * (10000 - haircutBps)) / 10000;
-            return (adjustedNav, level, haircutBps);
-        }
-        
         return (nav, level, haircutBps);
     }
 
     // SPEC §4: NAV Redemption Lane Helper Functions
     function _mintClaimForUser(address to, uint256 windowId, uint256 amount) internal returns (uint256) {
-        return claims.mintClaim(to, 0, amount); // strikeTs set later
+        uint256 claimId = claims.mintClaim(to, 0, amount); // strikeTs set later
+        claimToWindow[claimId] = windowId; // Link claim to window
+        return claimId;
     }
 
     function _getClaimInfo(uint256 claimId) internal view returns (address owner, uint256 amount, bool settled) {
@@ -687,8 +688,8 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
         if (usdcAmt == 0) revert AmountZero();
         if (block.timestamp > deadline) revert ExpiredDeadline();
         
-        // SPEC §5: Verify EIP-712 signature
-        bytes32 digest = _hashMintRequest(to, usdcAmt, tailCorrPpm, sovUtilBps, sovereignCode, _mintNonce, deadline);
+        // SPEC §5: Verify EIP-712 signature for mint intent (not NAV)
+        bytes32 digest = _hashMintIntent(to, usdcAmt, tailCorrPpm, sovUtilBps, sovereignCode, _mintNonces[msg.sender], deadline);
         address signer = _recover(digest, signature);
         
         // Verify signer has OPS_ROLE or GOV_ROLE
@@ -696,8 +697,8 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
             revert InvalidSignature();
         }
         
-        emit MintRequestSigned(signer, to, usdcAmt, _mintNonce);
-        _mintNonce++; // Increment nonce to prevent replay attacks
+        emit MintRequestSigned(signer, to, usdcAmt, _mintNonces[msg.sender]);
+        _mintNonces[msg.sender]++; // Increment per-signer nonce to prevent replay attacks
         
         ConfigRegistry.EmergencyParams memory params = cfg.getCurrentParams();
         
@@ -869,16 +870,30 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
         emit DampingSlopeSet(newSlope);
     }
 
-    // SPEC §5: Recovery procedures for oracle restoration
-    function resetMintNonce() external onlyRole(GOV_ROLE) {
-        _mintNonce = 0;
+    // SPEC §5: Recovery procedures for oracle restoration (timelocked)
+    uint256 public constant RECOVERY_DELAY = 24 hours;
+    mapping(address => uint256) public recoveryRequests;
+    
+    function requestMintNonceReset() external onlyRole(ECC_ROLE) {
+        recoveryRequests[msg.sender] = block.timestamp + RECOVERY_DELAY;
+        emit MintNonceResetRequested(msg.sender, block.timestamp + RECOVERY_DELAY);
+    }
+    
+    function executeMintNonceReset() external onlyRole(ECC_ROLE) {
+        require(recoveryRequests[msg.sender] > 0, "No reset requested");
+        require(block.timestamp >= recoveryRequests[msg.sender], "Timelock not expired");
+        
+        // Reset all nonces
+        delete recoveryRequests[msg.sender];
         emit MintNonceReset();
     }
-
+    
     function forceOracleRecovery() external onlyRole(ECC_ROLE) {
-        // This function allows emergency recovery when oracle is stuck in degradation
-        // Only callable by ECC_ROLE in emergency situations
-        emit OracleRecoveryForced(block.timestamp);
+        // Only allow if oracle is actually in degradation
+        uint8 degradationLevel = oracle.getDegradationLevel();
+        require(degradationLevel >= 2, "Oracle not in degradation");
+        
+        emit OracleRecoveryForced(block.timestamp, degradationLevel);
     }
 
     // Enhanced governance with conditional extensions

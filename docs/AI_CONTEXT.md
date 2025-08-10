@@ -246,3 +246,151 @@ ECC/Gov triggers SovereignClaimToken.unlockClaim()
   ↳ Settlement USDC to Treasury
   ↳ Buffers and redemptions replenished
 ```
+
+---
+
+## ASCII Contract Graph (Visual Architecture)
+
+```
+                         ┌──────────────────────┐
+                         │   Off-chain Risk     │
+                         │   Engine (FastAPI)   │
+                         └──────────┬───────────┘
+                                    │ writes params (GOV/ECC)
+                                    ▼
+                         ┌──────────────────────┐
+                         │   ConfigRegistry     │◄─────────────┐
+                         │  (emergency/params)  │              │ reads
+                         └──────────┬───────────┘              │
+                                    │                          │
+                                    │ reads                    │
+                                    ▼                          │
+┌───────────────┐   reads    ┌──────────────────────┐   reads  │
+│ TrancheManager│◄──────────►│    NAVOracleV3       │◄────────┘
+│     V2        │            │ (nav, quorum, degr.) │
+└──────┬────────┘            └──────────┬───────────┘
+       │                                 ▲
+       │ reads cap/ detachment           │ setNAV (multisig) / emergencySetNAV
+       │                                 │
+       │                                 │
+       ▼                                 │
+┌───────────────┐   reads/uses   ┌───────┴─────────┐
+│ Issuance      │───────────────►│   Treasury      │
+│ Controller V3 │                │    (USDC)       │
+│ (mint/redeem) │◄───────────────│  balance/pays   │
+└───┬─────┬─────┘                └───────┬─────────┘
+    │     │                               │
+    │     │ burns/mints                   │ USDC transfer
+    │     │                               │
+    ▼     ▼                               │
+┌───────────────┐                   ┌─────▼─────────┐
+│  BRICSToken   │                   │ PreTrancheBuf │
+│ (ERC20 gated) │                   │  ($10M, IR)   │
+└──────┬────────┘                   └─────┬─────────┘
+       │ transfer-gated by                │ instant payouts
+       ▼                                  │ (daily caps)
+┌───────────────┐                         │
+│ MemberRegistry│◄──────────────┐         │
+│ (isMember/    │               │         │
+│  pools)       │               │         │
+└──────┬────────┘               │         │
+       ▲                        │         │
+       │ setMember/setPool      │         │
+       │                        │         │
+┌──────┴────────┐               │         │
+│ Operational   │               │         │
+│ Agreement     │               │         │
+│ (NASASA/SPV)  │───────────────┘         │
+└───────────────┘                         │
+                                          │ fallback → monthly claims
+                                          ▼
+                                   ┌───────────────┐
+                                   │ Redemption    │
+                                   │  Claim (1155) │
+                                   └──────┬────────┘
+                                          │ settle/burn at strike (T+5)
+                                          ▼
+                                   ┌───────────────┐
+                                   │  Investor     │
+                                   │   Wallet      │
+                                   └───────────────┘
+
+
+          ┌──────────────────────── Sovereign / Underwriter Layer ───────────────────────┐
+          │                                                                              │
+          │  ┌──────────────────────┐         (legal unlock/exercise)        ┌────────┐ │
+          │  │ SovereignClaimToken  │◄───────────────────────────────────────│  ECC   │ │
+          │  │   (SBT, non-xfer)    │                                         └────────┘ │
+          │  └──────────┬───────────┘                                                 │  │
+          │             │ exercise → off-chain legal, funds → Treasury.fund()         │  │
+          │             ▼                                                             │  │
+          │  ┌──────────────────────┐              reinvest/flows to buffers           │  │
+          │  │  MezzanineVault      │──────────────────────────────────────────────────┘  │
+          │  │   (ERC-4626)         │                                                     │
+          │  └──────────────────────┘                                                     │
+          └───────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Legend
+- **Solid arrow (→)**: function call / write
+- **Double arrow (↔)**: mutual read/write or polling relationship
+- **Dashed box**: conceptual grouping (sovereign/underwriter layer)
+- **Reads**: contract pulls state from target
+- **Writes**: mutating calls (role-gated)
+
+### Read/Write Matrix (Quick Reference)
+- `OperationalAgreement` → writes `MemberRegistry`
+- `MemberRegistry` → read by `BRICSToken`, `PreTrancheBuffer`, `RedemptionClaim`
+- `BRICSToken` ← minted/burned by `IssuanceControllerV3`; enforces gated `_update()` via `MemberRegistry`
+- `ConfigRegistry` ← written by governance/off-chain scripts; read by `IssuanceControllerV3`, `TrancheManagerV2`, `RedemptionClaim`
+- `NAVOracleV3` ← written by signer quorum / emergency signers; read by `IssuanceControllerV3`, `TrancheManagerV2`
+- `TrancheManagerV2` ↔ reads `ConfigRegistry`, `NAVOracleV3.lastTs()`; exposes detachment/cap to `IssuanceControllerV3`
+- `PreTrancheBuffer` ← called by `IssuanceControllerV3` for instant redeems; reads `MemberRegistry`
+- `Treasury` ↔ `IssuanceControllerV3` for USDC custody & IRB checks
+- `RedemptionClaim` ← minted/settled by `IssuanceControllerV3`; reads `ConfigRegistry` (freeze) & `MemberRegistry`
+- `MezzanineVault` → off-chain ops/treasury for reinvest to buffers
+- `SovereignClaimToken` ← unlocked/exercised by ECC/GOV; settlement wires to `Treasury`
+
+### Critical Sequences (Compact)
+
+#### Mint
+1. Gateway → `IssuanceControllerV3.mintFor(to, usdc, tailPpm, sovBps)`
+2. IC checks: `ConfigRegistry.getCurrentParams()`, `TrancheManagerV2.superSeniorCap()`, `NAVOracleV3.navRay()`, `Treasury.balance()`
+3. `Treasury.fund(usdc)` (xferFrom) → `BRICSToken.mint(to, out)`
+
+#### Instant Redeem
+1. Gateway → `IssuanceControllerV3.requestRedeemOnBehalf(user, amt)`
+2. If `PreTrancheBuffer.availableInstantCapacity(user) ≥ amt`:
+   - `PreTrancheBuffer.instantRedeem(user, amt)` → `BRICSToken.burn(user, amt)`
+
+#### Monthly Redeem
+- Else: `RedemptionClaim.mintClaim(user, strikeTs, amt)` → settle T+5 via IC ops path
+
+#### Detachment Raise / Soft-cap
+- ECC/GOV → `TrancheManagerV2.raiseBRICSDetachment(newLo,newHi)` (step rules)  
+- RED + sovereign confirmed → `emergencyExpandToSoftCap()` → 105%
+
+#### Oracle Degradation
+- If stale: `NAVOracleV3.toggleDegradationMode(true)` → reads degraded NAV; emergency signers may `emergencySetNAV`
+
+#### Sovereign Claim
+- ECC unlocks: `SovereignClaimToken.unlockClaim(reason)`  
+- Off-chain legal → settlement funds → `Treasury.fund(amount)` → ops refill buffers & settle claims
+
+### Off-chain Hooks (Minimal)
+- **Risk engine script**:
+  - Computes `level`, `ammMaxSlippageBps`, `instantBufferBps`, `maxIssuanceRateBps`
+  - Calls `ConfigRegistry.setEmergencyLevel(level)` and optional `setEmergencyParams(level, …)`
+- **Oracle signer**:
+  - Posts `NAVOracleV3.setNAV(navRay, ts, nonce, sigs[])`
+- **Ops CLI**:
+  - `PreTrancheBuffer.fundBuffer(amount)`
+  - `TrancheManagerV2.adjustSuperSeniorCap(cap)`
+  - `IssuanceControllerV3.ratifyDetachment()` / `maybeRevertDetachment()`
+
+### Invariants to Protect (Agent Hints)
+- **Gating**: Every token transfer must pass `MemberRegistry` (BRICSToken `_update`).
+- **Issuance**: Block if RED, IRB below target, tail corr or sov util exceed caps, or cap exceeded.
+- **Detachment**: +100 bps steps, 24h cooldown; only RED allows 105% soft-cap with sovereign confirm.
+- **Oracle**: If stale ⇒ use degradation; never mint on zero/stale NAV without degradation safeguards.
+- **Claims**: ERC-1155 transfers respect freeze windows per emergency level.

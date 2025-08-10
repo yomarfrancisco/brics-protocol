@@ -1,0 +1,20 @@
+{
+  "gov": "0xGOV_MULTISIG",
+  "ops": "0xOPS_MULTISIG",
+  "burner": "0xBURNER_SAFE",
+  "ecc": "0xECC_AUTHORITY",
+  "nasasa": "0xNASASA_ENTITY",
+  "usdc": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+  "superSeniorCap": "10000000000000000000000000",
+  "sovereigns": [
+    {
+      "code": "0x5a00000000000000000000000000000000000000000000000000000000000000",
+      "utilCapBps": 8000,
+      "haircutBps": 2000,
+      "weightBps": 5000,
+      "enabled": true,
+      "softCapTokens": "1000000000000000000000000",
+      "hardCapTokens": "2000000000000000000000000"
+    }
+  ]
+}

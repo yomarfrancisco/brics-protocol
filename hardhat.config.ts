@@ -10,6 +10,9 @@ import "./tasks/raiseDetachment";
 import "./tasks/setEmergencyLevel";
 import "./tasks/setOracleDegradation";
 import "./tasks/emergencyExpandSoftCap";
+import "./tasks/deploy.core";
+import "./tasks/roles.wire";
+import "./tasks/roles.audit";
 
 const { SEPOLIA_RPC_URL, PRIVATE_KEY, ETHERSCAN_API_KEY } = process.env;
 

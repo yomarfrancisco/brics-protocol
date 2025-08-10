@@ -1,246 +1,79 @@
-# BRICS Protocol Role/Permission Matrix v4.0.0-rc2
+# BRICS Protocol - Role Permission Matrix
 
 ## Overview
+This document defines the canonical role permissions for the BRICS Protocol. The `roles:audit` task uses this matrix to verify on-chain role configurations.
 
-This document provides a comprehensive mapping of roles and permissions across all BRICS Protocol contracts. Each role has specific responsibilities and access controls to ensure institutional-grade security and governance.
+## Core Roles
 
-## Role Definitions
+### Governance Roles
+- **GOV_ROLE**: Ultimate governance authority
+  - Can pause/unpause the system
+  - Can set emergency levels
+  - Can configure sovereign parameters
+  - Can adjust caps and thresholds
 
-### Core Roles
-- **DEFAULT_ADMIN_ROLE**: Super admin with ability to grant/revoke all roles
-- **GOV_ROLE**: Governance decisions and parameter updates
-- **ECC_ROLE**: Emergency Control Committee for crisis management
-- **OPS_ROLE**: Operational actions and daily protocol management
-- **MINTER_ROLE**: Token minting permissions
-- **BURNER_ROLE**: Token burning permissions
-- **PAY_ROLE**: Treasury payment permissions
-- **BUFFER_MANAGER**: Buffer management permissions
-- **ISSUER_ROLE**: Claim issuance permissions
-- **REGISTRY_ADMIN**: Registry management permissions
+- **OPS_ROLE**: Operational authority
+  - Can mint BRICS tokens
+  - Can open/close NAV windows
+  - Can process redemption requests
+  - Can strike NAV for settlement
 
-## Contract-Specific Role Matrix
+- **ECC_ROLE**: Emergency Control Committee
+  - Can set emergency levels
+  - Can force oracle recovery
+  - Can manage sovereign guarantee claims
 
-### ConfigRegistry.sol
+### Functional Roles
+- **MINTER_ROLE**: Can mint BRICS tokens
+  - Granted to: IssuanceController
 
-| Function | DEFAULT_ADMIN_ROLE | GOV_ROLE | ECC_ROLE | OPS_ROLE | Other Roles |
-|----------|-------------------|----------|----------|----------|-------------|
-| `setEmergencyLevel()` | ❌ | ✅ | ✅ | ❌ | - |
-| `setEmergencyParams()` | ❌ | ✅ | ✅ | ❌ | - |
-| `addSovereign()` | ❌ | ✅ | ❌ | ❌ | - |
-| `updateSovereign()` | ❌ | ✅ | ❌ | ❌ | - |
-| `setSovereignEnabled()` | ❌ | ✅ | ❌ | ❌ | - |
-| `grantRole()` | ✅ | ❌ | ❌ | ❌ | - |
-| `revokeRole()` | ✅ | ❌ | ❌ | ❌ | - |
+- **BURNER_ROLE**: Can burn BRICS tokens
+  - Granted to: IssuanceController (for redemptions)
 
-### IssuanceControllerV3.sol
+- **ISSUER_ROLE**: Can issue redemption claims
+  - Granted to: IssuanceController
 
-| Function | DEFAULT_ADMIN_ROLE | GOV_ROLE | ECC_ROLE | OPS_ROLE | Other Roles |
-|----------|-------------------|----------|----------|----------|-------------|
-| `mintFor()` | ❌ | ❌ | ❌ | ✅ | - |
-| `mintForSigned()` | ❌ | ❌ | ❌ | ✅ | - |
-| `requestRedeemOnBehalf()` | ❌ | ❌ | ❌ | ✅ | - |
-| `settleClaim()` | ❌ | ❌ | ❌ | ❌ | BURNER_ROLE |
-| `openNavWindow()` | ❌ | ❌ | ❌ | ✅ | - |
-| `closeNavWindow()` | ❌ | ❌ | ❌ | ✅ | - |
-| `mintClaimsForWindow()` | ❌ | ❌ | ❌ | ✅ | - |
-| `strikeRedemption()` | ❌ | ❌ | ❌ | ✅ | - |
-| `requestMintNonceReset()` | ❌ | ❌ | ✅ | ❌ | - |
-| `executeMintNonceReset()` | ❌ | ❌ | ✅ | ❌ | - |
-| `forceOracleRecovery()` | ❌ | ❌ | ✅ | ❌ | - |
-| `grantRole()` | ✅ | ❌ | ❌ | ❌ | - |
-| `revokeRole()` | ✅ | ❌ | ❌ | ❌ | - |
+- **PAY_ROLE**: Can withdraw from Treasury
+  - Granted to: IssuanceController
 
-### BRICSToken.sol
-
-| Function | DEFAULT_ADMIN_ROLE | GOV_ROLE | ECC_ROLE | OPS_ROLE | Other Roles |
-|----------|-------------------|----------|----------|----------|-------------|
-| `mint()` | ❌ | ❌ | ❌ | ❌ | MINTER_ROLE |
-| `burn()` | ❌ | ❌ | ❌ | ❌ | BURNER_ROLE |
-| `_update()` | ❌ | ❌ | ❌ | ❌ | Internal |
-| `grantRole()` | ✅ | ❌ | ❌ | ❌ | - |
-| `revokeRole()` | ✅ | ❌ | ❌ | ❌ | - |
-
-### MemberRegistry.sol
-
-| Function | DEFAULT_ADMIN_ROLE | GOV_ROLE | ECC_ROLE | OPS_ROLE | Other Roles |
-|----------|-------------------|----------|----------|----------|-------------|
-| `setMember()` | ❌ | ❌ | ❌ | ❌ | REGISTRY_ADMIN |
-| `setPool()` | ❌ | ❌ | ❌ | ❌ | REGISTRY_ADMIN |
-| `canSend()` | ❌ | ❌ | ❌ | ❌ | View |
-| `canReceive()` | ❌ | ❌ | ❌ | ❌ | View |
-| `isWhitelistedPool()` | ❌ | ❌ | ❌ | ❌ | View |
-| `grantRole()` | ✅ | ❌ | ❌ | ❌ | - |
-| `revokeRole()` | ✅ | ❌ | ❌ | ❌ | - |
-
-### TrancheManagerV2.sol
-
-| Function | DEFAULT_ADMIN_ROLE | GOV_ROLE | ECC_ROLE | OPS_ROLE | Other Roles |
-|----------|-------------------|----------|----------|----------|-------------|
-| `raiseDetachment()` | ❌ | ✅ | ✅ | ❌ | - |
-| `emergencyExpandToSoftCap()` | ❌ | ❌ | ✅ | ❌ | - |
-| `adjustSuperSeniorCap()` | ❌ | ✅ | ❌ | ❌ | - |
-| `ratifyDetachment()` | ❌ | ✅ | ❌ | ❌ | - |
-| `maybeRevertDetachment()` | ❌ | ✅ | ❌ | ❌ | - |
-| `grantRole()` | ✅ | ❌ | ❌ | ❌ | - |
-| `revokeRole()` | ✅ | ❌ | ❌ | ❌ | - |
-
-### NAVOracleV3.sol
-
-| Function | DEFAULT_ADMIN_ROLE | GOV_ROLE | ECC_ROLE | OPS_ROLE | Other Roles |
-|----------|-------------------|----------|----------|----------|-------------|
-| `setNAV()` | ❌ | ❌ | ❌ | ❌ | ORACLE_ADMIN |
-| `emergencySetNAV()` | ❌ | ❌ | ❌ | ❌ | EMERGENCY_SIGNER |
-| `toggleDegradationMode()` | ❌ | ❌ | ✅ | ❌ | - |
-| `navRay()` | ❌ | ❌ | ❌ | ❌ | View |
-| `getDegradationLevel()` | ❌ | ❌ | ❌ | ❌ | View |
-| `getCurrentHaircutBps()` | ❌ | ❌ | ❌ | ❌ | View |
-| `grantRole()` | ✅ | ❌ | ❌ | ❌ | - |
-| `revokeRole()` | ✅ | ❌ | ❌ | ❌ | - |
-
-### PreTrancheBuffer.sol
-
-| Function | DEFAULT_ADMIN_ROLE | GOV_ROLE | ECC_ROLE | OPS_ROLE | Other Roles |
-|----------|-------------------|----------|----------|----------|-------------|
-| `instantRedeem()` | ❌ | ❌ | ❌ | ❌ | BUFFER_MANAGER |
-| `fundBuffer()` | ❌ | ✅ | ❌ | ❌ | - |
-| `availableInstantCapacity()` | ❌ | ❌ | ❌ | ❌ | View |
-| `getBufferStatus()` | ❌ | ❌ | ❌ | ❌ | View |
-| `grantRole()` | ✅ | ❌ | ❌ | ❌ | - |
-| `revokeRole()` | ✅ | ❌ | ❌ | ❌ | - |
-
-### Treasury.sol
-
-| Function | DEFAULT_ADMIN_ROLE | GOV_ROLE | ECC_ROLE | OPS_ROLE | Other Roles |
-|----------|-------------------|----------|----------|----------|-------------|
-| `pay()` | ❌ | ❌ | ❌ | ❌ | PAY_ROLE |
-| `fund()` | ❌ | ❌ | ❌ | ❌ | PAY_ROLE |
-| `setBufferTargetBps()` | ❌ | ✅ | ❌ | ❌ | - |
-| `getLiquidityStatus()` | ❌ | ❌ | ❌ | ❌ | View |
-| `grantRole()` | ✅ | ❌ | ❌ | ❌ | - |
-| `revokeRole()` | ✅ | ❌ | ❌ | ❌ | - |
-
-### RedemptionClaim.sol
-
-| Function | DEFAULT_ADMIN_ROLE | GOV_ROLE | ECC_ROLE | OPS_ROLE | Other Roles |
-|----------|-------------------|----------|----------|----------|-------------|
-| `mintClaim()` | ❌ | ❌ | ❌ | ❌ | ISSUER_ROLE |
-| `settleAndBurn()` | ❌ | ❌ | ❌ | ❌ | ISSUER_ROLE |
-| `claimInfo()` | ❌ | ❌ | ❌ | ❌ | View |
-| `grantRole()` | ✅ | ❌ | ❌ | ❌ | - |
-| `revokeRole()` | ✅ | ❌ | ❌ | ❌ | - |
-
-### ClaimRegistry.sol
-
-| Function | DEFAULT_ADMIN_ROLE | GOV_ROLE | ECC_ROLE | OPS_ROLE | Other Roles |
-|----------|-------------------|----------|----------|----------|-------------|
-| `triggerClaim()` | ❌ | ❌ | ✅ | ❌ | - |
-| `serveNotice()` | ❌ | ❌ | ❌ | ✅ | - |
-| `recordAcknowledgment()` | ❌ | ❌ | ❌ | ✅ | - |
-| `schedulePayment()` | ❌ | ❌ | ❌ | ✅ | - |
-| `recordSettlement()` | ❌ | ❌ | ❌ | ✅ | - |
-| `expandToTier2()` | ❌ | ❌ | ✅ | ❌ | - |
-| `enforceTier2Expiry()` | ❌ | ❌ | ✅ | ❌ | - |
-| `grantRole()` | ✅ | ❌ | ❌ | ❌ | - |
-| `revokeRole()` | ✅ | ❌ | ❌ | ❌ | - |
-
-### SovereignClaimToken.sol
-
-| Function | DEFAULT_ADMIN_ROLE | GOV_ROLE | ECC_ROLE | OPS_ROLE | Other Roles |
-|----------|-------------------|----------|----------|----------|-------------|
-| `unlockClaim()` | ❌ | ❌ | ✅ | ❌ | - |
-| `exerciseClaim()` | ❌ | ❌ | ✅ | ❌ | - |
-| `claimInfo()` | ❌ | ❌ | ❌ | ❌ | View |
-| `grantRole()` | ✅ | ❌ | ❌ | ❌ | - |
-| `revokeRole()` | ✅ | ❌ | ❌ | ❌ | - |
-
-### OperationalAgreement.sol
-
-| Function | DEFAULT_ADMIN_ROLE | GOV_ROLE | ECC_ROLE | OPS_ROLE | Other Roles |
-|----------|-------------------|----------|----------|----------|-------------|
-| `approveMember()` | ❌ | ❌ | ❌ | ❌ | NASASA_ROLE |
-| `revokeMember()` | ❌ | ❌ | ❌ | ❌ | NASASA_ROLE |
-| `approvePool()` | ❌ | ❌ | ❌ | ❌ | SPV_ROLE |
-| `revokePool()` | ❌ | ❌ | ❌ | ❌ | SPV_ROLE |
-| `grantRole()` | ✅ | ❌ | ❌ | ❌ | - |
-| `revokeRole()` | ✅ | ❌ | ❌ | ❌ | - |
-
-### MezzanineVault.sol
-
-| Function | DEFAULT_ADMIN_ROLE | GOV_ROLE | ECC_ROLE | OPS_ROLE | Other Roles |
-|----------|-------------------|----------|----------|----------|-------------|
-| `deposit()` | ❌ | ❌ | ❌ | ❌ | Whitelisted |
-| `withdraw()` | ❌ | ❌ | ❌ | ❌ | Whitelisted |
-| `redeem()` | ❌ | ❌ | ❌ | ❌ | Whitelisted |
-| `grantRole()` | ✅ | ❌ | ❌ | ❌ | - |
-| `revokeRole()` | ✅ | ❌ | ❌ | ❌ | - |
-
-## Role Hierarchy and Escalation
-
-### Normal Operations
-```
-DEFAULT_ADMIN_ROLE
-├── GOV_ROLE (Governance)
-├── OPS_ROLE (Operations)
-├── MINTER_ROLE (Token Minting)
-├── BURNER_ROLE (Token Burning)
-├── PAY_ROLE (Treasury)
-├── BUFFER_MANAGER (Buffer Management)
-├── ISSUER_ROLE (Claim Issuance)
-└── REGISTRY_ADMIN (Registry Management)
-```
-
-### Emergency Operations
-```
-DEFAULT_ADMIN_ROLE
-├── ECC_ROLE (Emergency Control Committee)
-│   ├── Emergency parameter updates
-│   ├── Oracle recovery procedures
-│   ├── Sovereign claim triggering
-│   └── Crisis management
-└── EMERGENCY_SIGNER (Oracle Emergency)
-```
+- **BUFFER_MANAGER**: Can manage PreTrancheBuffer
+  - Granted to: IssuanceController
 
 ### Specialized Roles
-```
-DEFAULT_ADMIN_ROLE
-├── ORACLE_ADMIN (NAV Oracle Management)
-├── MODEL_SIGNER (NAV Model Signing)
-├── EMERGENCY_SIGNER (Emergency NAV Updates)
-├── NASASA_ROLE (Member Management)
-└── SPV_ROLE (Pool Management)
-```
+- **BURNER_ROLE** (RedemptionClaim): Can burn redemption claims
+  - Granted to: Burner Safe (for settlement)
+
+- **BURNER_ROLE** (IssuanceController): Can burn BRICS during settlement
+  - Granted to: Burner Safe
+
+## Role Assignments
+
+| Contract | Role | Grantee | Purpose |
+|----------|------|---------|---------|
+| BRICSToken | MINTER_ROLE | IssuanceController | Mint new BRICS tokens |
+| BRICSToken | BURNER_ROLE | IssuanceController | Burn BRICS for redemptions |
+| RedemptionClaim | ISSUER_ROLE | IssuanceController | Issue redemption claims |
+| RedemptionClaim | BURNER_ROLE | Burner Safe | Burn claims during settlement |
+| IssuanceController | OPS_ROLE | Ops Multisig | Operational functions |
+| IssuanceController | BURNER_ROLE | Burner Safe | Settlement functions |
+| PreTrancheBuffer | BUFFER_MANAGER | IssuanceController | Buffer management |
+| Treasury | PAY_ROLE | IssuanceController | Withdraw funds |
+| ClaimRegistry | ECC_ROLE | ECC Authority | Emergency control |
+| TrancheManager | ECC_ROLE | ECC Authority | Emergency control |
+| MemberRegistry | registrar | NASASA Entity | Member management |
 
 ## Security Considerations
 
-### Role Separation
-- **Governance vs Operations**: Clear separation between governance decisions and operational actions
-- **Emergency vs Normal**: Emergency roles have time-limited powers with automatic sunset clauses
-- **Oracle Security**: Multi-signature requirements for NAV updates with emergency override capability
+1. **Separation of Concerns**: OPS_ROLE and GOV_ROLE are separate to limit operational risk
+2. **Emergency Control**: ECC_ROLE provides emergency override capabilities
+3. **Settlement Security**: Burner Safe controls final settlement to prevent unauthorized burns
+4. **Member Management**: NASASA Entity controls member registration independently
 
-### Access Control Patterns
-- **Principle of Least Privilege**: Each role has minimal required permissions
-- **Role Escalation**: Emergency roles can temporarily override normal operations
-- **Automatic Sunset**: Emergency powers have automatic expiration mechanisms
+## Audit Commands
 
-### Audit Trail
-- **Event Logging**: All role-based actions emit events for audit trail
-- **Timestamp Tracking**: All actions are timestamped for compliance
-- **Reference Numbers**: Legal and operational actions include reference numbers
-
-## Compliance Requirements
-
-### Institutional Standards
-- **Multi-Signature**: Critical operations require multiple signers
-- **Time Limits**: Emergency powers have automatic expiration
-- **Audit Trail**: Complete logging of all administrative actions
-
-### Regulatory Alignment
-- **Basel III**: Role separation aligns with operational risk requirements
-- **MiFID II**: Clear governance structure for investor protection
-- **Local Regulations**: South African CFI framework compliance
-
-## Conclusion
-
-The BRICS Protocol implements a comprehensive role-based access control system designed for institutional-grade security and governance. The role hierarchy ensures proper separation of concerns while enabling effective crisis management and emergency response.
-
-**Status**: Role matrix is complete and ready for audit review.
+```bash
+# Deploy and verify roles
+npx hardhat deploy:core --params deployment/mainnet.params.json --network mainnet
+npx hardhat roles:wire --params deployment/mainnet.params.json --addresses deployment/mainnet.addresses.json --network mainnet
+npx hardhat roles:audit --params deployment/mainnet.params.json --addresses deployment/mainnet.addresses.json --network mainnet
+```

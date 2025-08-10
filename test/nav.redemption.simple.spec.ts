@@ -146,7 +146,8 @@ describe("NAV Redemption Lane - Simple Test", function () {
         await configRegistry.connect(gov).setEmergencyLevel(0, "normal operations");
 
         // Test NAV window lifecycle
-        const closeTime = Math.floor(Date.now() / 1000) + 3 * 24 * 3600; // 3 days from now
+        const now = (await ethers.provider.getBlock("latest"))!.timestamp;
+        const closeTime = now + 3 * 24 * 3600; // 3 days from now
         
         // Open window
         await expect(issuanceController.connect(ops).openNavWindow(closeTime))

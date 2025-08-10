@@ -99,6 +99,7 @@ describe("Sovereign Guarantee Integration", function () {
     // Grant roles to signers
     await claimRegistry.connect(gov).grantRole(await claimRegistry.ECC_ROLE(), eccAddress);
     await claimRegistry.connect(gov).grantRole(await claimRegistry.OPS_ROLE(), opsAddress);
+    await trancheManager.connect(gov).grantRole(await trancheManager.ECC_ROLE(), eccAddress);
 
     // Fund treasury and set initial state
     await usdc.mint(await treasury.getAddress(), ethers.parseEther("1000000"));
@@ -246,13 +247,13 @@ describe("Sovereign Guarantee Integration", function () {
       await configRegistry.connect(gov).setEmergencyLevel(3, "crisis mode");
       
       // Fund buffers to meet Tier 2 requirements
-      await usdc.mint(treasury.address, ethers.parseEther("1000000")); // IRB
-      await usdc.mint(preBuffer.address, ethers.parseEther("8000000")); // Pre-Tranche Buffer
+      await usdc.mint(await treasury.getAddress(), ethers.parseEther("1000000")); // IRB
+      await usdc.mint(await preBuffer.getAddress(), ethers.parseEther("8000000")); // Pre-Tranche Buffer
     });
 
     it("should check Tier 2 expansion requirements", async function () {
       const irbBalance = await treasury.balance();
-      const preBufferBalance = await preBuffer.balance();
+      const preBufferBalance = await preBuffer.bufferBalance();
       
       // Schedule payment to meet advance requirement
       await claimRegistry.connect(ops).recordAcknowledgment(1, REF_NO);
@@ -268,7 +269,7 @@ describe("Sovereign Guarantee Integration", function () {
       await claimRegistry.connect(ops).schedulePayment(1, ethers.parseEther("4000000"));
 
       const irbBalance = await treasury.balance();
-      const preBufferBalance = await preBuffer.balance();
+      const preBufferBalance = await preBuffer.bufferBalance();
 
       await expect(
         trancheManager.connect(ecc).expandToTier2(1, irbBalance, preBufferBalance)
@@ -285,7 +286,7 @@ describe("Sovereign Guarantee Integration", function () {
       await claimRegistry.connect(ops).schedulePayment(1, ethers.parseEther("4000000"));
       
       const irbBalance = await treasury.balance();
-      const preBufferBalance = await preBuffer.balance();
+      const preBufferBalance = await preBuffer.bufferBalance();
       await trancheManager.connect(ecc).expandToTier2(1, irbBalance, preBufferBalance);
 
       // Fast forward time to expire Tier 2

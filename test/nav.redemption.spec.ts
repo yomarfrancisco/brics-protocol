@@ -169,8 +169,12 @@ describe("NAV Redemption Lane (SPEC §4)", function () {
         });
 
         it("should process instant redemption when capacity available", async function () {
-            // Fund pre-tranche buffer
-            await mockUSDC.mint(await preTrancheBuffer.getAddress(), ethers.parseUnits("10000", 6));
+            // Ensure user is a member (already done in beforeEach)
+            
+            // Fund gov signer and pre-tranche buffer
+            await mockUSDC.mint(govAddress, ethers.parseUnits("1000000", 6));
+            await mockUSDC.connect(gov).approve(await preTrancheBuffer.getAddress(), ethers.parseUnits("500000", 6));
+            await preTrancheBuffer.connect(gov).fundBuffer(ethers.parseUnits("500000", 6));
             
             const amount = ethers.parseEther("100");
             
@@ -253,7 +257,7 @@ describe("NAV Redemption Lane (SPEC §4)", function () {
                 .withArgs(1, anyValue, ethers.parseEther("1.0"));
 
             const window = await issuanceController.currentNavWindow();
-            expect(window.state).to.equal(2); // STRUCK
+            expect(window.state).to.equal(3); // STRUCK
             expect(window.navRayAtStrike).to.equal(ethers.parseEther("1.0"));
         });
 
@@ -275,6 +279,9 @@ describe("NAV Redemption Lane (SPEC §4)", function () {
                 await issuanceController.connect(ops).closeNavWindow();
             }
             
+            // Ensure treasury has enough USDC for settlement
+            await mockUSDC.mint(await treasury.getAddress(), ethers.parseUnits("100000", 6)); // Additional 100k USDC
+            
             const closeTs = await openWindow(issuanceController, 2);
             
             // Queue, close, mint claims, and strike
@@ -288,6 +295,12 @@ describe("NAV Redemption Lane (SPEC §4)", function () {
         it("should settle claim for holder", async function () {
             const claimId = 1; // First claim minted
             
+            // Advance time to T+5 days after strike
+            const window = await issuanceController.currentNavWindow();
+            const settleTs = Number(window.strikeTs) + 5 * 24 * 60 * 60 + 1;
+            await ethers.provider.send("evm_setNextBlockTimestamp", [settleTs]);
+            await ethers.provider.send("evm_mine", []);
+            
             await expect(issuanceController.connect(burner).settleClaim(1, claimId, user1Address))
                 .to.emit(issuanceController, "NAVSettled")
                 .withArgs(1, claimId, user1Address, anyValue, 0);
@@ -298,6 +311,12 @@ describe("NAV Redemption Lane (SPEC §4)", function () {
             await treasury.connect(gov).pay(govAddress, ethers.parseUnits("999000", 6)); // Leave 1000 USDC
             
             const claimId = 1;
+            
+            // Advance time to T+5 days after strike
+            const window = await issuanceController.currentNavWindow();
+            const settleTs = Number(window.strikeTs) + 5 * 24 * 60 * 60 + 1;
+            await ethers.provider.send("evm_setNextBlockTimestamp", [settleTs]);
+            await ethers.provider.send("evm_mine", []);
             
             await expect(issuanceController.connect(burner).settleClaim(1, claimId, user1Address))
                 .to.emit(issuanceController, "NAVCarryoverCreated")

@@ -24,5 +24,14 @@ contract MockNAVOracle {
         degradationMode = _degradationMode;
     }
 
+    // Mock implementation for testing
+    function getDegradationLevel() external view returns (uint8) {
+        if (degradationMode) return 3; // EMERGENCY_OVERRIDE
+        return 0; // NORMAL for testing
+    }
 
+    function getCurrentHaircutBps() external view returns (uint256) {
+        if (degradationMode) return 1000; // 10% haircut
+        return 0; // No haircut for testing
+    }
 }

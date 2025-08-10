@@ -625,9 +625,12 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
         uint256 softCap = sovereignSoftCap[sovereignCode];
         uint256 hardCap = sovereignHardCap[sovereignCode];
         
+        // Convert basis points to USDC capacity
+        uint256 effectiveCapUSDC = (softCap * baseEffectiveCap) / 10000;
+        
         // If utilization is below soft cap, full capacity available
         if (currentUtilization <= softCap) {
-            effectiveCap = baseEffectiveCap;
+            effectiveCap = effectiveCapUSDC;
             canIssue = requestedAmount <= effectiveCap;
             return (effectiveCap, canIssue);
         }
@@ -642,7 +645,8 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
         uint256 dampingFactor = dampingSlopeK * (currentUtilization - softCap) / (hardCap - softCap);
         if (dampingFactor >= 10000) return (0, false); // Fully damped
         
-        effectiveCap = baseEffectiveCap * (10000 - dampingFactor) / 10000;
+        uint256 dampedCapBps = baseEffectiveCap * (10000 - dampingFactor) / 10000;
+        effectiveCap = (softCap * dampedCapBps) / 10000; // Convert to USDC
         canIssue = requestedAmount <= effectiveCap;
         return (effectiveCap, canIssue);
     }
@@ -877,6 +881,24 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
         sovereignSoftCap[sovereignCode] = softCap;
         sovereignHardCap[sovereignCode] = hardCap;
         emit SovereignCapSet(sovereignCode, softCap, hardCap);
+    }
+    
+    // Debug function for sovereign capacity diagnostics
+    function getSovereignCapacityDebug(bytes32 sovereignCode) external view returns (
+        uint256 softCapUSDC,
+        uint256 capBps,
+        uint256 capUSDC,
+        uint256 usedUSDC,
+        uint256 remUSDC
+    ) {
+        (uint256 baseEffectiveCap, bool isEnabled) = cfg.getEffectiveCapacity(sovereignCode);
+        if (!isEnabled) return (0, 0, 0, 0, 0);
+        
+        softCapUSDC = sovereignSoftCap[sovereignCode];
+        capBps = baseEffectiveCap;
+        capUSDC = (softCapUSDC * capBps) / 10000;
+        usedUSDC = sovereignUtilization[sovereignCode];
+        remUSDC = usedUSDC >= capUSDC ? 0 : capUSDC - usedUSDC;
     }
     
     function setDampingSlope(uint256 newSlope) external onlyRole(GOV_ROLE) {

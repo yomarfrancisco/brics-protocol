@@ -29,6 +29,8 @@ interface INAVOracleLike {
     function navRay() external view returns (uint256);
     function lastTs() external view returns (uint256);
     function degradationMode() external view returns (bool);
+    function getDegradationLevel() external view returns (uint8);
+    function getCurrentHaircutBps() external view returns (uint256);
 }
 
 contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
@@ -531,9 +533,17 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
         (uint256 effectiveCap, bool canIssueSovereign) = _calculateEffectiveCapacity(sovereignCode, usdcAmt);
         if (!canIssueSovereign) return false;
 
-        // Apply issuance rate limit
+        // SPEC §5: Check oracle degradation and apply haircuts
         uint256 nav = oracle.navRay();
         if (nav == 0) return false;
+        
+        // Check if oracle is in degradation mode
+        uint8 degradationLevel = oracle.getDegradationLevel();
+        if (degradationLevel >= 2) { // DEGRADED or EMERGENCY_OVERRIDE
+            // In degradation, only allow redemptions, not new issuance
+            return false;
+        }
+        
         uint256 tokensOut = (usdcAmt * 1e27) / nav;
         uint256 adjustedTokensOut = (tokensOut * params.maxIssuanceRateBps) / 10000;
         
@@ -573,8 +583,24 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
         (uint256 effectiveCap, bool canIssueSovereign) = _calculateEffectiveCapacity(sovereignCode, usdcAmt);
         if (!canIssueSovereign) revert SovereignCapExceeded(sovereignCode);
 
+        // SPEC §5: Check oracle degradation and apply haircuts
         uint256 nav = oracle.navRay();
         require(nav > 0, "nav=0");
+        
+        // Check if oracle is in degradation mode
+        uint8 degradationLevel = oracle.getDegradationLevel();
+        if (degradationLevel >= 2) { // DEGRADED or EMERGENCY_OVERRIDE
+            revert("Oracle in degradation mode - issuance halted");
+        }
+        
+        // Apply haircut if oracle is stale
+        if (degradationLevel == 1) { // STALE
+            uint256 haircutBps = oracle.getCurrentHaircutBps();
+            if (haircutBps > 0) {
+                // Apply haircut to NAV for pricing
+                nav = nav * (10000 - haircutBps) / 10000;
+            }
+        }
 
         out = (usdcAmt * 1e27) / nav;
         

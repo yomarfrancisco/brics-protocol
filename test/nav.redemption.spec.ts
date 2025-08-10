@@ -1,6 +1,7 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import { Contract, Signer } from "ethers";
+import { chainNow, openWindow, fastForwardTo } from "./helpers";
 
 describe("NAV Redemption Lane (SPEC §4)", function () {
     let gov: Signer, user1: Signer, user2: Signer, ops: Signer, burner: Signer;
@@ -105,51 +106,47 @@ describe("NAV Redemption Lane (SPEC §4)", function () {
 
     describe("NAV Window Lifecycle", function () {
         it("should open NAV window with valid close time", async function () {
-            const closeTime = Math.floor(Date.now() / 1000) + 3 * 24 * 3600; // 3 days from now
+            const closeTs = await openWindow(issuanceController, 2);
             
-            await expect(issuanceController.connect(ops).openNavWindow(closeTime))
-                .to.emit(issuanceController, "NAVWindowOpened")
-                .withArgs(1, anyValue, closeTime);
-
             const window = await issuanceController.currentNavWindow();
             expect(window.id).to.equal(1);
             expect(window.state).to.equal(1); // OPEN = 1
         });
 
         it("should not open window if one is already open", async function () {
-            const closeTime = Math.floor(Date.now() / 1000) + 3 * 24 * 3600;
-            await issuanceController.connect(ops).openNavWindow(closeTime);
+            await openWindow(issuanceController, 2);
             
-            await expect(issuanceController.connect(ops).openNavWindow(closeTime + 3600))
+            const now = await chainNow();
+            const closeTs = now + 3 * 24 * 3600;
+            
+            await expect(issuanceController.connect(ops).openNavWindow(closeTs))
                 .to.be.revertedWithCustomError(issuanceController, "WindowAlreadyOpen");
         });
 
         it("should not open window with invalid close time", async function () {
-            const closeTime = Math.floor(Date.now() / 1000) + 3600; // 1 hour from now
+            const now = await chainNow();
+            const closeTs = now + 3600; // 1 hour from now (less than 2 days minimum)
             
-            await expect(issuanceController.connect(ops).openNavWindow(closeTime))
+            await expect(issuanceController.connect(ops).openNavWindow(closeTs))
                 .to.be.revertedWithCustomError(issuanceController, "InvalidCloseTime");
         });
 
         it("should close NAV window after close time", async function () {
-            const closeTime = Math.floor(Date.now() / 1000) + 3 * 24 * 3600;
-            await issuanceController.connect(ops).openNavWindow(closeTime);
+            const closeTs = await openWindow(issuanceController, 2);
             
-            // Fast forward time
-            await ethers.provider.send("evm_increaseTime", [3 * 24 * 3600]);
-            await ethers.provider.send("evm_mine", []);
+            // Fast forward time past close time
+            await fastForwardTo(closeTs + 1);
             
             await expect(issuanceController.connect(ops).closeNavWindow())
                 .to.emit(issuanceController, "NAVWindowClosed")
-                .withArgs(1, closeTime, 0);
+                .withArgs(1, closeTs, 0);
 
             const window = await issuanceController.currentNavWindow();
             expect(window.state).to.equal(2); // CLOSED = 2
         });
 
         it("should not close window before close time", async function () {
-            const closeTime = Math.floor(Date.now() / 1000) + 3 * 24 * 3600;
-            await issuanceController.connect(ops).openNavWindow(closeTime);
+            await openWindow(issuanceController, 2);
             
             await expect(issuanceController.connect(ops).closeNavWindow())
                 .to.be.revertedWithCustomError(issuanceController, "InvalidCloseTime");
@@ -160,8 +157,7 @@ describe("NAV Redemption Lane (SPEC §4)", function () {
 
         it("should queue redemption request when instant capacity insufficient", async function () {
             // Open a new window for this test
-            const closeTime = Math.floor(Date.now() / 1000) + 3 * 24 * 3600;
-            await issuanceController.connect(ops).openNavWindow(closeTime);
+            await openWindow(issuanceController, 2);
             
             const amount = ethers.parseEther("1000");
             
@@ -184,9 +180,9 @@ describe("NAV Redemption Lane (SPEC §4)", function () {
         });
 
         it("should not queue request when window not open", async function () {
-            // Close the window
-            await ethers.provider.send("evm_increaseTime", [3 * 24 * 3600]);
-            await ethers.provider.send("evm_mine", []);
+            // Open and close the window
+            const closeTs = await openWindow(issuanceController, 2);
+            await fastForwardTo(closeTs + 1);
             await issuanceController.connect(ops).closeNavWindow();
             
             const amount = ethers.parseEther("1000");
@@ -201,21 +197,18 @@ describe("NAV Redemption Lane (SPEC §4)", function () {
             // Ensure no window is open from previous tests
             const currentWindow = await issuanceController.currentNavWindow();
             if (currentWindow.state === 1) { // OPEN
-                await ethers.provider.send("evm_increaseTime", [3 * 24 * 3600]);
-                await ethers.provider.send("evm_mine", []);
+                await fastForwardBy(3 * 24 * 3600);
                 await issuanceController.connect(ops).closeNavWindow();
             }
             
-            const closeTime = Math.floor(Date.now() / 1000) + 3 * 24 * 3600;
-            await issuanceController.connect(ops).openNavWindow(closeTime);
+            const closeTs = await openWindow(issuanceController, 2);
             
             // Queue some requests
             await issuanceController.connect(ops).requestRedeemOnBehalf(user1Address, ethers.parseEther("100"));
             await issuanceController.connect(ops).requestRedeemOnBehalf(user2Address, ethers.parseEther("200"));
             
             // Close window
-            await ethers.provider.send("evm_increaseTime", [3 * 24 * 3600]);
-            await ethers.provider.send("evm_mine", []);
+            await fastForwardTo(closeTs + 1);
             await issuanceController.connect(ops).closeNavWindow();
         });
 
@@ -230,8 +223,7 @@ describe("NAV Redemption Lane (SPEC §4)", function () {
 
         it("should not mint claims before window closed", async function () {
             // Reopen window
-            const closeTime = Math.floor(Date.now() / 1000) + 3 * 24 * 3600;
-            await issuanceController.connect(ops).openNavWindow(closeTime);
+            await openWindow(issuanceController, 2);
             
             await expect(issuanceController.connect(ops).mintClaimsForWindow([user1Address]))
                 .to.be.revertedWithCustomError(issuanceController, "WindowNotClosed");
@@ -243,18 +235,15 @@ describe("NAV Redemption Lane (SPEC §4)", function () {
             // Ensure no window is open from previous tests
             const currentWindow = await issuanceController.currentNavWindow();
             if (currentWindow.state === 1) { // OPEN
-                await ethers.provider.send("evm_increaseTime", [3 * 24 * 3600]);
-                await ethers.provider.send("evm_mine", []);
+                await fastForwardBy(3 * 24 * 3600);
                 await issuanceController.connect(ops).closeNavWindow();
             }
             
-            const closeTime = Math.floor(Date.now() / 1000) + 3 * 24 * 3600;
-            await issuanceController.connect(ops).openNavWindow(closeTime);
+            const closeTs = await openWindow(issuanceController, 2);
             
             // Queue and close window
             await issuanceController.connect(ops).requestRedeemOnBehalf(user1Address, ethers.parseEther("100"));
-            await ethers.provider.send("evm_increaseTime", [3 * 24 * 3600]);
-            await ethers.provider.send("evm_mine", []);
+            await fastForwardTo(closeTs + 1);
             await issuanceController.connect(ops).closeNavWindow();
         });
 
@@ -270,8 +259,7 @@ describe("NAV Redemption Lane (SPEC §4)", function () {
 
         it("should not strike NAV before window closed", async function () {
             // Reopen window
-            const closeTime = Math.floor(Date.now() / 1000) + 3 * 24 * 3600;
-            await issuanceController.connect(ops).openNavWindow(closeTime);
+            await openWindow(issuanceController, 2);
             
             await expect(issuanceController.connect(ops).strikeRedemption())
                 .to.be.revertedWithCustomError(issuanceController, "StrikePrereqNotMet");
@@ -283,18 +271,15 @@ describe("NAV Redemption Lane (SPEC §4)", function () {
             // Ensure no window is open from previous tests
             const currentWindow = await issuanceController.currentNavWindow();
             if (currentWindow.state === 1) { // OPEN
-                await ethers.provider.send("evm_increaseTime", [3 * 24 * 3600]);
-                await ethers.provider.send("evm_mine", []);
+                await fastForwardBy(3 * 24 * 3600);
                 await issuanceController.connect(ops).closeNavWindow();
             }
             
-            const closeTime = Math.floor(Date.now() / 1000) + 3 * 24 * 3600;
-            await issuanceController.connect(ops).openNavWindow(closeTime);
+            const closeTs = await openWindow(issuanceController, 2);
             
             // Queue, close, mint claims, and strike
             await issuanceController.connect(ops).requestRedeemOnBehalf(user1Address, ethers.parseEther("100"));
-            await ethers.provider.send("evm_increaseTime", [3 * 24 * 3600]);
-            await ethers.provider.send("evm_mine", []);
+            await fastForwardTo(closeTs + 1);
             await issuanceController.connect(ops).closeNavWindow();
             await issuanceController.connect(ops).mintClaimsForWindow([user1Address]);
             await issuanceController.connect(ops).strikeRedemption();
@@ -325,15 +310,13 @@ describe("NAV Redemption Lane (SPEC §4)", function () {
             // Set to ORANGE level
             await configRegistry.connect(gov).setEmergencyLevel(2, "orange level");
             
-            const closeTime = Math.floor(Date.now() / 1000) + 3 * 24 * 3600;
-            await issuanceController.connect(ops).openNavWindow(closeTime);
+            const closeTs = await openWindow(issuanceController, 2);
             
             // Queue request
             await issuanceController.connect(ops).requestRedeemOnBehalf(user1Address, ethers.parseEther("100"));
             
             // Close and mint claims
-            await ethers.provider.send("evm_increaseTime", [3 * 24 * 3600]);
-            await ethers.provider.send("evm_mine", []);
+            await fastForwardTo(closeTs + 1);
             await issuanceController.connect(ops).closeNavWindow();
             await issuanceController.connect(ops).mintClaimsForWindow([user1Address]);
             
@@ -350,15 +333,13 @@ describe("NAV Redemption Lane (SPEC §4)", function () {
 
     describe("View Functions", function () {
         it("should return correct next cutoff time", async function () {
-            const closeTime = Math.floor(Date.now() / 1000) + 3 * 24 * 3600;
-            await issuanceController.connect(ops).openNavWindow(closeTime);
+            const closeTs = await openWindow(issuanceController, 2);
             
-            expect(await issuanceController.nextCutoffTime()).to.equal(closeTime);
+            expect(await issuanceController.nextCutoffTime()).to.equal(closeTs);
         });
 
         it("should return correct pending amounts", async function () {
-            const closeTime = Math.floor(Date.now() / 1000) + 3 * 24 * 3600;
-            await issuanceController.connect(ops).openNavWindow(closeTime);
+            await openWindow(issuanceController, 2);
             
             await issuanceController.connect(ops).requestRedeemOnBehalf(user1Address, ethers.parseEther("100"));
             
@@ -366,8 +347,7 @@ describe("NAV Redemption Lane (SPEC §4)", function () {
         });
 
         it("should return user request history", async function () {
-            const closeTime = Math.floor(Date.now() / 1000) + 3 * 24 * 3600;
-            await issuanceController.connect(ops).openNavWindow(closeTime);
+            await openWindow(issuanceController, 2);
             
             await issuanceController.connect(ops).requestRedeemOnBehalf(user1Address, ethers.parseEther("100"));
             

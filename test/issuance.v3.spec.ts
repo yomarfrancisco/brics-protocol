@@ -37,19 +37,22 @@ describe("IssuanceControllerV3 - SPEC §3 Per-Sovereign Soft-Cap Damping", funct
     usdc = await MockUSDC.deploy();
 
     const MockNAVOracle = await ethers.getContractFactory("MockNAVOracle");
-    navOracle = await MockNAVOracle.deploy(ethers.parseEther("1.0")); // NAV = 1.0
+    navOracle = await MockNAVOracle.deploy(); // NAV = 1.0 (default)
+
+    const MemberRegistry = await ethers.getContractFactory("MemberRegistry");
+    memberRegistry = await MemberRegistry.deploy(govAddress);
+
+    const ConfigRegistry = await ethers.getContractFactory("ConfigRegistry");
+    configRegistry = await ConfigRegistry.deploy(govAddress);
 
     const Treasury = await ethers.getContractFactory("Treasury");
     treasury = await Treasury.deploy(govAddress, usdc.address, 300); // 3% buffer
 
     const PreTrancheBuffer = await ethers.getContractFactory("PreTrancheBuffer");
-    preTrancheBuffer = await PreTrancheBuffer.deploy(usdc.address, treasury.address);
+    preTrancheBuffer = await PreTrancheBuffer.deploy(govAddress, usdc.address, memberRegistry.address, configRegistry.address);
 
     const RedemptionClaim = await ethers.getContractFactory("RedemptionClaim");
-    redemptionClaim = await RedemptionClaim.deploy(govAddress);
-
-    const MemberRegistry = await ethers.getContractFactory("MemberRegistry");
-    memberRegistry = await MemberRegistry.deploy(govAddress);
+    redemptionClaim = await RedemptionClaim.deploy(govAddress, memberRegistry.address, configRegistry.address);
 
     const BRICSToken = await ethers.getContractFactory("BRICSToken");
     bricsToken = await BRICSToken.deploy(govAddress, memberRegistry.address);
@@ -57,8 +60,8 @@ describe("IssuanceControllerV3 - SPEC §3 Per-Sovereign Soft-Cap Damping", funct
     const TrancheManagerV2 = await ethers.getContractFactory("TrancheManagerV2");
     trancheManager = await TrancheManagerV2.deploy(govAddress, navOracle.address, configRegistry.address);
 
-    const ConfigRegistry = await ethers.getContractFactory("ConfigRegistry");
-    configRegistry = await ConfigRegistry.deploy(govAddress);
+    const ClaimRegistry = await ethers.getContractFactory("ClaimRegistry");
+    claimRegistry = await ClaimRegistry.deploy(govAddress);
 
     const IssuanceControllerV3 = await ethers.getContractFactory("IssuanceControllerV3");
     issuanceController = await IssuanceControllerV3.deploy(
@@ -70,7 +73,8 @@ describe("IssuanceControllerV3 - SPEC §3 Per-Sovereign Soft-Cap Damping", funct
       usdc.address,
       treasury.address,
       redemptionClaim.address,
-      preTrancheBuffer.address
+      preTrancheBuffer.address,
+      claimRegistry.address
     );
 
     // Setup roles

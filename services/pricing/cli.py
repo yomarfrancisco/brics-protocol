@@ -8,7 +8,9 @@ import sys
 import time
 from typing import Dict, Any
 
-from baseline_model import score_risk, price_cds, generate_dummy_digest, generate_dummy_signature
+from .baseline_model import score_risk, price_cds, get_risk_score_bps
+from .signing import digest, sign_digest, load_or_create_key, public_address
+from eth_utils import to_bytes
 
 def create_sample_features() -> Dict[str, Any]:
     """Create sample features for testing"""
@@ -50,39 +52,82 @@ def price_command(args):
     else:
         features = create_sample_features()
     
-    print(f"Pricing CDS for obligor: {obligor_id}")
-    print(f"Tenor: {tenor_days} days")
-    print(f"Notional: {notional:,}")
-    print(f"As of: {as_of}")
-    print(f"Features: {json.dumps(features, indent=2)}")
-    print("-" * 50)
+    # Only print verbose output if not --json-only
+    if not getattr(args, 'json_only', False):
+        print(f"Pricing CDS for obligor: {obligor_id}")
+        print(f"Tenor: {tenor_days} days")
+        print(f"Notional: {notional:,}")
+        print(f"As of: {as_of}")
+        print(f"Features: {json.dumps(features, indent=2)}")
+        print("-" * 50)
     
     # Score the risk
-    score_result = score_risk(features, obligor_id)
-    print(f"Risk Score:")
-    print(f"  PD: {score_result['pdBps']} bps")
-    print(f"  LGD: {score_result['lgdBps']} bps")
-    print(f"  Confidence: {score_result['scoreConfidence']}")
+    score_result = score_risk(features, obligor_id, tenor_days, as_of)
+    
+    # Only print verbose output if not --json-only
+    if not getattr(args, 'json_only', False):
+        print(f"Risk Score:")
+        print(f"  PD: {score_result['pdBps']} bps")
+        print(f"  LGD: {score_result['lgdBps']} bps")
+        print(f"  Confidence: {score_result['scoreConfidence']}")
     
     # Price the CDS
     price_result = price_cds(obligor_id, tenor_days, features, 
-                           score_result['pdBps'], score_result['lgdBps'])
+                           score_result['pdBps'], score_result['lgdBps'], as_of)
     
-    print(f"\nCDS Pricing:")
-    print(f"  Fair Spread: {price_result['fairSpreadBps']} bps")
-    print(f"  Correlation: {price_result['correlationBps']} bps")
-    print(f"  Expected Loss: {price_result['elBps']} bps")
+    # Only print verbose output if not --json-only
+    if not getattr(args, 'json_only', False):
+        print(f"\nCDS Pricing:")
+        print(f"  Fair Spread: {price_result['fairSpreadBps']} bps")
+        print(f"  Correlation: {price_result['correlationBps']} bps")
+        print(f"  Expected Loss: {price_result['elBps']:.4f} bps")
     
-    # Generate dummy digest and signature
-    digest = generate_dummy_digest(obligor_id, as_of)
-    signature = generate_dummy_signature(obligor_id, as_of)
+    # Generate real digest and signature
+    portfolio_id = to_bytes(hexstr='0x' + '11' * 32)  # Use fixed portfolio ID for now
+    risk_score_bps = get_risk_score_bps(score_result['pdBps'], score_result['lgdBps'])
     
-    print(f"\nDigest: {digest}")
-    print(f"Signature: {signature}")
+    digest_bytes = digest(
+        portfolio_id,
+        as_of,
+        risk_score_bps,
+        price_result['correlationBps'],
+        price_result['fairSpreadBps'],
+        "baseline-v0",
+        features
+    )
     
-    # Calculate annual premium
-    annual_premium = (notional * price_result['fairSpreadBps']) // 10000
-    print(f"\nAnnual Premium: ${annual_premium:,}")
+    private_key = load_or_create_key()
+    signature = sign_digest(digest_bytes, private_key)
+    signer_address = public_address(private_key)
+    
+    # Only print verbose output if not --json-only
+    if not getattr(args, 'json_only', False):
+        print(f"\nDigest: 0x{digest_bytes.hex()}")
+        print(f"Signature: {signature}")
+        print(f"Signer: {signer_address}")
+        
+        # Calculate annual premium
+        annual_premium = (notional * price_result['fairSpreadBps']) // 10000
+        print(f"\nAnnual Premium: ${annual_premium:,}")
+    
+    # Print JSON output
+    result = {
+        "obligorId": obligor_id,
+        "tenorDays": tenor_days,
+        "asOf": as_of,
+        "notional": notional,
+        "fairSpreadBps": price_result['fairSpreadBps'],
+        "correlationBps": price_result['correlationBps'],
+        "digest": "0x" + digest_bytes.hex(),
+        "signature": signature,
+        "signer": signer_address
+    }
+    
+    if getattr(args, 'json_only', False):
+        print(json.dumps(result))
+    else:
+        print(f"\nJSON Output:")
+        print(json.dumps(result, indent=2))
 
 def score_command(args):
     """Handle the score command"""
@@ -116,7 +161,7 @@ def score_command(args):
     print("-" * 50)
     
     # Score the risk
-    score_result = score_risk(features, obligor_id)
+    score_result = score_risk(features, obligor_id, tenor_days, as_of)
     
     print(f"Risk Score Results:")
     print(f"  PD: {score_result['pdBps']} bps")
@@ -134,6 +179,7 @@ def main():
     price_parser.add_argument("--asof", "-a", default="now", help="As of time (now or unix timestamp)")
     price_parser.add_argument("--notional", "-n", type=int, required=True, help="Notional amount")
     price_parser.add_argument("--features", "-f", help="JSON features object")
+    price_parser.add_argument("--json-only", action="store_true", help="Output only JSON")
     price_parser.set_defaults(func=price_command)
     
     # Score command

@@ -4,8 +4,8 @@ from fastapi import FastAPI
 from dotenv import load_dotenv
 from eth_utils import to_bytes
 from .schemas import ScoreRequest, ScoreResponse, PriceRequest, PriceResponse
-from .baseline_model import score_risk, price_cds, generate_dummy_digest, generate_dummy_signature
-from .crypto import load_or_create_key, sign_digest, public_address
+from .baseline_model import score_risk, price_cds, get_risk_score_bps
+from .signing import digest, sign_digest, load_or_create_key, public_address
 
 load_dotenv()
 app = FastAPI(title="BRICS Pricing v0.1")
@@ -32,7 +32,7 @@ def health():
 def score(req: ScoreRequest):
     """Score risk for an obligor"""
     # Score the risk
-    score_result = score_risk(req.features, req.obligorId)
+    score_result = score_risk(req.features, req.obligorId, req.tenorDays, req.asOf)
     
     return ScoreResponse(
         obligorId=req.obligorId,
@@ -47,7 +47,7 @@ def score(req: ScoreRequest):
 def price(req: PriceRequest):
     """Price CDS for an obligor"""
     # First score the risk
-    score_result = score_risk(req.features, req.obligorId)
+    score_result = score_risk(req.features, req.obligorId, req.tenorDays, req.asOf)
     
     # Then price the CDS
     price_result = price_cds(
@@ -55,12 +55,25 @@ def price(req: PriceRequest):
         req.tenorDays, 
         req.features, 
         score_result['pdBps'], 
-        score_result['lgdBps']
+        score_result['lgdBps'],
+        req.asOf
     )
     
-    # Generate dummy digest and signature for now
-    digest = generate_dummy_digest(req.obligorId, req.asOf)
-    signature = generate_dummy_signature(req.obligorId, req.asOf)
+    # Generate real digest and signature
+    portfolio_id = to_bytes(hexstr='0x' + '11' * 32)  # Use fixed portfolio ID for now
+    risk_score_bps = get_risk_score_bps(score_result['pdBps'], score_result['lgdBps'])
+    
+    digest_bytes = digest(
+        portfolio_id,
+        req.asOf,
+        risk_score_bps,
+        price_result['correlationBps'],
+        price_result['fairSpreadBps'],
+        req.modelId,
+        req.features
+    )
+    
+    signature = sign_digest(digest_bytes, RISK_ORACLE_PK)
     
     return PriceResponse(
         obligorId=req.obligorId,
@@ -69,7 +82,7 @@ def price(req: PriceRequest):
         notional=req.notional,
         fairSpreadBps=price_result['fairSpreadBps'],
         correlationBps=price_result['correlationBps'],
-        digest=digest,
+        digest="0x" + digest_bytes.hex(),
         signature=signature
     )
 

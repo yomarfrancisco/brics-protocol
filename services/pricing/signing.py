@@ -111,7 +111,10 @@ def load_or_create_key() -> str:
         return key
     
     # Fallback to deterministic key for testing
-    seed = int(os.getenv('SEED', '42'))
+    seed_str = os.getenv('SEED', '42')
+    if not seed_str:
+        seed_str = '42'  # Default if empty
+    seed = int(seed_str)
     # Generate deterministic private key from seed
     deterministic_key = f"0x{seed:064x}"
     return deterministic_key

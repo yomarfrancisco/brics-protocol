@@ -56,7 +56,7 @@ describe("AdaptiveTranchingOracleAdapter Fast Tests", function () {
     it("should revert when non-admin grants oracle role", async function () {
       await expect(
         adapter.connect(user).grantOracleRole(await oracle.getAddress())
-      ).to.be.revertedWith("AccessControl");
+      ).to.be.revertedWithCustomError(adapter, "AccessControlUnauthorizedAccount");
     });
   });
 

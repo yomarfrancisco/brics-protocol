@@ -1,59 +1,43 @@
 {
   "allowlist": [
     {
-      "rule": "divide-before-multiply",
+      "rule": "1-1-divide-before-multiply",
       "file": "contracts/IssuanceControllerV3.sol",
-      "line": 664,
+      "line": 635,
       "description": "Accepted precision loss in damping calculation - tested and verified safe",
       "status": "accepted",
       "risk_level": "low"
     },
     {
-      "rule": "divide-before-multiply", 
+      "rule": "1-1-divide-before-multiply", 
       "file": "contracts/IssuanceControllerV3.sol",
-      "line": 692,
+      "line": 669,
       "description": "Accepted precision loss in canIssue calculation - tested and verified safe",
       "status": "accepted",
       "risk_level": "low"
     },
     {
-      "rule": "divide-before-multiply",
+      "rule": "1-1-divide-before-multiply",
       "file": "contracts/IssuanceControllerV3.sol", 
-      "line": 759,
+      "line": 708,
       "description": "Accepted precision loss in mintForSigned calculation - tested and verified safe",
       "status": "accepted",
       "risk_level": "low"
     },
     {
-      "rule": "divide-before-multiply",
+      "rule": "1-1-divide-before-multiply",
       "file": "contracts/IssuanceControllerV3.sol",
-      "line": 833,
+      "line": 804,
       "description": "Accepted precision loss in mintFor calculation - tested and verified safe", 
       "status": "accepted",
       "risk_level": "low"
     },
     {
-      "rule": "divide-before-multiply",
+      "rule": "1-1-divide-before-multiply",
       "file": "contracts/NAVOracleV3.sol",
-      "line": 227,
+      "line": 222,
       "description": "Accepted precision loss in growth calculation - tested and verified safe",
       "status": "accepted", 
-      "risk_level": "low"
-    },
-    {
-      "rule": "incorrect-exponentiation",
-      "file": "node_modules/@openzeppelin/contracts/utils/math/Math.sol",
-      "line": 257,
-      "description": "OpenZeppelin dependency issue - monitoring for updates",
-      "status": "dependency",
-      "risk_level": "low"
-    },
-    {
-      "rule": "divide-before-multiply",
-      "file": "node_modules/@openzeppelin/contracts/utils/math/Math.sol",
-      "line": 257,
-      "description": "OpenZeppelin dependency issue - monitoring for updates",
-      "status": "dependency",
       "risk_level": "low"
     }
   ]

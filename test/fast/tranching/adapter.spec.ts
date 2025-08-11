@@ -156,5 +156,64 @@ describe("AdaptiveTranchingOracleAdapter Fast Tests", function () {
       expect(defaults).to.equal(1000);
       expect(correlation).to.equal(650000);
     });
+
+    it("should return mode from target when it implements the interface", async function () {
+      // Set mode in tranche manager
+      await trancheManager.connect(gov).setTranchingMode(2); // ENFORCED
+      
+      expect(await adapter.getTranchingMode()).to.equal(2);
+    });
+
+    it("should return thresholds from target when it implements the interface", async function () {
+      // Set thresholds in tranche manager
+      await trancheManager.connect(gov).setTranchingThresholds(3000, 1500, 700000);
+      
+      const [sovereignUsage, defaults, correlation] = await adapter.getTranchingThresholds();
+      expect(sovereignUsage).to.equal(3000);
+      expect(defaults).to.equal(1500);
+      expect(correlation).to.equal(700000);
+    });
+  });
+
+  describe("Edge Cases", function () {
+    it("should handle zero address oracle role grant", async function () {
+      await expect(
+        adapter.grantOracleRole(ethers.ZeroAddress)
+      ).to.be.revertedWith("oracle cannot be zero address");
+    });
+
+    it("should handle signal with maximum valid values", async function () {
+      const currentBlock = await ethers.provider.getBlock("latest");
+      const maxSignal = {
+        sovereignUsageBps: 10000,
+        portfolioDefaultsBps: 10000,
+        corrPpm: 1000000,
+        asOf: currentBlock!.timestamp
+      };
+      
+      await adapter.connect(gov).submitSignal(maxSignal);
+      
+      const lastSignal = await adapter.lastSignal();
+      expect(lastSignal.sovereignUsageBps).to.equal(10000);
+      expect(lastSignal.portfolioDefaultsBps).to.equal(10000);
+      expect(lastSignal.corrPpm).to.equal(1000000);
+    });
+
+    it("should handle signal with minimum valid values", async function () {
+      const currentBlock = await ethers.provider.getBlock("latest");
+      const minSignal = {
+        sovereignUsageBps: 0,
+        portfolioDefaultsBps: 0,
+        corrPpm: 0,
+        asOf: currentBlock!.timestamp
+      };
+      
+      await adapter.connect(gov).submitSignal(minSignal);
+      
+      const lastSignal = await adapter.lastSignal();
+      expect(lastSignal.sovereignUsageBps).to.equal(0);
+      expect(lastSignal.portfolioDefaultsBps).to.equal(0);
+      expect(lastSignal.corrPpm).to.equal(0);
+    });
   });
 });

@@ -136,6 +136,49 @@ describe("TrancheManagerV2 Adaptive Tranching Governance Tests", function () {
         trancheManager.connect(gov).setTranchingThresholds(2000, 1000, 1000001)
       ).to.be.revertedWith("Correlation > 100%");
     });
+
+    it("should allow setting mode to DISABLED", async function () {
+      // First set to DRY_RUN
+      await trancheManager.connect(gov).setTranchingMode(1);
+      expect(await trancheManager.getTranchingMode()).to.equal(1);
+      
+      // Then set back to DISABLED
+      await expect(trancheManager.connect(gov).setTranchingMode(0))
+        .to.emit(trancheManager, "TranchingModeChanged")
+        .withArgs(0, await gov.getAddress());
+      
+      expect(await trancheManager.getTranchingMode()).to.equal(0);
+    });
+
+    it("should allow setting mode to ENFORCED", async function () {
+      await expect(trancheManager.connect(gov).setTranchingMode(2))
+        .to.emit(trancheManager, "TranchingModeChanged")
+        .withArgs(2, await gov.getAddress());
+      
+      expect(await trancheManager.getTranchingMode()).to.equal(2);
+    });
+
+    it("should allow setting all thresholds to zero", async function () {
+      await expect(trancheManager.connect(gov).setTranchingThresholds(0, 0, 0))
+        .to.emit(trancheManager, "ThresholdsUpdated")
+        .withArgs(0, 0, 0);
+      
+      const [sovereignUsage, defaults, correlation] = await trancheManager.getTranchingThresholds();
+      expect(sovereignUsage).to.equal(0);
+      expect(defaults).to.equal(0);
+      expect(correlation).to.equal(0);
+    });
+
+    it("should allow setting all thresholds to maximum values", async function () {
+      await expect(trancheManager.connect(gov).setTranchingThresholds(10000, 10000, 1000000))
+        .to.emit(trancheManager, "ThresholdsUpdated")
+        .withArgs(10000, 10000, 1000000);
+      
+      const [sovereignUsage, defaults, correlation] = await trancheManager.getTranchingThresholds();
+      expect(sovereignUsage).to.equal(10000);
+      expect(defaults).to.equal(10000);
+      expect(correlation).to.equal(1000000);
+    });
   });
 
   describe("Signal Submission with Enabled Mode", function () {

@@ -260,6 +260,68 @@ jobs:
             services/pricing/baseline_model.py
           retention-days: 14
 
+  compliance-lint-test:
+    name: Compliance Service (Lint + Test)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true # Set to true initially as per user request
+    env:
+      SEED: ""
+    defaults:
+      run:
+        working-directory: services/compliance
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            services/compliance/.venv
+          key: ${{ runner.os }}-python-3.11-${{ hashFiles('services/compliance/requirements.txt') }}
+      - name: Install dependencies
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install -r requirements.txt
+      - name: Run tests
+        run: |
+          source .venv/bin/activate
+          PYTHONPATH=../.. pytest tests/ -v
+      - name: Run CLI smoke test
+        run: |
+          source .venv/bin/activate
+          PYTHONPATH=../.. python -m services.compliance.cli kyc --subject TEST001 --json-only
+          PYTHONPATH=../.. python -m services.compliance.cli aml --subject TEST001 --json-only
+      - name: Generate Golden Vector outputs
+        run: |
+          source .venv/bin/activate
+          PYTHONPATH=../.. python -m services.compliance.cli kyc \
+            --subject ALPHA-001 \
+            --name "John Doe" \
+            --dob "1990-01-01" \
+            --doc-type passport \
+            --doc-last4 1234 \
+            --json-only > kyc_sample.json
+          PYTHONPATH=../.. python -m services.compliance.cli aml \
+            --subject ALPHA-001 \
+            --json-only > aml_sample.json
+      - name: Upload compliance artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compliance_artifacts_${{ github.sha }}
+          path: |
+            services/compliance/kyc_sample.json
+            services/compliance/aml_sample.json
+            services/compliance/cli.py
+            services/compliance/app.py
+          retention-days: 14
+
   gas-report:
     name: Gas Report
     runs-on: ubuntu-latest

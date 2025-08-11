@@ -222,3 +222,21 @@ PR #17 is finalized with all critical CI jobs green. Follow-up issues created fo
 - Pricing service ready for P1-2 implementation (Tasks #5-6: AI Risk Scoring API + CDS Pricing Engine)
 
 ---
+
+### 2025-08-11 23:45:00Z — P1-2 Pricing Service Complete ✅
+**Micro-step 2**: Deterministic model math + signing parity
+- Implemented exact formulas with round_half_up() and clamp() functions
+- Added EIP-191 compatible signing with on-chain verification parity
+- Created comprehensive test suite with Golden Vector A validation
+- All 20 tests passing, signer parity confirmed
+
+**Micro-step 3**: Documentation + validation hardening  
+- Added ADR-0002: Signing Convention for BRICS Pricing Service
+- Enhanced README.md with Golden Vector A examples and comprehensive documentation
+- Implemented strict Pydantic v2 validation with bounds checking and helpful error messages
+- Enhanced CI with deterministic artifacts (pricing_sample.json, parity.txt)
+
+**Status**: Both PRs merged (#23, #24), all checks passing
+**Next**: P1-3 KYC/AML interface documentation and API skeleton
+
+---

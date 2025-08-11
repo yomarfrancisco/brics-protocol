@@ -1,8 +1,14 @@
-# BRICS Protocol v4.0.0-rc2
+# BRICS Protocol v4.0.0-rc11
 
-[![Audit Ready](https://img.shields.io/badge/Audit-Ready-brightgreen)](https://github.com/yomarfrancisco/brics-protocol)
-[![Tests](https://img.shields.io/badge/Tests-56%2F56%20passing-brightgreen)](https://github.com/yomarfrancisco/brics-protocol)
-[![Version](https://img.shields.io/badge/Version-v4.0.0--rc2-blue)](https://github.com/yomarfrancisco/brics-protocol)
+[![Tests](https://img.shields.io/badge/Tests-128%2F128%20passing-brightgreen)](https://github.com/yomarfrancisco/brics-protocol/actions)
+
+[![Coverage](https://img.shields.io/badge/Coverage-71.68%25%20statements-brightgreen)](https://github.com/yomarfrancisco/brics-protocol/actions)
+
+[![Security](https://img.shields.io/badge/Security-0%20high%20findings-brightgreen)](https://github.com/yomarfrancisco/brics-protocol/security/code-scanning)
+
+[![Gas](https://img.shields.io/badge/Gas-Report%20generated-blue)](https://github.com/yomarfrancisco/brics-protocol/actions)
+
+[![Version](https://img.shields.io/badge/Version-v4.0.0--rc11-blue)](https://github.com/yomarfrancisco/brics-protocol/releases)
 
 ## 🎯 **AUDIT-READY: Institution-Grade Synthetic Risk Transfer Infrastructure**
 

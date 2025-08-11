@@ -163,8 +163,8 @@ jobs:
           }
           EOF
 
-          - name: Run invariants test
-            run: yarn test --grep "Invariants"
+      - name: Run invariants test
+        run: yarn test --grep "Invariants"
 
   pricing-lint-test:
     name: Pricing Service (Lint + Test)

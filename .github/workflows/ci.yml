@@ -237,6 +237,13 @@ jobs:
         run: |
           node scripts/slither-filter.js audit/slither-allowlist.json slither.sarif slither.filtered.sarif
 
+      - name: Check allowlist growth
+        if: ${{ github.event_name == 'pull_request' }}
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          node scripts/allowlist-guard.js
+
       - name: Fail on non-allowlisted high findings
         run: |
           node -e "const fs=require('fs');const s=JSON.parse(fs.readFileSync('slither.filtered.sarif','utf8'));const run=s.runs?.[0]||{};const rules={};(run.tool?.driver?.rules||[]).forEach(r=>rules[r.id]=r);const highs=(run.results||[]).filter(r=>{const lvl=r.level||rules[r.ruleId]?.defaultConfiguration?.level||'';const sev=(rules[r.ruleId]?.properties?.severity||'').toLowerCase();return lvl==='error'||sev==='high';});if(highs.length){console.error('High findings (filtered):', highs.length); process.exit(1);} console.log('No high findings after allowlist ✅');"

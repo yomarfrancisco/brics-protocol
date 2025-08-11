@@ -2,7 +2,6 @@ import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import "dotenv/config";
 import "solidity-coverage";
-import "hardhat-gas-reporter";
 import "./tasks/governance";
 import "./tasks/confirmSovereign";
 import "./tasks/mintMember";
@@ -18,6 +17,11 @@ const { SEPOLIA_RPC_URL, PRIVATE_KEY, ETHERSCAN_API_KEY } = process.env;
 
 const ENABLE_GAS = !!process.env.REPORT_GAS && !process.env.COVERAGE;
 const COVERAGE = !!process.env.COVERAGE;
+
+// Conditionally import hardhat-gas-reporter only when needed
+if (ENABLE_GAS) {
+  require("hardhat-gas-reporter");
+}
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -48,7 +52,15 @@ const config: HardhatUserConfig = {
     outDir: "typechain",
     target: "ethers-v6"
   },
-  gasReporter: {
+  gasReporter: ENABLE_GAS ? {
+    enabled: true,
+    currency: 'USD',
+    coinmarketcap: undefined,
+    excludeContracts: ['mocks/'],
+    noColors: true,
+    showTimeSpent: true,
+    showMethodSig: true
+  } : {
     enabled: false
   },
   coverage: {
@@ -62,7 +74,8 @@ const config: HardhatUserConfig = {
   },
   mocha: {
     timeout: COVERAGE ? 180000 : 60000,
-    bail: 1
+    bail: 1,
+    reporter: 'spec'
   }
 };
 

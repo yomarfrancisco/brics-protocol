@@ -156,8 +156,8 @@ jobs:
       - name: Run Slither (markdown + sarif)
         run: |
           mkdir -p audit
-          slither . --solc-remaps "@=node_modules/" --markdown > audit/slither-report.md || true
-          slither . --solc-remaps "@=node_modules/" --sarif audit/slither.sarif || true
+          slither . --solc-remaps "@=node_modules/" --markdown audit/slither-report.md || true
+          slither . --solc-remaps "@=node_modules/" --sarif slither.sarif || true
 
       - name: Fail on High severity
         run: |

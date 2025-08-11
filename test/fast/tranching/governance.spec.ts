@@ -70,10 +70,14 @@ describe("TrancheManagerV2 Adaptive Tranching Governance Tests", function () {
       // Similar to above - would need governance functions to set mode
     });
 
-    it("should revert when unauthorized user submits signal", async function () {
+    it("should revert when tranching is disabled (regardless of authorization)", async function () {
       await expect(
         trancheManager.connect(user).submitSignal(validSignal)
-      ).to.be.revertedWith("unauthorized");
+      ).to.be.revertedWith("Adaptive tranching disabled");
+      
+      await expect(
+        trancheManager.connect(gov).submitSignal(validSignal)
+      ).to.be.revertedWith("Adaptive tranching disabled");
     });
   });
 

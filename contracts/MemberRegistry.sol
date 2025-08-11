@@ -24,6 +24,7 @@ contract MemberRegistry is AccessControl {
     constructor(address gov) { _grantRole(DEFAULT_ADMIN_ROLE, gov); }
 
     function setRegistrar(address r) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(r != address(0), "registrar cannot be zero address");
         registrar = r; emit RegistrarSet(r);
     }
 

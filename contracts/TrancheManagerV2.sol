@@ -68,6 +68,8 @@ contract TrancheManagerV2 is AccessControl {
     event Tier2Reverted(uint16 lo, uint16 hi, string reason);
 
     constructor(address gov, address oracle_, address config_) {
+        require(oracle_ != address(0), "oracle cannot be zero address");
+        require(config_ != address(0), "config cannot be zero address");
         _grantRole(DEFAULT_ADMIN_ROLE, gov);
         _grantRole(GOV_ROLE, gov);
         oracle = oracle_;

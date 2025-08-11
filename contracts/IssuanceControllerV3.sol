@@ -584,6 +584,7 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
 
     // SPEC §9: Enhanced Buffer Coordination - liquidity health check
     function _liquidityOk() internal view returns (bool) {
+        // Only need irbTarget from getLiquidityStatus - other values intentionally ignored
         (,, uint256 irbTarget,,) = treasury.getLiquidityStatus();
         uint256 irbBal = usdc.balanceOf(address(treasury));
         
@@ -592,6 +593,7 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
         // Optional: require PreTrancheBuffer ≥ min threshold in ORANGE/RED
         ConfigRegistry.EmergencyLevel level = cfg.emergencyLevel();
         if (level == ConfigRegistry.EmergencyLevel.ORANGE || level == ConfigRegistry.EmergencyLevel.RED) {
+            // Only need current and target from getBufferStatus - other values intentionally ignored
             (uint256 current, uint256 target,,) = preBuffer.getBufferStatus();
             if (current < target * 8000 / 10000) return false; // Require 80% of target in emergency
         }
@@ -616,6 +618,7 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
 
     function _getClaimInfo(uint256 claimId) internal view returns (address owner, uint256 amount, bool settled) {
         (owner, amount, , settled) = claims.claimInfo(claimId);
+        // strikeTs is intentionally ignored as it's not needed for this function
     }
 
     function _settleAndBurnClaim(uint256 claimId, address holder) internal {

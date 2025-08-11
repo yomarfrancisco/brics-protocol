@@ -208,6 +208,8 @@ jobs:
     name: Gas Report
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      REPORT_GAS: "1"
     steps:
       - uses: actions/checkout@v4
 

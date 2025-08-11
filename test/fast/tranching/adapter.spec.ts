@@ -233,8 +233,13 @@ describe("AdaptiveTranchingOracleAdapter Fast Tests", function () {
       const MockRiskSignalLib = await ethers.getContractFactory("MockRiskSignalLib");
       mockRiskSignalLib = await MockRiskSignalLib.deploy();
 
-      // Set the risk oracle directly from the deterministic PK
-      await adapter.setRiskOracle(await riskOracle.getAddress());
+      // Redeploy adapter with the correct risk oracle address
+      const AdaptiveTranchingOracleAdapter = await ethers.getContractFactory("AdaptiveTranchingOracleAdapter");
+      adapter = await AdaptiveTranchingOracleAdapter.deploy(
+        await gov.getAddress(),
+        await trancheManager.getAddress(),
+        await riskOracle.getAddress() // Use deterministic address from the start
+      );
     });
 
     // Helper function to sign a payload with the current risk oracle

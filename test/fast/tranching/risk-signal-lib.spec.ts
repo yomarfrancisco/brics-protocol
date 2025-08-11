@@ -144,7 +144,7 @@ describe("RiskSignalLib Fast Tests", function () {
 
       const digest = await mockRiskSignalLib.digest(payload);
       const signature = await riskOracle.signMessage(ethers.getBytes(digest));
-      const recoveredSigner = await mockRiskSignalLib.recoverSigner(digest, signature);
+      const recoveredSigner = await mockRiskSignalLib.recoverSigner(payload, signature);
       
       expect(recoveredSigner).to.equal(await riskOracle.getAddress());
     });
@@ -163,9 +163,9 @@ describe("RiskSignalLib Fast Tests", function () {
       const digest = await mockRiskSignalLib.digest(payload);
       const signature = await riskOracle.signMessage(ethers.getBytes(digest));
       
-      // Tamper with the digest
-      const tamperedDigest = "0x" + "ff".repeat(32);
-      const recoveredSigner = await mockRiskSignalLib.recoverSigner(tamperedDigest, signature);
+      // Tamper with the payload to create a different digest
+      const tamperedPayload = { ...payload, riskScore: 999999999 };
+      const recoveredSigner = await mockRiskSignalLib.recoverSigner(tamperedPayload, signature);
       
       expect(recoveredSigner).to.not.equal(await riskOracle.getAddress());
     });
@@ -185,7 +185,7 @@ describe("RiskSignalLib Fast Tests", function () {
       const malformedSignature = "0x" + "00".repeat(30); // Too short
       
       await expect(
-        mockRiskSignalLib.recoverSigner(digest, malformedSignature)
+        mockRiskSignalLib.recoverSigner(payload, malformedSignature)
       ).to.be.reverted;
     });
 
@@ -204,7 +204,7 @@ describe("RiskSignalLib Fast Tests", function () {
       const shortSignature = "0x" + "00".repeat(64); // Missing recovery byte
       
       await expect(
-        mockRiskSignalLib.recoverSigner(digest, shortSignature)
+        mockRiskSignalLib.recoverSigner(payload, shortSignature)
       ).to.be.reverted;
     });
   });

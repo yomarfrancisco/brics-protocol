@@ -166,18 +166,46 @@ jobs:
           solc-select install ${SOLC_VERSION}
           solc-select use ${SOLC_VERSION}
 
-      - name: Run Slither (SARIF + md + json)
+      - name: Compile with Hardhat first
+        run: |
+          echo "Compiling contracts with Hardhat..."
+          npx hardhat compile
+          echo "Hardhat compilation completed"
+          ls -la artifacts/ || echo "No artifacts directory found"
+
+      # 2) Primary Slither run (compile-first, ignore-compile)
+      - name: Run Slither (compile-first)
+        continue-on-error: true
         run: |
           mkdir -p audit
-          # Raw SARIF + convenience reports
-          echo "Running Slither analysis..."
-          slither . --solc-remaps "@=node_modules/" \
+          slither . \
+            --ignore-compile \
+            --solc-remaps "@=node_modules/" \
             --sarif slither.sarif \
             --markdown audit/slither-report.md \
-            --json audit/slither.json || echo "Slither completed with findings"
-          echo "Slither command completed"
-          ls -la slither.sarif audit/slither-report.md audit/slither.json || echo "Some files not found"
-          # We let it continue; we'll enforce via filtered SARIF
+            --json audit/slither.json || true
+
+      # 3) Fallback attempt if SARIF missing (no config, best-effort)
+      - name: Fallback SARIF
+        run: |
+          if [ ! -f "slither.sarif" ]; then
+            echo "Primary SARIF missing, running fallback…"
+            slither . --ignore-compile --sarif slither.sarif || true
+          else
+            echo "SARIF already exists, skipping fallback"
+          fi
+
+      # 4) Debug if SARIF still missing
+      - name: Debug artifacts if SARIF missing
+        run: |
+          if [ ! -f "slither.sarif" ]; then
+            echo "SARIF still missing. Dumping build-info to debug."
+            ls -la artifacts || true
+            ls -la artifacts/build-info || true
+            find artifacts/build-info -maxdepth 1 -type f -name '*.json' -printf '%f\n' | head -n 20 || true
+          else
+            echo "SARIF exists, no debug needed"
+          fi
 
       - name: Check if SARIF was generated
         run: |

@@ -173,8 +173,16 @@ jobs:
           slither . --solc-remaps "@=node_modules/" \
             --sarif slither.sarif \
             --markdown audit/slither-report.md \
-            --json audit/slither.json || true
+            --json audit/slither.json || echo "Slither completed with findings"
           # We let it continue; we'll enforce via filtered SARIF
+
+      - name: Check if SARIF was generated
+        run: |
+          if [ ! -f "slither.sarif" ]; then
+            echo "Error: slither.sarif was not generated"
+            exit 1
+          fi
+          echo "SARIF file generated successfully"
 
       - name: Filter SARIF via allowlist
         run: |

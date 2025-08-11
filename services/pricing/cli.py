@@ -8,8 +8,13 @@ import sys
 import time
 from typing import Dict, Any
 
-from .baseline_model import score_risk, price_cds, get_risk_score_bps
-from .signing import digest, sign_digest, load_or_create_key, public_address
+try:
+    from .baseline_model import score_risk, price_cds, get_risk_score_bps
+    from .signing import digest, sign_digest, load_or_create_key, public_address
+except ImportError:
+    # Allow running as script
+    from baseline_model import score_risk, price_cds, get_risk_score_bps
+    from signing import digest, sign_digest, load_or_create_key, public_address
 from eth_utils import to_bytes
 
 def create_sample_features() -> Dict[str, Any]:

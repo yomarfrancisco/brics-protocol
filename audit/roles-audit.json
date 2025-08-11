@@ -1,0 +1,77 @@
+{
+  "network": "localhost",
+  "contracts": {
+    "ConfigRegistry": "0xd30bF3219A0416602bE8D482E0396eF332b0494E",
+    "MemberRegistry": "0x06b3244b086cecC40F1e5A826f736Ded68068a0F",
+    "NAVOracleV3": "0xAD2935E147b61175D5dc3A9e7bDa93B0975A43BA",
+    "TrancheManagerV2": "0x00CAC06Dd0BB4103f8b62D280fE9BCEE8f26fD59",
+    "Treasury": "0x4951A1C579039EbfCBA0BE33D2cd3A6D30b0f802",
+    "PreTrancheBuffer": "0x2e8880cAdC08E9B438c6052F5ce3869FBd6cE513",
+    "BRICSToken": "0xb007167714e2940013EC3bb551584130B7497E22",
+    "RedemptionClaim": "0x6b39b761b1b64C8C095BF0e3Bb0c6a74705b4788",
+    "ClaimRegistry": "0xeC827421505972a2AE9C320302d3573B42363C26",
+    "IssuanceControllerV3": "0x74Df809b1dfC099E8cdBc98f6a8D1F5c2C3f66f8"
+  },
+  "checks": [
+    {
+      "check": "IC has MINTER_ROLE on BRICS",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "check": "IC has BURNER_ROLE on BRICS",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "check": "OPS_SAFE has OPS_ROLE on IC",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "check": "BURNER_SAFE has BURNER_ROLE on IC",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "check": "IC has BUFFER_MANAGER on PreTrancheBuffer",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "check": "IC has PAY_ROLE on Treasury",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "check": "ECC_SAFE has ECC_ROLE on ClaimRegistry",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "check": "OPS_SAFE has OPS_ROLE on ClaimRegistry",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "check": "ECC_SAFE has ECC_ROLE on TrancheManager",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "check": "NASASA_ENTITY is registrar on MemberRegistry",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "check": "IC has ISSUER_ROLE on RedemptionClaim",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "check": "BURNER_SAFE has BURNER_ROLE on RedemptionClaim",
+      "ok": true,
+      "details": ""
+    }
+  ]
+}

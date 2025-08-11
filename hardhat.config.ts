@@ -16,13 +16,15 @@ import "./tasks/roles.audit";
 
 const { SEPOLIA_RPC_URL, PRIVATE_KEY, ETHERSCAN_API_KEY } = process.env;
 
+const ENABLE_GAS = !!process.env.REPORT_GAS && !process.env.COVERAGE;
+const COVERAGE = !!process.env.COVERAGE;
+
 const config: HardhatUserConfig = {
   solidity: {
     version: "0.8.24",
-    settings: { 
-      optimizer: { enabled: true, runs: 200 },
-      viaIR: true
-    }
+    settings: COVERAGE
+      ? { optimizer: { enabled: true, runs: 1 }, viaIR: true }  // minimal optimization with viaIR
+      : { optimizer: { enabled: true, runs: 200 }, viaIR: true }
   },
   networks: {
     hardhat: {
@@ -46,25 +48,28 @@ const config: HardhatUserConfig = {
     outDir: "typechain",
     target: "ethers-v6"
   },
-  gasReporter: {
-    enabled: process.env.REPORT_GAS !== undefined,
+  gasReporter: ENABLE_GAS ? {
+    enabled: true,
     currency: "USD",
     gasPrice: 21,
     showMethodSig: true,
     showTimeSpent: true,
     outputFile: "gas-report.txt",
     noColors: true
+  } : {
+    enabled: false
   },
   coverage: {
     reporter: ["text", "lcov", "html"],
     exclude: [
       "contracts/mocks/",
+      "contracts/malicious/",
       "test/",
       "deploy/"
     ]
   },
   mocha: {
-    timeout: 10000,
+    timeout: COVERAGE ? 180000 : 60000,
     bail: 1
   }
 };

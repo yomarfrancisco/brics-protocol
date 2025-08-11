@@ -16,5 +16,5 @@
   "exclude_medium": false,
   "exclude_high": false,
   "json": "audit/slither.json",
-  "filter_paths": "node_modules,test,deploy,scripts"
+  "filter_paths": "node_modules,test,deploy,scripts,frontend,offchain"
 }

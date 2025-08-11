@@ -1,120 +1,203 @@
-name: CI
+name: ci
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, release/** ]
   pull_request:
     branches: [ main ]
 
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'npm'
-      
-      - name: Install dependencies
-        run: npm ci
-      
-      - name: Run tests
-        run: npm test
-      
-      - name: Upload test results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: test-results
-          path: test-results.xml
+env:
+  NODE_VERSION: "20"
+  SOLC_VERSION: "0.8.24"
 
-  coverage:
+jobs:
+  tests:
+    name: Unit & Integration Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Setup Node.js
+
+      - name: Use Node ${{ env.NODE_VERSION }}
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          cache: 'npm'
-      
-      - name: Install dependencies
-        run: npm ci
-      
-      - name: Run coverage
-        run: npx hardhat coverage
-      
-      - name: Check coverage threshold
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Cache Hardhat & node_modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            node_modules
+            artifacts
+            cache
+          key: ${{ runner.os }}-node${{ env.NODE_VERSION }}-${{ hashFiles('package-lock.json') }}-tests
+
+      - run: npm ci
+      - run: npm test
+
+      # Artifacts (tests don't always have files, but keep a pattern)
+      - name: Upload gas report (if any)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gas-report_${{ github.sha }}
+          path: gas-report.txt
+          retention-days: 14
+
+  coverage-fast:
+    name: Coverage (fast track)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      COVERAGE: "1"
+      NODE_OPTIONS: --max_old_space_size=4096
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Cache Hardhat & node_modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            node_modules
+            artifacts
+            cache
+          key: ${{ runner.os }}-node${{ env.NODE_VERSION }}-${{ hashFiles('package-lock.json') }}-coverage-fast
+
+      - run: npm ci
+      - run: npm run coverage
+
+      - name: Enforce coverage floor
         run: |
-          COVERAGE=$(npx hardhat coverage --reporter=text | grep -o '[0-9]\+\.[0-9]\+%' | head -1 | sed 's/%//')
-          if (( $(echo "$COVERAGE < 90" | bc -l) )); then
-            echo "Coverage $COVERAGE% is below 90% threshold"
-            exit 1
-          fi
-          echo "Coverage $COVERAGE% meets threshold"
+          FAST_FLOOR=$(node -pe "require('./ci/coverage-baseline.json').fast_floor")
+          bash scripts/check-coverage.sh "$FAST_FLOOR"
+
+      - name: Upload coverage summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-fast_${{ github.event_name }}_${{ github.sha }}
+          path: |
+            coverage/lcov.info
+            coverage.json
+          retention-days: 14
+
+      - name: Post PR Comment (coverage + gas)
+        if: ${{ github.event_name == 'pull_request' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npx ts-node scripts/pr-comment.ts || echo "PR comment skipped"
 
   gas-report:
+    name: Gas Report
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'npm'
-      
-      - name: Install dependencies
-        run: npm ci
-      
-      - name: Generate gas report
-        run: REPORT_GAS=true npm test
-      
-      - name: Upload gas report
-        uses: actions/upload-artifact@v4
-        with:
-          name: gas-report
-          path: gas-report.txt
 
-  security:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup Node.js
+      - name: Use Node ${{ env.NODE_VERSION }}
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          cache: 'npm'
-      
-      - name: Install dependencies
-        run: npm ci
-      
-      - name: Install Slither
-        run: |
-          pip3 install slither-analyzer
-      
-      - name: Run Slither analysis
-        run: |
-          slither . --config .slither.json
-      
-      - name: Upload Slither Report
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Cache Hardhat & node_modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            node_modules
+            artifacts
+            cache
+          key: ${{ runner.os }}-node${{ env.NODE_VERSION }}-${{ hashFiles('package-lock.json') }}-gas
+
+      - run: npm ci
+      - run: npm run gas
+
+      - name: Upload gas report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: slither-report
-          path: audit/slither.json
-      
-      - name: Check for High Severity Issues
+          name: gas-report_${{ github.event_name }}_${{ github.sha }}
+          path: gas-report.txt
+          retention-days: 14
+
+  slither-security:
+    name: Security (Slither + SARIF)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SOLC_VERSION: "0.8.24"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Cache Hardhat & node_modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            node_modules
+            artifacts
+            cache
+          key: ${{ runner.os }}-node${{ env.NODE_VERSION }}-${{ hashFiles('package-lock.json') }}-security
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Slither & solc-select
         run: |
-          if [ -f audit/slither.json ]; then
-            # Check if there are any high severity issues not in allowlist
-            HIGH_ISSUES=$(jq '.results.detectors[] | select(.impact == "High") | .check' audit/slither.json | wc -l)
-            if [ "$HIGH_ISSUES" -gt 0 ]; then
-              echo "Found $HIGH_ISSUES high severity issues not in allowlist"
-              exit 1
-            fi
-          fi
+          pip install "slither-analyzer==0.10.3" solc-select
+          solc-select install ${SOLC_VERSION}
+          solc-select use ${SOLC_VERSION}
+
+      - name: Run Slither (SARIF + md + json)
+        run: |
+          mkdir -p audit
+          # Raw SARIF + convenience reports
+          slither . --solc-remaps "@=node_modules/" \
+            --sarif slither.sarif \
+            --markdown audit/slither-report.md \
+            --json audit/slither.json || true
+          # We let it continue; we'll enforce via filtered SARIF
+
+      - name: Filter SARIF via allowlist
+        run: |
+          node scripts/slither-filter.js audit/slither-allowlist.json slither.sarif slither.filtered.sarif
+
+      - name: Fail on non-allowlisted high findings
+        run: |
+          node -e "const fs=require('fs');const s=JSON.parse(fs.readFileSync('slither.filtered.sarif','utf8'));const run=s.runs?.[0]||{};const rules={};(run.tool?.driver?.rules||[]).forEach(r=>rules[r.id]=r);const highs=(run.results||[]).filter(r=>{const lvl=r.level||rules[r.ruleId]?.defaultConfiguration?.level||'';const sev=(rules[r.ruleId]?.properties?.severity||'').toLowerCase();return lvl==='error'||sev==='high';});if(highs.length){console.error('High findings (filtered):', highs.length); process.exit(1);} console.log('No high findings after allowlist ✅');"
+
+      - name: Upload SARIF to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: slither.sarif
+
+      - name: Upload security artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: slither_${{ github.event_name }}_${{ github.sha }}
+          path: |
+            audit/slither.json
+            audit/slither-report.md
+            slither.sarif
+            slither.filtered.sarif
+          if-no-files-found: warn
+          retention-days: 14

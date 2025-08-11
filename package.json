@@ -7,12 +7,17 @@
     "clean": "rimraf cache artifacts typechain",
     "build": "hardhat compile",
     "test": "hardhat test",
+    "gas": "REPORT_GAS=1 hardhat test",
+    "coverage": "COVERAGE=1 hardhat coverage --solcoverjs ./.solcover.js",
+    "coverage:heavy": "COVERAGE=1 COVERAGE_HEAVY=1 hardhat coverage --solcoverjs ./.solcover.js",
+    "slither": "slither . --config .slither.json --print human-summary",
+    "slither:sarif": "slither . --config .slither.json --sarif slither.sarif",
     "deploy": "hardhat run scripts/deploy.ts",
     "deploy:dev": "hardhat run --network hardhat scripts/deploy.ts",
     "deploy:localhost": "hardhat run --network localhost scripts/deploy.ts",
     "deploy:sepolia": "hardhat run --network sepolia scripts/deploy.ts",
     "deploy:dev:legacy": "hardhat run --network hardhat deploy/00_env.ts && hardhat run --network hardhat deploy/01_core.ts && hardhat run --network hardhat deploy/02_finance.ts && hardhat run --network hardhat deploy/04_oracle.ts && hardhat run --network hardhat deploy/03_tranche.ts && hardhat run --network hardhat deploy/05_issuance_and_claims.ts && hardhat run --network hardhat deploy/90_roles_and_params.ts && hardhat run --network hardhat deploy/99_report.ts",
-    "deploy:sepolia:legacy": "hardhat run --network sepolia deploy/00_env.ts && hardhat run --network sepolia deploy/01_core.ts && hardhat run --network sepolia deploy/02_finance.ts && hardhat run --network sepolia deploy/04_oracle.ts && hardhat run --network sepolia deploy/03_tranche.ts && hardhat run --network sepolia deploy/05_issuance_and_claims.ts && hardhat run --network sepolia deploy/90_roles_and_params.ts && hardhat run --network sepolia deploy/99_report.ts",
+    "deploy:sepolia:legacy": "hardhat run --network sepolia deploy/00_env.ts && hardhat run --network sepolia deploy/01_core.ts && hardhat run --network sepolia deploy/02_finance.ts && hardhat run --network sepolia deploy/04_oracle.ts && hardhat run --network sepolia deploy/03_tranche.ts && hardhat run --network sepolia deploy/05_issuance_and_claims.ts && hardhat run --network hardhat deploy/90_roles_and_params.ts && hardhat run --network hardhat deploy/99_report.ts",
     "verify:all": "ts-node scripts/verifyAll.ts",
     "lint:sol": "solhint 'contracts/**/*.sol'",
     "lint:ts": "eslint . --ext .ts"
@@ -26,6 +31,7 @@
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
     "@nomicfoundation/hardhat-verify": "^2.1.1",
     "@nomicfoundation/ignition-core": "^0.15.13",
+    "@octokit/rest": "^20.0.2",
     "@openzeppelin/contracts": "^5.4.0",
     "@typechain/ethers-v6": "^0.5.0",
     "@typechain/hardhat": "^9.1.0",
@@ -42,9 +48,12 @@
     "prettier": "^3.2.5",
     "rimraf": "^5.0.5",
     "solhint": "^4.5.3",
-    "solidity-coverage": "^0.8.16",
+    "solidity-coverage": "0.8.16",
     "ts-node": "^10.9.2",
     "typechain": "^8.3.2",
     "typescript": "^5.4.5"
+  },
+  "dependencies": {
+    "yargs": "^18.0.0"
   }
 }

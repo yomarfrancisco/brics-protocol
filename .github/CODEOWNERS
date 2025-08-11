@@ -1,0 +1,8 @@
+# Security and CI configuration files require security owner approval
+audit/slither-allowlist.json @yomarfrancisco
+.github/workflows/ @yomarfrancisco
+ci/coverage-baseline.json @yomarfrancisco
+scripts/slither-filter.js @yomarfrancisco
+
+# Default owners for everything in the repo
+* @yomarfrancisco

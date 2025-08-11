@@ -1,0 +1,73 @@
+{
+  "network": "localhost",
+  "contracts": {
+    "IssuanceControllerV3": "0x74Df809b1dfC099E8cdBc98f6a8D1F5c2C3f66f8",
+    "ConfigRegistry": "0xd30bF3219A0416602bE8D482E0396eF332b0494E",
+    "NAVOracleV3": "0xAD2935E147b61175D5dc3A9e7bDa93B0975A43BA",
+    "Treasury": "0x4951A1C579039EbfCBA0BE33D2cd3A6D30b0f802",
+    "PreTrancheBuffer": "0x2e8880cAdC08E9B438c6052F5ce3869FBd6cE513",
+    "BRICSToken": "0xb007167714e2940013EC3bb551584130B7497E22",
+    "RedemptionClaim": "0x6b39b761b1b64C8C095BF0e3Bb0c6a74705b4788",
+    "TrancheManagerV2": "0x00CAC06Dd0BB4103f8b62D280fE9BCEE8f26fD59",
+    "ClaimRegistry": "0xeC827421505972a2AE9C320302d3573B42363C26",
+    "MemberRegistry": "0x06b3244b086cecC40F1e5A826f736Ded68068a0F"
+  },
+  "events": [
+    "EmergencyLevelSet(uint8,string)",
+    "NAVWindowOpened(uint256,uint256)",
+    "NAVWindowClosed(uint256,uint256,uint256)",
+    "NAVStruck(uint256,uint256,uint256)",
+    "NAVSettled(uint256,uint256,address,uint256,uint256)",
+    "NAVCarryoverCreated(uint256,uint256,uint256)",
+    "IssuanceLockedSet(bool)",
+    "SovereignUtilizationUpdated(bytes32,uint256)",
+    "OracleDegraded(uint8,uint16)",
+    "Minted(address,uint256,uint256)",
+    "RedeemRequested(address,uint256)",
+    "InstantRedeemProcessed(address,uint256,string)",
+    "Strike(uint256,uint256)",
+    "DetachmentRatified(uint16,uint16)",
+    "DetachmentReverted(uint16,uint16)",
+    "BufferShortfall(uint256,uint256,uint256)",
+    "BufferRestored(uint256,uint256)",
+    "AutoPauseTriggered(uint256,uint256)"
+  ],
+  "alarms": [
+    {
+      "name": "Degradation>0",
+      "contract": "NAVOracleV3",
+      "event": "OracleDegraded",
+      "threshold": ">0"
+    },
+    {
+      "name": "BufferLow",
+      "contract": "PreTrancheBuffer",
+      "metric": "availableInstantCapacity",
+      "threshold": "< 50_000e6"
+    },
+    {
+      "name": "IssuanceLocked",
+      "contract": "TrancheManagerV2",
+      "event": "IssuanceLockedSet",
+      "threshold": "== true"
+    },
+    {
+      "name": "SovUtil>90%",
+      "contract": "IssuanceControllerV3",
+      "metric": "sovereignUtilBps",
+      "threshold": ">= 9000"
+    },
+    {
+      "name": "EmergencyLevel>0",
+      "contract": "ConfigRegistry",
+      "event": "EmergencyLevelSet",
+      "threshold": ">0"
+    },
+    {
+      "name": "NAVWindowOpen",
+      "contract": "IssuanceControllerV3",
+      "event": "NAVWindowOpened",
+      "threshold": "!= null"
+    }
+  ]
+}

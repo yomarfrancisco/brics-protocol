@@ -62,6 +62,7 @@ jobs:
     env:
       COVERAGE: "1"
       NODE_OPTIONS: --max_old_space_size=4096
+      HARDHAT_NETWORK: ""
     steps:
       - uses: actions/checkout@v4
 

@@ -142,6 +142,19 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
+      - name: Cache Hardhat & node_modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            node_modules
+            artifacts
+            cache
+          key: ${{ runner.os }}-node${{ env.NODE_VERSION }}-${{ hashFiles('package-lock.json') }}-security
+
+      - name: Install dependencies
+        run: npm ci
+
       - name: Setup Python 3.11
         uses: actions/setup-python@v5
         with:

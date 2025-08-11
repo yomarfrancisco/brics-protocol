@@ -324,9 +324,12 @@ describe("AdaptiveTranchingOracleAdapter Fast Tests", function () {
     });
 
     it("should reject signal with future timestamp", async function () {
+      // Use a timestamp that's definitely in the future
+      const futureTimestamp = Math.floor(Date.now() / 1000) + 86400; // 24 hours in future
+      
       const payload = {
         portfolioId: "0x1111111111111111111111111111111111111111111111111111111111111111",
-        asOf: Math.floor(Date.now() / 1000) + 3600, // 1 hour in future
+        asOf: futureTimestamp,
         riskScore: 123456789,
         correlationBps: 777,
         spreadBps: 1500,

@@ -5,6 +5,11 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: read
+  actions: read
+  security-events: write
+
 jobs:
   release-validation:
     name: Release Validation
@@ -50,28 +55,60 @@ jobs:
       - name: Generate gas report
         run: npm run gas
       
-      - name: Setup Python for security
+      - name: Setup Python 3.11
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-      
-      - name: Install Slither
+          python-version: "3.11"
+
+      - name: Install Slither & solc-select
         run: |
-          python -m pip install --upgrade pip
-          pip install slither-analyzer==0.10.1 solc-select
-          solc-select install 0.8.24
-          solc-select use 0.8.24
-      
-      - name: Compile contracts
-        run: npx hardhat compile
-      
-      - name: Run security analysis
-        run: slither . --ignore-compile --fail-high
-      
-      - name: Generate security reports
+          pip install "slither-analyzer==0.10.3" solc-select
+          solc-select install ${SOLC_VERSION}
+          solc-select use ${SOLC_VERSION}
+
+      - name: Compile with Hardhat
         run: |
-          slither . --ignore-compile --sarif slither.sarif || true
-          slither . --ignore-compile --print human-summary > audit/slither-report.md
+          npm ci
+          npx hardhat compile
+
+      - name: Run Slither (SARIF + md + json)
+        run: |
+          mkdir -p audit
+          # Raw SARIF + convenience reports
+          slither . --solc-remaps "@=node_modules/" \
+            --sarif slither.sarif \
+            --markdown audit/slither-report.md \
+            --json audit/slither.json || true
+          # We let it continue; we'll enforce via filtered SARIF
+
+      - name: Filter SARIF via allowlist
+        run: |
+          node scripts/slither-filter.js audit/slither-allowlist.json slither.sarif slither.filtered.sarif
+
+      - name: Fail on non-allowlisted high findings
+        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+        run: |
+          node -e "const fs=require('fs');const s=JSON.parse(fs.readFileSync('slither.filtered.sarif','utf8'));const run=s.runs?.[0]||{};const rules={};(run.tool?.driver?.rules||[]).forEach(r=>rules[r.id]=r);const highs=(run.results||[]).filter(r=>{const lvl=r.level||rules[r.ruleId]?.defaultConfiguration?.level||'';const sev=(rules[r.ruleId]?.properties?.severity||'').toLowerCase();return lvl==='error'||sev==='high';});if(highs.length){console.error('High findings (filtered):', highs.length); process.exit(1);} console.log('No high findings after allowlist ✅');"
+
+      - name: Upload SARIF to GitHub Security
+        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: slither.sarif
+          category: slither
+
+      - name: Upload security artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: slither_${{ github.sha }}_release
+          path: |
+            audit/slither.json
+            audit/slither-report.md
+            slither.sarif
+            slither.filtered.sarif
+          if-no-files-found: warn
+          retention-days: 14
       
       - name: Create release assets
         run: |

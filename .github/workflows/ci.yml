@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ main ]
 
+permissions:
+  contents: read
+  security-events: write
+
 env:
   NODE_VERSION: "20"
   SOLC_VERSION: "0.8.24"
@@ -185,6 +189,7 @@ jobs:
           node -e "const fs=require('fs');const s=JSON.parse(fs.readFileSync('slither.filtered.sarif','utf8'));const run=s.runs?.[0]||{};const rules={};(run.tool?.driver?.rules||[]).forEach(r=>rules[r.id]=r);const highs=(run.results||[]).filter(r=>{const lvl=r.level||rules[r.ruleId]?.defaultConfiguration?.level||'';const sev=(rules[r.ruleId]?.properties?.severity||'').toLowerCase();return lvl==='error'||sev==='high';});if(highs.length){console.error('High findings (filtered):', highs.length); process.exit(1);} console.log('No high findings after allowlist ✅');"
 
       - name: Upload SARIF to GitHub Security
+        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: slither.sarif

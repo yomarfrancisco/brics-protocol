@@ -23,16 +23,16 @@
 
 **Goal**: Implement functional protocol features, keeping CI stable and contracts safe.
 
-### P1-1 Adaptive Tranching v0.1 (current)
-- Add AdaptiveTrancheManager scaffold
-- Mirror current TrancheManagerV2 API
-- Add stub logic for:
-  - Tier configuration (super-senior, mezzanine, first-loss)
-  - Risk capacity checks
-  - Issuance throttling based on tranche limits
-- Unit tests for allocation math & edge cases
-- No economic or oracle logic yet (placeholder returns)
-- **PR name**: feat: adaptive tranche manager scaffold (no economic logic)
+### P1-1 Adaptive Tranching v0.1 ✅ **COMPLETED**
+- ✅ **PR #14**: ADR + Types (merged)
+- ✅ **PR #15**: Interfaces + Events (merged)  
+- ✅ **PR #16**: Oracle Adapter Stub + Governance Hooks + Tests (merged)
+- ✅ **PR #17**: Tests & CI Stabilization (merged 2025-08-11 20:30:00Z)
+
+**Final Status**:
+- **CI**: All critical jobs green (coverage, tests, gas, slither, invariants)
+- **Coverage**: 270/270 tests passing, ≥63% fast-track coverage
+- **Note**: Pricing Service CI remains non-blocking (continue-on-error: true)
 
 ### P1-2 Pricing Service (CDS + RISC) — Next Context Switch
 - Off-chain service using XGBoost for CDS spreads & RISC scores
@@ -70,9 +70,9 @@
 
 ## Next High Level Actions
 
-**Current Step**: Build P1-1 AdaptiveTrancheManager scaffold
+**Current Step**: P1-2 Pricing Service implementation
 
-**After P1-1**: Context switch to P1-2 Pricing Service (off-chain AI/CDS pricing)
+**After P1-2**: P1-3 KYC/AML Module
 
 **Keep In Mind**: Always ship PRs small & reviewable; no economic logic changes until tests cover scaffold behavior
 
@@ -84,12 +84,12 @@
 - ✅ **PR #14**: ADR + Types (merged)
 - ✅ **PR #15**: Interfaces + Events (merged)
 - ✅ **PR #16**: Oracle Adapter Stub + Governance Hooks + Tests (merged)
+- ✅ **PR #17**: Tests & CI Stabilization (merged)
 
 ### Current Status
-- **Coverage**: 60% statements (close to 63% target)
-- **Tests**: 186 passing, comprehensive coverage for new functions
+- **Coverage**: 270/270 tests passing, ≥63% fast-track coverage
 - **Security**: All checks passing, 0 high findings
-- **Next**: Ready for P1-2 Pricing Service implementation
+- **Next**: P1-2 Pricing Service implementation
 
 ### Next Actions (P1-2: Pricing Service)
 1. **Off-chain XGBoost Service**: CDS spreads & RISC scores
@@ -204,5 +204,21 @@ Finalize PR #17 and create follow-up issues for remaining technical debt.
 
 ### Mission Complete ✅
 PR #17 is finalized with all critical CI jobs green. Follow-up issues created for remaining technical debt. Ready for squash-merge.
+
+---
+
+### 2025-08-11 20:30:00Z — PR #17 merged
+- CI: all critical jobs green (coverage, tests, gas, slither, invariants)
+- Note: Pricing Service CI remains non-blocking (continue-on-error)
+- P1-1 Adaptive Tranching v0.1 formally completed
+- Next: P1-2 Pricing Service implementation
+
+---
+
+### 2025-08-11 21:00:00Z — P1-2 skeleton & CI smoke
+- Added minimal FastAPI service with /v1/health endpoint
+- CI pricing-service job installs pinned deps and runs smoke tests (continue-on-error: true)
+- Created test_smoke.py with health endpoint and app import tests
+- Pricing service ready for P1-2 implementation (Tasks #5-6: AI Risk Scoring API + CDS Pricing Engine)
 
 ---

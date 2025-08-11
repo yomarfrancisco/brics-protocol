@@ -61,12 +61,17 @@ describe("AdaptiveTranchingOracleAdapter Fast Tests", function () {
   });
 
   describe("Signal Submission", function () {
-    const validSignal = {
-      sovereignUsageBps: 2000,
-      portfolioDefaultsBps: 500,
-      corrPpm: 300000,
-      asOf: Math.floor(Date.now() / 1000)
-    };
+    let validSignal: any;
+
+    beforeEach(async function () {
+      const currentBlock = await ethers.provider.getBlock("latest");
+      validSignal = {
+        sovereignUsageBps: 2000,
+        portfolioDefaultsBps: 500,
+        corrPpm: 300000,
+        asOf: currentBlock!.timestamp
+      };
+    });
 
     it("should allow gov to submit signal", async function () {
       await adapter.connect(gov).submitSignal(validSignal);
@@ -114,7 +119,9 @@ describe("AdaptiveTranchingOracleAdapter Fast Tests", function () {
     });
 
     it("should validate timestamp is not in future", async function () {
-      const invalidSignal = { ...validSignal, asOf: Math.floor(Date.now() / 1000) + 3600 };
+      const currentBlock = await ethers.provider.getBlock("latest");
+      const futureTimestamp = currentBlock!.timestamp + 86400; // 24 hours in future
+      const invalidSignal = { ...validSignal, asOf: futureTimestamp };
       await expect(
         adapter.connect(gov).submitSignal(invalidSignal)
       ).to.be.revertedWith("future timestamp");

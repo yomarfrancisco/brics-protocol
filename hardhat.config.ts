@@ -70,8 +70,7 @@ const config: HardhatUserConfig = {
   },
   mocha: {
     timeout: COVERAGE ? 180000 : 60000,
-    bail: 1,
-    reporter: ENABLE_GAS ? "./node_modules/eth-gas-reporter" : "spec"
+    bail: 1
   }
 };
 

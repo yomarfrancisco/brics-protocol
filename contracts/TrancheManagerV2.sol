@@ -273,4 +273,41 @@ contract TrancheManagerV2 is AccessControl {
         
         // No economic logic in v0.1 - only event emission
     }
+
+    // Governance hooks for Adaptive Tranching v0.1
+
+    /**
+     * @notice Set tranching mode (only governance)
+     * @param mode New mode (0=DISABLED, 1=DRY_RUN, 2=ENFORCED)
+     * @dev Only callable by GOV_ROLE
+     */
+    function setTranchingMode(uint8 mode) external onlyRole(GOV_ROLE) {
+        require(mode <= 2, "Invalid mode");
+        uint8 oldMode = tranchingMode;
+        tranchingMode = mode;
+        emit TranchingModeChanged(mode, msg.sender);
+    }
+
+    /**
+     * @notice Set tranching thresholds (only governance)
+     * @param sovereignUsageBps Sovereign usage threshold in bps
+     * @param defaultsBps Defaults threshold in bps
+     * @param corrPpm Correlation threshold in ppm
+     * @dev Only callable by GOV_ROLE
+     */
+    function setTranchingThresholds(
+        uint64 sovereignUsageBps,
+        uint64 defaultsBps,
+        uint32 corrPpm
+    ) external onlyRole(GOV_ROLE) {
+        require(sovereignUsageBps <= 10000, "Sovereign usage > 100%");
+        require(defaultsBps <= 10000, "Defaults > 100%");
+        require(corrPpm <= 1000000, "Correlation > 100%");
+        
+        sovereignUsageThresholdBps = sovereignUsageBps;
+        defaultsThresholdBps = defaultsBps;
+        correlationThresholdPpm = corrPpm;
+        
+        emit ThresholdsUpdated(sovereignUsageBps, defaultsBps, corrPpm);
+    }
 }

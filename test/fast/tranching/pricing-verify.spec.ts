@@ -71,7 +71,7 @@ describe("Pricing Verification Fast Tests", function () {
     const signature = await riskOracle.signMessage(ethers.getBytes(digest));
     
     // Guard assertion: verify the signature is valid
-    const recovered = await mockRiskSignalLib.recoverSigner(digest, signature);
+    const recovered = await mockRiskSignalLib.recoverSigner(payload, signature);
     expect(recovered).to.equal(await adapter.riskOracle());
     
     return signature;

@@ -41,7 +41,7 @@ async function signPayload(mockLib: any, payload: any, oracleWallet: any) {
   const signature = await oracleWallet.signMessage(getBytes(digest));
   
   // Guard assertion: verify the signature is valid
-  const recovered = await mockLib.recoverSigner(digest, signature);
+  const recovered = await mockLib.recoverSigner(payload, signature);
   expect(recovered).to.equal(await oracleWallet.getAddress());
   
   return signature;

@@ -4,6 +4,7 @@ pragma solidity ^0.8.24;
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import "./ConfigRegistry.sol";
 import "./ClaimRegistry.sol";
+import "./interfaces/IAdaptiveTranching.sol";
 
 // Custom errors
 error OnlyRaise();
@@ -56,6 +57,12 @@ contract TrancheManagerV2 is AccessControl {
     uint256 public lastVoteYesBps;  // yes/total in bps
     uint256 public lastVoteTs;
 
+    // Adaptive Tranching v0.1 storage (no economic impact)
+    uint8 public tranchingMode; // 0=DISABLED, 1=DRY_RUN, 2=ENFORCED
+    uint64 public sovereignUsageThresholdBps; // Default: 2000 (20%)
+    uint64 public defaultsThresholdBps; // Configurable defaults threshold
+    uint32 public correlationThresholdPpm; // Default: 650000 (65%)
+
     event CapAdjusted(uint256 cap);
     event IssuanceLocked(bool locked);
     event DetachmentRaised(uint16 lo, uint16 hi);
@@ -66,6 +73,11 @@ contract TrancheManagerV2 is AccessControl {
     event SupermajorityAttested(uint256 yesBps, uint256 ts);
     event Tier2Expansion(uint16 newHi, uint256 claimId, uint256 expiry);
     event Tier2Reverted(uint16 lo, uint16 hi, string reason);
+
+    // Adaptive Tranching v0.1 events (no economic impact)
+    event RiskSignalSubmitted(IAdaptiveTranching.RiskSignal signal, address indexed submitter);
+    event TranchingModeChanged(uint8 mode, address indexed governor);
+    event ThresholdsUpdated(uint64 sovereignUsageBps, uint64 defaultsBps, uint32 corrPpm);
 
     constructor(address gov, address oracle_, address config_) {
         require(oracle_ != address(0), "oracle cannot be zero address");
@@ -222,5 +234,43 @@ contract TrancheManagerV2 is AccessControl {
         expansionTier = 0;
         
         emit Tier2Reverted(bricsLo, bricsHi, "Tier 2 expired");
+    }
+
+    // Adaptive Tranching v0.1 functions (no economic impact)
+
+    /**
+     * @notice Get current tranching mode
+     * @return Current mode (0=DISABLED, 1=DRY_RUN, 2=ENFORCED)
+     */
+    function getTranchingMode() external view returns (uint8) {
+        return tranchingMode;
+    }
+
+    /**
+     * @notice Get current thresholds
+     * @return sovereignUsageBps Sovereign usage threshold
+     * @return defaultsBps Defaults threshold
+     * @return corrPpm Correlation threshold
+     */
+    function getTranchingThresholds() external view returns (
+        uint64 sovereignUsageBps,
+        uint64 defaultsBps,
+        uint32 corrPpm
+    ) {
+        return (sovereignUsageThresholdBps, defaultsThresholdBps, correlationThresholdPpm);
+    }
+
+    /**
+     * @notice Submit a risk signal (restricted access)
+     * @param signal The risk signal to submit
+     * @dev Only callable by authorized oracles in DRY_RUN or ENFORCED mode
+     */
+    function submitSignal(IAdaptiveTranching.RiskSignal calldata signal) external {
+        require(tranchingMode > 0, "Adaptive tranching disabled");
+        require(hasRole(ECC_ROLE, msg.sender) || hasRole(GOV_ROLE, msg.sender), "unauthorized");
+        
+        emit RiskSignalSubmitted(signal, msg.sender);
+        
+        // No economic logic in v0.1 - only event emission
     }
 }

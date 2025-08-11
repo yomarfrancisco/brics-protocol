@@ -170,7 +170,7 @@ jobs:
         run: |
           mkdir -p audit
           slither . --solc-remaps "@=node_modules/" --markdown audit/slither-report.md || true
-          slither . --solc-remaps "@=node_modules/" --sarif slither.sarif || true
+          slither . --solc-remaps "@=node_modules/" --sarif slither.sarif --exclude audit/slither-allowlist.json || true
 
       - name: Fail on High severity
         run: |

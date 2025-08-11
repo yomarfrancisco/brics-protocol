@@ -7,7 +7,7 @@ from app import health
 def test_health_endpoint():
     """Test that the health endpoint returns expected response"""
     response = health()
-    assert response["ok"] is True
+    assert response["status"] == "ok"
     assert "oracle" in response
     print("Health endpoint test passed")
 

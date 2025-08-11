@@ -200,12 +200,20 @@ jobs:
         run: |
           source .venv/bin/activate
           pytest tests/ -v
+      - name: Run CLI smoke test
+        run: |
+          source .venv/bin/activate
+          python cli.py price --obligor TEST001 --tenor 365 --asof 1700000000 --notional 1000000
+          python cli.py score --obligor TEST001 --tenor 365 --asof 1700000000
       - name: Upload pricing artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: pricing_artifacts_${{ github.sha }}
-          path: services/pricing/tests/sample_request.json
+          path: |
+            services/pricing/tests/sample_request.json
+            services/pricing/cli.py
+            services/pricing/baseline_model.py
           retention-days: 14
 
   gas-report:

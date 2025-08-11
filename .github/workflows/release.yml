@@ -6,8 +6,7 @@ on:
       - 'v*'
 
 permissions:
-  contents: read
-  actions: read
+  contents: write
   security-events: write
 
 jobs:
@@ -148,6 +147,7 @@ jobs:
             AUDIT_SCOPE.md
       
       - name: Create GitHub Release
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           files: |

@@ -11,12 +11,16 @@ describe("TrancheManagerV2 Existing Functions Fast Tests", function () {
   beforeEach(async function () {
     [gov, ecc, user] = await ethers.getSigners();
 
+    // Deploy mock config registry
+    const ConfigRegistry = await ethers.getContractFactory("ConfigRegistry");
+    const configRegistry = await ConfigRegistry.deploy(await gov.getAddress());
+
     // Deploy TrancheManagerV2
     const TrancheManagerV2 = await ethers.getContractFactory("TrancheManagerV2");
     trancheManager = await TrancheManagerV2.deploy(
       await gov.getAddress(),
       await gov.getAddress(), // mock oracle
-      await gov.getAddress()  // mock config
+      await configRegistry.getAddress()  // real config
     );
 
     // Grant ECC role

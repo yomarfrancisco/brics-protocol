@@ -237,6 +237,25 @@ FRESH ──[>2h stale]──> STALE ──[>6h stale]──> DEGRADED ──[>2
 - Emergency auto-pause on buffer depletion
 - Cascading funding mechanisms
 
+### Coverage Limitations
+**Coverage execution model**: Fast CI coverage excludes IssuanceControllerV3 and NAVOracleV3 due to instrumentation stack depth; a nightly "heavy coverage" job includes all contracts under a coverage-friendly compiler profile (optimizer/viaIR off). Coverage floors are enforced (fast: 70%, nightly: 75%) and will be ratcheted up.
+
+- **Fast CI**: Excludes complex contracts for quick feedback (70% floor)
+- **Nightly Heavy**: Includes all contracts with coverage-friendly compiler (75% floor)
+- **Compiler Profile**: Optimizer disabled, viaIR disabled for instrumentation compatibility
+- **Quality Gates**: Automated coverage threshold enforcement with ratcheting strategy
+
+#### Fast CI Exclusions (Coverage Instrumentation Stack Depth)
+- `contracts/IssuanceControllerV3.sol` - Complex issuance logic with multiple state variables
+- `contracts/NAVOracleV3.sol` - Oracle aggregation with cryptographic operations
+- `contracts/MezzanineVault.sol` - Complex vault logic with multiple inheritance
+- `contracts/RedemptionClaim.sol` - Complex claim processing with multiple structs
+- `contracts/SovereignClaimToken.sol` - ERC721 implementation with complex state
+- `contracts/malicious/` - Test contracts for security validation
+- `contracts/mocks/` - Mock contracts for testing
+
+**Rationale**: These contracts exceed Solidity's stack depth limit when instrumented for coverage. They are validated through comprehensive tests and Slither security analysis. The nightly heavy coverage job attempts to include all contracts with coverage-friendly compiler settings.
+
 ## Gas Optimization
 
 ### Custom Errors

@@ -11,8 +11,10 @@ permissions:
   security-events: write
 
 env:
-  NODE_VERSION: "20"
+  NODE_VERSION: "20.19.x"
   SOLC_VERSION: "0.8.24"
+  CI: true
+  HARDHAT_NETWORK: hardhat
 
 jobs:
   tests:
@@ -38,8 +40,11 @@ jobs:
             cache
           key: ${{ runner.os }}-node${{ env.NODE_VERSION }}-${{ hashFiles('yarn.lock') }}-tests
 
-      - run: corepack enable
-      - run: yarn install --frozen-lockfile
+      - name: Enable corepack & install
+        run: |
+          corepack enable
+          yarn -v
+          yarn install --immutable
       - run: yarn test
 
       # Artifacts (tests don't always have files, but keep a pattern)
@@ -65,6 +70,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: 'yarn'
 
       - name: Cache Hardhat & node_modules
         uses: actions/cache@v4
@@ -76,8 +82,11 @@ jobs:
             cache
           key: ${{ runner.os }}-node${{ env.NODE_VERSION }}-${{ hashFiles('yarn.lock') }}-coverage-fast
 
-      - run: corepack enable
-      - run: yarn install --frozen-lockfile
+      - name: Enable corepack & install
+        run: |
+          corepack enable
+          yarn -v
+          yarn install --immutable
       - run: yarn coverage
 
       - name: Enforce coverage floor
@@ -114,6 +123,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: 'yarn'
 
       - name: Cache Hardhat & node_modules
         uses: actions/cache@v4
@@ -125,8 +135,11 @@ jobs:
             cache
           key: ${{ runner.os }}-node${{ env.NODE_VERSION }}-${{ hashFiles('yarn.lock') }}-invariants
 
-      - run: corepack enable
-      - run: yarn install --frozen-lockfile
+      - name: Enable corepack & install
+        run: |
+          corepack enable
+          yarn -v
+          yarn install --immutable
 
       - name: Create minimal deployment fixture
         run: |
@@ -205,6 +218,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: 'yarn'
 
       - name: Cache Hardhat & node_modules
         uses: actions/cache@v4
@@ -216,8 +230,11 @@ jobs:
             cache
           key: ${{ runner.os }}-node${{ env.NODE_VERSION }}-${{ hashFiles('yarn.lock') }}-gas
 
-      - run: corepack enable
-      - run: yarn install --frozen-lockfile
+      - name: Enable corepack & install
+        run: |
+          corepack enable
+          yarn -v
+          yarn install --immutable
       - run: yarn gas
 
       - name: Upload gas report
@@ -241,6 +258,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: 'yarn'
 
       - name: Cache Hardhat & node_modules
         uses: actions/cache@v4
@@ -255,7 +273,8 @@ jobs:
       - name: Install dependencies
         run: |
           corepack enable
-          yarn install --frozen-lockfile
+          yarn -v
+          yarn install --immutable
 
       - name: Setup Python 3.11
         uses: actions/setup-python@v5

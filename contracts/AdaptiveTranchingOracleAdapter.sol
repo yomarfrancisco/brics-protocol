@@ -155,8 +155,7 @@ contract AdaptiveTranchingOracleAdapter is AccessControl, IAdaptiveTranching {
      */
     function submitSignedRiskSignal(RiskSignalLib.Payload calldata payload, bytes calldata signature) external {
         // Verify signature
-        bytes32 digest = RiskSignalLib.digest(payload);
-        address signer = RiskSignalLib.recoverSigner(digest, signature);
+        address signer = RiskSignalLib.recoverSigner(payload, signature);
         require(signer == riskOracle, "bad-signer");
 
         // Validate payload

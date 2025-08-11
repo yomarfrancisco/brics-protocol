@@ -1,7 +1,49 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
+import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
+import { Wallet, getBytes } from "ethers";
 import { AdaptiveTranchingOracleAdapter } from "../../../typechain-types";
 import { TrancheManagerV2 } from "../../../typechain-types";
+
+const ORACLE_PK = "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d";
+const oracleWallet = new Wallet(ORACLE_PK);
+
+async function deployFixture() {
+  const [gov, oracle, user] = await ethers.getSigners();
+
+  // Deploy TrancheManagerV2 first (mock for testing)
+  const TrancheManagerV2 = await ethers.getContractFactory("TrancheManagerV2");
+  const trancheManager = await TrancheManagerV2.deploy(
+    await gov.getAddress(),
+    await gov.getAddress(), // mock oracle
+    await gov.getAddress()  // mock config
+  );
+
+  // Deploy adapter with deterministic risk oracle
+  const AdaptiveTranchingOracleAdapter = await ethers.getContractFactory("AdaptiveTranchingOracleAdapter");
+  const adapter = await AdaptiveTranchingOracleAdapter.deploy(
+    await gov.getAddress(),
+    await trancheManager.getAddress(),
+    await oracleWallet.getAddress() // Use deterministic address from the start
+  );
+
+  // Deploy mock RiskSignalLib for testing
+  const MockRiskSignalLib = await ethers.getContractFactory("MockRiskSignalLib");
+  const mockRiskSignalLib = await MockRiskSignalLib.deploy();
+
+  return { gov, oracle, user, trancheManager, adapter, mockRiskSignalLib };
+}
+
+async function signPayload(mockLib: any, payload: any) {
+  const digest = await mockLib.digest(payload);
+  const signature = await oracleWallet.signMessage(getBytes(digest));
+  
+  // Guard assertion: verify the signature is valid
+  const recovered = await mockLib.recoverSigner(digest, signature);
+  expect(recovered).to.equal(await oracleWallet.getAddress());
+  
+  return signature;
+}
 
 describe("AdaptiveTranchingOracleAdapter Fast Tests", function () {
   let adapter: AdaptiveTranchingOracleAdapter;
@@ -9,25 +51,19 @@ describe("AdaptiveTranchingOracleAdapter Fast Tests", function () {
   let gov: any;
   let oracle: any;
   let user: any;
+  let mockRiskSignalLib: any;
 
   beforeEach(async function () {
-    [gov, oracle, user] = await ethers.getSigners();
-
-    // Deploy TrancheManagerV2 first (mock for testing)
-    const TrancheManagerV2 = await ethers.getContractFactory("TrancheManagerV2");
-    trancheManager = await TrancheManagerV2.deploy(
-      await gov.getAddress(),
-      await gov.getAddress(), // mock oracle
-      await gov.getAddress()  // mock config
-    );
-
-    // Deploy adapter
-    const AdaptiveTranchingOracleAdapter = await ethers.getContractFactory("AdaptiveTranchingOracleAdapter");
-    adapter = await AdaptiveTranchingOracleAdapter.deploy(
-      await gov.getAddress(),
-      await trancheManager.getAddress(),
-      await oracle.getAddress() // risk oracle
-    );
+    const fixture = await loadFixture(deployFixture);
+    gov = fixture.gov;
+    oracle = fixture.oracle;
+    user = fixture.user;
+    trancheManager = fixture.trancheManager;
+    adapter = fixture.adapter;
+    mockRiskSignalLib = fixture.mockRiskSignalLib;
+    
+    // Ensure riskOracle is set exactly to the deterministic wallet every test
+    await adapter.connect(gov).setRiskOracle(await oracleWallet.getAddress());
   });
 
   describe("Constructor and Setup", function () {
@@ -221,38 +257,6 @@ describe("AdaptiveTranchingOracleAdapter Fast Tests", function () {
   });
 
   describe("Signed Signal Submission", function () {
-    let riskOracle: any;
-    let mockRiskSignalLib: any;
-
-    beforeEach(async function () {
-      // Use a deterministic private key for the risk oracle
-      const RISK_ORACLE_PRIV_KEY = "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d";
-      riskOracle = new ethers.Wallet(RISK_ORACLE_PRIV_KEY, ethers.provider);
-
-      // Deploy mock RiskSignalLib for testing
-      const MockRiskSignalLib = await ethers.getContractFactory("MockRiskSignalLib");
-      mockRiskSignalLib = await MockRiskSignalLib.deploy();
-
-      // Redeploy adapter with the correct risk oracle address
-      const AdaptiveTranchingOracleAdapter = await ethers.getContractFactory("AdaptiveTranchingOracleAdapter");
-      adapter = await AdaptiveTranchingOracleAdapter.deploy(
-        await gov.getAddress(),
-        await trancheManager.getAddress(),
-        await riskOracle.getAddress() // Use deterministic address from the start
-      );
-    });
-
-    // Helper function to sign a payload with the current risk oracle
-    async function signPayload(payload: any) {
-      const digest = await mockRiskSignalLib.digest(payload);
-      const signature = await riskOracle.signMessage(ethers.getBytes(digest));
-      
-      // Guard assertion: verify the signature is valid
-      const recovered = await mockRiskSignalLib.recoverSigner(digest, signature);
-      expect(recovered).to.equal(await adapter.riskOracle());
-      
-      return signature;
-    }
 
     it("should accept valid signed signal", async function () {
       const payload = {
@@ -265,7 +269,7 @@ describe("AdaptiveTranchingOracleAdapter Fast Tests", function () {
         featuresHash: "0x3333333333333333333333333333333333333333333333333333333333333333"
       };
 
-      const signature = await signPayload(payload);
+      const signature = await signPayload(mockRiskSignalLib, payload);
 
       await expect(adapter.submitSignedRiskSignal(payload, signature))
         .to.emit(adapter, "SignalCached");
@@ -302,7 +306,7 @@ describe("AdaptiveTranchingOracleAdapter Fast Tests", function () {
         featuresHash: "0x3333333333333333333333333333333333333333333333333333333333333333"
       };
 
-      const signature = await signPayload(payload);
+      const signature = await signPayload(mockRiskSignalLib, payload);
 
       await expect(adapter.submitSignedRiskSignal(payload, signature))
         .to.be.revertedWith("correlation > 100%");
@@ -319,7 +323,7 @@ describe("AdaptiveTranchingOracleAdapter Fast Tests", function () {
         featuresHash: "0x3333333333333333333333333333333333333333333333333333333333333333"
       };
 
-      const signature = await signPayload(payload);
+      const signature = await signPayload(mockRiskSignalLib, payload);
 
       await expect(adapter.submitSignedRiskSignal(payload, signature))
         .to.be.revertedWith("spread > 200%");
@@ -340,7 +344,7 @@ describe("AdaptiveTranchingOracleAdapter Fast Tests", function () {
         featuresHash: "0x3333333333333333333333333333333333333333333333333333333333333333"
       };
 
-      const signature = await signPayload(payload);
+      const signature = await signPayload(mockRiskSignalLib, payload);
 
       await expect(adapter.submitSignedRiskSignal(payload, signature))
         .to.be.revertedWith("future timestamp");
@@ -357,7 +361,7 @@ describe("AdaptiveTranchingOracleAdapter Fast Tests", function () {
         featuresHash: "0x3333333333333333333333333333333333333333333333333333333333333333"
       };
 
-      const signature = await signPayload(payload);
+      const signature = await signPayload(mockRiskSignalLib, payload);
 
       await adapter.submitSignedRiskSignal(payload, signature);
 

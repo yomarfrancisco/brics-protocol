@@ -12,7 +12,7 @@ contract MockRiskSignalLib {
         return RiskSignalLib.digest(p);
     }
 
-    function recoverSigner(bytes32 digest, bytes calldata signature) external pure returns (address) {
-        return RiskSignalLib.recoverSigner(digest, signature);
+    function recoverSigner(RiskSignalLib.Payload memory p, bytes memory sig) external pure returns (address) {
+        return RiskSignalLib.recoverSigner(p, sig);
     }
 }

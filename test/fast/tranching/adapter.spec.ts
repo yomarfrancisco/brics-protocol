@@ -46,17 +46,13 @@ async function deployFixture() {
 async function signPayload(mockLib: any, payload: any, oracleWallet: any) {
   const digest = await mockLib.digest(payload);
   
-  // RiskSignalLib.recoverSigner applies MessageHashUtils.toEthSignedMessageHash(digest)
-  // So we need to sign the raw digest without EIP-191 prefixing
-  // Use signMessage which applies EIP-191, but RiskSignalLib will apply it again
-  // This means we need to sign the raw digest without EIP-191 prefixing
-  // Sign the raw digest without EIP-191 prefixing since RiskSignalLib will apply it
-  const signature = await oracleWallet.sign(getBytes(digest));
+  // Sign the raw digest with EIP-191 prefixing (signMessage adds prefix once)
+  const signature = await oracleWallet.signMessage(getBytes(digest));
   
   // Debug logging for CI
   if (process.env.CI) {
     console.log("Debug - oracleWallet address:", await oracleWallet.getAddress());
-    console.log("Debug - recovered address:", await mockLib.recoverSigner(digest, signature));
+    console.log("Debug - recovered address:", await mockLib.recoverSigner(payload, signature));
     console.log("Debug - digest:", digest);
     console.log("Debug - signature:", signature);
     
@@ -68,7 +64,7 @@ async function signPayload(mockLib: any, payload: any, oracleWallet: any) {
   }
   
   // Guard assertion: verify the signature is valid
-  const recovered = await mockLib.recoverSigner(digest, signature);
+  const recovered = await mockLib.recoverSigner(payload, signature);
   expect(recovered).to.equal(await oracleWallet.getAddress());
   
   return signature;

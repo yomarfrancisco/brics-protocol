@@ -27,7 +27,9 @@ library RiskSignalLib {
         ));
     }
 
-    function recoverSigner(bytes32 digest, bytes calldata signature) internal pure returns (address) {
-        return ECDSA.recover(MessageHashUtils.toEthSignedMessageHash(digest), signature);
+    function recoverSigner(Payload memory p, bytes memory sig) internal pure returns (address) {
+        bytes32 d = digest(p);
+        bytes32 ethHash = MessageHashUtils.toEthSignedMessageHash(d); // EIP-191 prefix ONCE
+        return ECDSA.recover(ethHash, sig);
     }
 }

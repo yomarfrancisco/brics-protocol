@@ -1,0 +1,130 @@
+name: Release Validation
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release-validation:
+    name: Release Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Cache Hardhat artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            node_modules
+            artifacts/
+            cache/
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}-solc-0.8.24-${{ hashFiles('hardhat.config.ts') }}
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run tests
+        run: npm test
+      
+      - name: Run fast coverage
+        run: npm run coverage
+      
+      - name: Enforce coverage floor
+        run: bash scripts/check-coverage.sh 70
+      
+      - name: Generate gas report
+        run: npm run gas
+      
+      - name: Setup Python for security
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install Slither
+        run: |
+          python -m pip install --upgrade pip
+          pip install slither-analyzer==0.10.1 solc-select
+          solc-select install 0.8.24
+          solc-select use 0.8.24
+      
+      - name: Compile contracts
+        run: npx hardhat compile
+      
+      - name: Run security analysis
+        run: slither . --config .slither.json --fail-high --fail-medium
+      
+      - name: Generate security reports
+        run: |
+          slither . --sarif slither.sarif || true
+          slither . --print human-summary > audit/slither-report.md
+      
+      - name: Create release assets
+        run: |
+          mkdir -p release-assets
+          cp gas-report.txt release-assets/
+          cp -r coverage/ release-assets/
+          cp audit/slither-report.md release-assets/
+          cp slither.sarif release-assets/
+          cp AUDIT_SCOPE.md release-assets/
+          cp README.md release-assets/
+          cp package.json release-assets/
+          cp hardhat.config.ts release-assets/
+          cp .solcover.js release-assets/
+          cp scripts/check-coverage.sh release-assets/
+          tar -czf release-assets.tar.gz release-assets/
+      
+      - name: Upload release assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-assets
+          path: |
+            release-assets.tar.gz
+            gas-report.txt
+            coverage/
+            audit/slither-report.md
+            slither.sarif
+            AUDIT_SCOPE.md
+      
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release-assets.tar.gz
+            gas-report.txt
+            audit/slither-report.md
+            slither.sarif
+          body: |
+            ## Release Validation Results
+            
+            ### Coverage Summary
+            - Fast coverage validation passed
+            - Coverage threshold: 70% (enforced)
+            
+            ### Security Analysis
+            - Slither analysis completed
+            - No high/medium severity issues found
+            - SARIF report attached for Code Scanning
+            
+            ### Gas Analysis
+            - Gas report generated and attached
+            - All tests passing
+            
+            ### Assets Included
+            - Complete coverage report
+            - Security analysis (Slither)
+            - Gas consumption report
+            - Audit scope documentation
+            - Configuration files
+            
+            See attached files for detailed analysis.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

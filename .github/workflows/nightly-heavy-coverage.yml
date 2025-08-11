@@ -1,0 +1,57 @@
+name: nightly-heavy-coverage
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: "20"
+
+jobs:
+  heavy-coverage:
+    name: Heavy Coverage (Shard ${{ matrix.shard }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [a, b]
+    env:
+      NODE_OPTIONS: --max_old_space_size=6144
+      COVERAGE: "1"
+      COVERAGE_HEAVY: "1"
+      COVERAGE_SHARD: ${{ matrix.shard }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Cache Hardhat & node_modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            node_modules
+            artifacts
+            cache
+          key: ${{ runner.os }}-node${{ env.NODE_VERSION }}-${{ hashFiles('package-lock.json') }}-heavy-${{ matrix.shard }}
+
+      - run: npm ci
+      - run: npm run coverage:heavy
+
+      - name: Enforce nightly coverage floor
+        run: |
+          NIGHTLY_FLOOR=$(node -pe "require('./ci/coverage-baseline.json').nightly_floor")
+          bash scripts/check-coverage.sh "$NIGHTLY_FLOOR"
+
+      - name: Upload heavy coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-heavy_${{ matrix.shard }}_${{ github.sha }}
+          path: coverage/**
+          retention-days: 14

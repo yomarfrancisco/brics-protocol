@@ -166,40 +166,38 @@ jobs:
           solc-select install ${SOLC_VERSION}
           solc-select use ${SOLC_VERSION}
 
-      - name: Run Slither (markdown + sarif)
+      - name: Run Slither (SARIF + md + json)
         run: |
           mkdir -p audit
-          slither . --solc-remaps "@=node_modules/" --markdown audit/slither-report.md || true
-          slither . --solc-remaps "@=node_modules/" --sarif slither.sarif --exclude audit/slither-allowlist.json || true
+          # Raw SARIF + convenience reports
+          slither . --solc-remaps "@=node_modules/" \
+            --sarif slither.sarif \
+            --markdown audit/slither-report.md \
+            --json audit/slither.json || true
+          # We let it continue; we'll enforce via filtered SARIF
 
-      - name: Fail on High severity (excluding allowlisted findings)
+      - name: Filter SARIF via allowlist
         run: |
-          # Check for high severity findings, but exclude allowlisted ones
-          if grep -Ei '"level"\s*:\s*"error"|"\bhigh\b"|SEVERITY_HIGH' slither.sarif > /dev/null; then
-            echo "Checking for non-allowlisted high severity findings..."
-            # For now, since all high severity findings are documented as accepted,
-            # we'll check if the allowlist exists and contains the expected entries
-            if [ -f "audit/slither-allowlist.json" ]; then
-              echo "Allowlist found - all high severity findings are documented as accepted"
-              echo "✅ Security check passed - all findings are documented and accepted"
-            else
-              echo "High severity findings present but no allowlist found"; exit 1;
-            fi
-          else
-            echo "✅ No high severity findings found"
-          fi
+          node scripts/slither-filter.js audit/slither-allowlist.json slither.sarif slither.filtered.sarif
+
+      - name: Fail on non-allowlisted high findings
+        run: |
+          node -e "const fs=require('fs');const s=JSON.parse(fs.readFileSync('slither.filtered.sarif','utf8'));const run=s.runs?.[0]||{};const rules={};(run.tool?.driver?.rules||[]).forEach(r=>rules[r.id]=r);const highs=(run.results||[]).filter(r=>{const lvl=r.level||rules[r.ruleId]?.defaultConfiguration?.level||'';const sev=(rules[r.ruleId]?.properties?.severity||'').toLowerCase();return lvl==='error'||sev==='high';});if(highs.length){console.error('High findings (filtered):', highs.length); process.exit(1);} console.log('No high findings after allowlist ✅');"
 
       - name: Upload SARIF to GitHub Security
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: slither.sarif
 
-      - name: Upload slither artifacts
+      - name: Upload security artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: slither_${{ github.event_name }}_${{ github.sha }}
           path: |
+            audit/slither.json
             audit/slither-report.md
             slither.sarif
+            slither.filtered.sarif
+          if-no-files-found: warn
           retention-days: 14

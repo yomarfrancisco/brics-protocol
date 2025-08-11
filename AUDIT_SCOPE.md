@@ -256,6 +256,38 @@ FRESH ──[>2h stale]──> STALE ──[>6h stale]──> DEGRADED ──[>2
 
 **Rationale**: These contracts exceed Solidity's stack depth limit when instrumented for coverage. They are validated through comprehensive tests and Slither security analysis. The nightly heavy coverage job attempts to include all contracts with coverage-friendly compiler settings.
 
+### Accepted Findings & Fingerprint Policy
+
+**Security Gate Approach**: The CI security job uses a fingerprint-based allowlist system to distinguish between acceptable and unacceptable security findings. This ensures transparency while maintaining strict security standards.
+
+#### Fingerprint Format
+Each allowlisted finding is identified by a unique fingerprint: `${ruleId}:${file}:${line}`
+- **ruleId**: Slither's internal rule identifier (e.g., "1-1-divide-before-multiply")
+- **file**: Contract file path relative to project root
+- **line**: Exact line number where the finding occurs
+
+#### Allowlist Criteria
+Findings are only allowlisted if they meet ALL criteria:
+1. **Tested and Verified**: Comprehensive test coverage proves the behavior is safe
+2. **Documented Rationale**: Clear explanation of why the finding is acceptable
+3. **Low Risk Level**: Risk assessment confirms minimal impact
+4. **Accepted by Security Owner**: Explicit approval from security team
+
+#### Current Allowlisted Findings
+- **divide-before-multiply** (5 instances): Precision loss in mathematical calculations that are tested and verified safe
+  - All instances are in core issuance logic with comprehensive test coverage
+  - Precision loss is documented and validated through edge case testing
+  - Risk level: Low (tested, documented, accepted)
+
+#### Approval Process
+Changes to `audit/slither-allowlist.json` require:
+1. **Security Owner Approval**: @yomarfrancisco must approve all changes
+2. **Documentation Update**: Rationale must be added to `audit/slither-highs.md`
+3. **Test Validation**: Comprehensive tests must prove the finding is safe
+4. **Risk Assessment**: Clear risk level and impact analysis
+
+**No broad exclusions**: The system only allows specific, fingerprinted findings. No rule-based exclusions are permitted.
+
 ## Gas Optimization
 
 ### Custom Errors

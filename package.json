@@ -11,6 +11,7 @@
     "coverage": "COVERAGE=1 hardhat coverage --solcoverjs ./.solcover.js",
     "coverage:heavy": "COVERAGE=1 COVERAGE_HEAVY=1 hardhat coverage --solcoverjs ./.solcover.js",
     "slither": "slither . --config .slither.json --print human-summary",
+    "slither:sarif": "slither . --config .slither.json --sarif slither.sarif",
     "deploy": "hardhat run scripts/deploy.ts",
     "deploy:dev": "hardhat run --network hardhat scripts/deploy.ts",
     "deploy:localhost": "hardhat run --network localhost scripts/deploy.ts",

@@ -175,6 +175,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     continue-on-error: true # Set to true initially as per user request
+    env:
+      MODEL_JITTER_BPS_OVERRIDE: "0"
+      SEED: ""
     defaults:
       run:
         working-directory: services/pricing
@@ -199,18 +202,59 @@ jobs:
       - name: Run tests
         run: |
           source .venv/bin/activate
-          pytest tests/ -v
+          PYTHONPATH=../.. pytest tests/ -v
       - name: Run CLI smoke test
         run: |
           source .venv/bin/activate
-          python cli.py price --obligor TEST001 --tenor 365 --asof 1700000000 --notional 1000000
-          python cli.py score --obligor TEST001 --tenor 365 --asof 1700000000
+          PYTHONPATH=../.. python -m services.pricing.cli price --obligor TEST001 --tenor 365 --asof 1700000000 --notional 1000000
+          PYTHONPATH=../.. python -m services.pricing.cli score --obligor TEST001 --tenor 365 --asof 1700000000
+      - name: Generate Golden Vector A output
+        run: |
+          source .venv/bin/activate
+          PYTHONPATH=../.. python -m services.pricing.cli price \
+            --obligor ACME-LLC \
+            --tenor 365 \
+            --asof 1726000000 \
+            --notional 1000000 \
+            --features '{"size":1.2,"leverage":0.5,"volatility":0.3,"fxExposure":0.1,"countryRisk":0.2,"industryStress":0.4,"collateralQuality":0.7,"dataQuality":0.8,"modelShift":0.1}' \
+            --json-only > pricing_sample.json
+      - name: Verify signer parity
+        run: |
+          source .venv/bin/activate
+          cd ../..
+          PYTHONPATH=. python -c "
+          from services.pricing.signing import recover
+          from eth_utils import to_bytes
+          import json
+          
+          # Load Golden Vector A output
+          with open('services/pricing/pricing_sample.json', 'r') as f:
+              data = json.load(f)
+          
+          digest_hex = data['digest']
+          signature = data['signature']
+          expected_signer = '0xae3DfFEE97f92db0201d11CB8877C89738353bCE'
+          
+          # Recover signer
+          digest_bytes = bytes.fromhex(digest_hex[2:])
+          recovered_signer = recover(digest_bytes, signature)
+          
+          print(f'Expected: {expected_signer}')
+          print(f'Recovered: {recovered_signer}')
+          print(f'Parity: {recovered_signer == expected_signer}')
+          
+          # Write parity result
+          with open('services/pricing/parity.txt', 'w') as f:
+              f.write(f'recovered == RISK_ORACLE_ADDRESS: {recovered_signer == expected_signer}')
+          "
       - name: Upload pricing artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: pricing_artifacts_${{ github.sha }}
           path: |
+            services/pricing/pricing_sample.json
+            services/pricing/parity.txt
             services/pricing/tests/sample_request.json
             services/pricing/cli.py
             services/pricing/baseline_model.py

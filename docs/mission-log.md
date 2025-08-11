@@ -311,3 +311,35 @@ PR #17 is finalized with all critical CI jobs green. Follow-up issues created fo
 - Signature Match: ✅ Verified using RiskSignalLib.recoverSigner()
 
 **Status**: Ready for CI integration and production deployment
+
+---
+
+### 2025-08-12 02:00:00Z — P1-7 Live-Shaped Integration & Token Settlement Complete ✅
+**Live-Shaped Integration & Token Settlement**: Pricing facade with bank data feature flags and guarded token transfers
+- **Pricing Facade**: Provider abstraction (stub/fastapi/replay/bank) with environment-driven selection
+- **Bank Data Safety**: Explicit opt-in required; disabled by default in all environments
+- **Token Settlement**: SafeERC20 transfers with ACCOUNTING/TRANSFERS modes, default accounting-only
+- **Provider Matrix**: stub (CI) → fastapi (dev) → replay (parity) → bank (prod, opt-in)
+- **Environment Flags**: PRICING_PROVIDER, BANK_DATA_MODE, PRICING_URL, PRICING_FIXTURES_DIR
+- **Test Coverage**: 8 new token settlement tests, pricing provider integration tests
+
+**Technical Implementation**:
+- **Pricing Providers**: Stub (deterministic), FastAPI (local HTTP), Replay (fixtures), Bank (disabled)
+- **Token Settlement**: IERC20 + SafeERC20, settlement mode enum, guarded transfers
+- **Settlement Logic**: pnl = (fairSpread - fixedSpread) * notional * elapsedDays / tenorDays / 10000
+- **Transfer Rules**: pnl > 0 → seller pays buyer, pnl < 0 → buyer pays seller
+- **Security**: SafeERC20, approval-based transfers, zero-address guards, RBAC controls
+
+**Demo Integration**:
+- **Provider Selection**: Environment-driven provider factory
+- **Bank Safety**: Bank provider throws unless BANK_DATA_MODE=live
+- **Deterministic CI**: Stub provider with golden vectors, no external calls
+- **Dev Flexibility**: Easy switching between providers via environment variables
+
+**Guardrails Implemented**:
+- **No External Bank Calls**: CI uses stub, dev uses fastapi (no bank data)
+- **Deterministic Outputs**: Stub provider with crypto-based deterministic values
+- **Safe Transfers**: SafeERC20, approval-based, settlement mode gating
+- **Explicit Opt-in**: Bank data requires BANK_DATA_MODE=live
+
+**Status**: Ready for production deployment with bank data safety controls

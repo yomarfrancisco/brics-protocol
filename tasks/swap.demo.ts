@@ -1,5 +1,6 @@
 import { task } from "hardhat/config";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
+import { makePricingProvider } from "../scripts/pricing/providers/factory";
 
 interface DemoParams {
   obligor: string;
@@ -9,13 +10,7 @@ interface DemoParams {
   fixedSpread: number;
 }
 
-interface QuoteData {
-  fairSpreadBps: number;
-  correlationBps: number;
-  asOf: number;
-  digest: string;
-  signature: string;
-}
+
 
 task("swap:demo", "End-to-end CDS swap demo with deterministic pricing")
   .addParam("obligor", "Obligor ID (e.g., ACME-LLC)")
@@ -54,10 +49,33 @@ task("swap:demo", "End-to-end CDS swap demo with deterministic pricing")
     await cdsSwapEngine.grantRole(await cdsSwapEngine.BROKER_ROLE(), deployer.address);
     console.log("✅ Broker role granted to deployer");
 
-    // Step 3: Create deterministic quote (matching Pricing Service)
-    console.log("\n📊 Generating deterministic quote...");
-    const quote = await generateDeterministicQuote(taskArgs, ethers);
+    // Step 3: Create quote using pricing provider
+    console.log("\n📊 Generating quote using pricing provider...");
+    const provider = makePricingProvider();
+    const providerType = process.env.PRICING_PROVIDER || "stub";
+    const bankMode = process.env.BANK_DATA_MODE || "off";
+    console.log(`🔧 Provider: ${providerType}, Bank Mode: ${bankMode}`);
+    
+    const portfolioId = "0x" + keccak256(toUtf8Bytes(taskArgs.obligor)).slice(2);
+    const features = {
+      "industry": "technology",
+      "region": "us",
+      "size": "large",
+      "rating": "bbb"
+    };
+    
+    const quote = await provider.price({
+      portfolioId,
+      tenorDays: taskArgs.tenor,
+      asOf: taskArgs.asof,
+      notional: BigInt(taskArgs.notional),
+      features,
+      fixedSpreadBps: taskArgs.fixedSpread,
+      modelId: "baseline-v0"
+    });
+    
     console.log(`✅ Quote generated: ${quote.fairSpreadBps}bps fair, ${quote.correlationBps}bps correlation`);
+    console.log(`📝 Quote details: digest=${quote.digest.slice(0, 10)}..., signer=${quote.signer.slice(0, 10)}...`);
 
     // Step 4: Propose swap
     console.log("\n📝 Proposing swap...");
@@ -124,49 +142,7 @@ task("swap:demo", "End-to-end CDS swap demo with deterministic pricing")
     console.log("\n💾 Demo output saved to demo_output.json");
   });
 
-async function generateDeterministicQuote(params: DemoParams, ethers: any): Promise<QuoteData> {
-  const { keccak256, toUtf8Bytes, AbiCoder } = ethers;
-  
-  // Use deterministic values matching the Pricing Service Golden Vector
-  const portfolioId = keccak256(toUtf8Bytes("demo-portfolio"));
-  const modelId = "baseline-v0";
-  const features = {
-    "industry": "technology",
-    "region": "us",
-    "size": "large",
-    "rating": "bbb"
-  };
 
-  // Generate deterministic values based on parameters
-  const riskScore = params.tenor * 1000 + params.fixedSpread; // Deterministic risk score
-  const fairSpreadBps = params.fixedSpread + Math.floor(params.tenor / 100); // Slightly higher for demo
-  const correlationBps = 7000; // 70% correlation
-
-  // Create canonical features hash (sorted keys)
-  const canonicalFeatures = JSON.stringify(features, Object.keys(features).sort());
-  const featuresHash = keccak256(toUtf8Bytes(canonicalFeatures));
-  const modelIdHash = keccak256(toUtf8Bytes(modelId));
-
-  // Create digest matching RiskSignalLib.digest()
-  const abiCoder = AbiCoder.defaultAbiCoder();
-  const digest = keccak256(abiCoder.encode(
-    ["bytes32", "uint64", "uint256", "uint16", "uint16", "bytes32", "bytes32"],
-    [portfolioId, params.asof, riskScore, correlationBps, fairSpreadBps, modelIdHash, featuresHash]
-  ));
-
-  // Sign with deterministic private key (seed 42)
-  const deterministicKey = "0x000000000000000000000000000000000000000000000000000000000000002a";
-  const wallet = new ethers.Wallet(deterministicKey);
-  const signature = await wallet.signMessage(ethers.getBytes(digest));
-
-  return {
-    fairSpreadBps,
-    correlationBps,
-    asOf: params.asof,
-    digest,
-    signature
-  };
-}
 
 function createSwapParams(params: DemoParams, proposer: string, ethers: any) {
   const { keccak256, toUtf8Bytes } = ethers;

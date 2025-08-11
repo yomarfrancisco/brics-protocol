@@ -7,6 +7,8 @@ pragma solidity ^0.8.19;
  * @dev Defines all events emitted by CDS swap contracts
  */
 interface ICdsSwapEvents {
+    // Settlement mode enum
+    enum SettlementMode { ACCOUNTING, TRANSFERS }
     /**
      * @notice Emitted when a new CDS swap is proposed
      * @param swapId Unique identifier for the swap
@@ -72,4 +74,25 @@ interface ICdsSwapEvents {
      * @param priceOracle Address of the price oracle adapter
      */
     event PriceOracleSet(address indexed priceOracle);
+
+    /**
+     * @notice Emitted when settlement token is set
+     * @param token Address of the settlement token
+     */
+    event SettlementTokenSet(address indexed token);
+
+    /**
+     * @notice Emitted when settlement mode is changed
+     * @param mode New settlement mode
+     */
+    event SettlementModeSet(SettlementMode mode);
+
+    /**
+     * @notice Emitted when settlement payment is made
+     * @param swapId Unique identifier for the swap
+     * @param payer Address of the payer
+     * @param payee Address of the payee
+     * @param amount Amount transferred
+     */
+    event SettlementPaid(bytes32 indexed swapId, address indexed payer, address indexed payee, uint256 amount);
 }

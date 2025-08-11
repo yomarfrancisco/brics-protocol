@@ -3,6 +3,8 @@ pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./ICdsSwap.sol";
 import "./ICdsSwapEvents.sol";
 import "./CdsSwapRegistry.sol";
@@ -16,6 +18,7 @@ import "../libraries/RiskSignalLib.sol";
  */
 contract CdsSwapEngine is ICdsSwap, ICdsSwapEvents, CdsSwapRegistry, AccessControl {
     using Strings for uint256;
+    using SafeERC20 for IERC20;
 
     // Roles
     bytes32 public constant GOV_ROLE = keccak256("GOV_ROLE");
@@ -35,6 +38,10 @@ contract CdsSwapEngine is ICdsSwap, ICdsSwapEvents, CdsSwapRegistry, AccessContr
     uint16 public constant MIN_CORRELATION_BPS = 1000; // 10%
     uint16 public constant MAX_CORRELATION_BPS = 9000; // 90%
     uint64 public constant QUOTE_STALE_SECONDS = 300; // 5 minutes
+
+    // Settlement configuration
+    IERC20 public settlementToken;
+    ICdsSwapEvents.SettlementMode public settlementMode;
 
 
 
@@ -151,6 +158,20 @@ contract CdsSwapEngine is ICdsSwap, ICdsSwapEvents, CdsSwapRegistry, AccessContr
         // Calculate P&L
         int256 payout = _calculatePayout(swap, quote);
 
+        // Execute settlement transfer if token is configured
+        if (address(settlementToken) != address(0)) {
+            address buyer = swap.params.protectionBuyer.counterparty;
+            address seller = swap.params.protectionSeller.counterparty;
+            
+            if (payout > 0) {
+                // Seller pays buyer
+                _settlementTransfer(swapId, seller, buyer, uint256(payout));
+            } else if (payout < 0) {
+                // Buyer pays seller
+                _settlementTransfer(swapId, buyer, seller, uint256(-payout));
+            }
+        }
+
         // Update status
         _updateSwapStatus(swapId, SwapStatus.Settled);
 
@@ -197,6 +218,31 @@ contract CdsSwapEngine is ICdsSwap, ICdsSwapEvents, CdsSwapRegistry, AccessContr
         
         // Clamp to int256 bounds (this is handled automatically by Solidity)
         return payout;
+    }
+
+    /**
+     * @notice Execute settlement transfer
+     * @param swapId Swap identifier
+     * @param payer Address of the payer
+     * @param payee Address of the payee
+     * @param amount Amount to transfer
+     */
+    function _settlementTransfer(
+        bytes32 swapId,
+        address payer,
+        address payee,
+        uint256 amount
+    ) internal {
+        if (amount == 0) return;
+
+        if (settlementMode == ICdsSwapEvents.SettlementMode.TRANSFERS) {
+            // Requires allowances set by both parties to this engine
+            settlementToken.safeTransferFrom(payer, payee, amount);
+            emit SettlementPaid(swapId, payer, payee, amount);
+        } else {
+            // ACCOUNTING: record only
+            emit SettlementPaid(swapId, payer, payee, amount);
+        }
     }
 
     /**
@@ -274,6 +320,33 @@ contract CdsSwapEngine is ICdsSwap, ICdsSwapEvents, CdsSwapRegistry, AccessContr
         priceOracle = IPriceOracleAdapter(_priceOracle);
         
         emit PriceOracleSet(_priceOracle);
+    }
+
+    /**
+     * @notice Set the settlement token (GOV_ROLE only)
+     * @param token Address of the settlement token
+     */
+    function setSettlementToken(address token) external {
+        if (!hasRole(GOV_ROLE, msg.sender)) {
+            revert Unauthorized();
+        }
+        if (token == address(0)) {
+            revert InvalidParams("Settlement token cannot be zero address");
+        }
+        settlementToken = IERC20(token);
+        emit SettlementTokenSet(token);
+    }
+
+    /**
+     * @notice Set the settlement mode (GOV_ROLE only)
+     * @param mode New settlement mode
+     */
+    function setSettlementMode(ICdsSwapEvents.SettlementMode mode) external {
+        if (!hasRole(GOV_ROLE, msg.sender)) {
+            revert Unauthorized();
+        }
+        settlementMode = mode;
+        emit SettlementModeSet(mode);
     }
 
     /**

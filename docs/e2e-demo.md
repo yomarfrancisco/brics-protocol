@@ -159,6 +159,73 @@ In production, the demo would:
 
 The current demo uses deterministic signing to avoid external dependencies while maintaining the same verification logic.
 
+## Switching Providers: Stub ⇄ FastAPI ⇄ Replay (Bank Off by Default)
+
+The demo supports multiple pricing providers controlled by environment variables:
+
+### Stub Provider (Default)
+```bash
+# No environment variables needed - uses stub by default
+yarn hardhat swap:demo --obligor ACME-LLC --tenor 30 --asof 1600000000 --notional 1000000 --fixed-spread 80
+```
+- **Use Case**: CI, testing, deterministic development
+- **Network Calls**: ❌ None
+- **Bank Data**: ❌ None
+- **Output**: Deterministic golden vectors
+
+### FastAPI Provider (Local Development)
+```bash
+# Start pricing service locally
+cd services/pricing && uvicorn services.pricing.app:app --port 8001
+
+# Run demo with fastapi provider
+PRICING_PROVIDER=fastapi yarn hardhat swap:demo --obligor ACME-LLC --tenor 30 --asof 1600000000 --notional 1000000 --fixed-spread 80
+```
+- **Use Case**: Local development, staging
+- **Network Calls**: ✅ Local HTTP to pricing service
+- **Bank Data**: ❌ None (uses deterministic model)
+- **Output**: Real pricing service response
+
+### Record/Replay Provider (Dev Parity)
+```bash
+# First run: records responses to fixtures
+PRICING_PROVIDER=replay yarn hardhat swap:demo --obligor ACME-LLC --tenor 30 --asof 1600000000 --notional 1000000 --fixed-spread 80
+
+# Subsequent runs: uses recorded fixtures
+PRICING_PROVIDER=replay yarn hardhat swap:demo --obligor ACME-LLC --tenor 30 --asof 1600000000 --notional 1000000 --fixed-spread 80
+```
+- **Use Case**: Development parity, debugging
+- **Network Calls**: ❌ None (uses fixtures)
+- **Bank Data**: ❌ None
+- **Output**: Recorded responses from previous runs
+
+### Bank Provider (Production - Disabled by Default)
+```bash
+# This will fail unless explicitly enabled
+PRICING_PROVIDER=bank yarn hardhat swap:demo --obligor ACME-LLC --tenor 30 --asof 1600000000 --notional 1000000 --fixed-spread 80
+# Error: Bank provider disabled (BANK_DATA_MODE=off). Set BANK_DATA_MODE=live to enable.
+
+# Explicitly enable bank data (production only)
+BANK_DATA_MODE=live PRICING_PROVIDER=bank yarn hardhat swap:demo --obligor ACME-LLC --tenor 30 --asof 1600000000 --notional 1000000 --fixed-spread 80
+```
+- **Use Case**: Production with live bank data
+- **Network Calls**: ✅ External bank APIs
+- **Bank Data**: ✅ Live (when explicitly enabled)
+- **Output**: Real-time bank data pricing
+
+### Environment Variables Summary
+```bash
+# Provider selection (default: stub)
+PRICING_PROVIDER=stub|fastapi|replay|bank
+
+# Bank data control (default: off)
+BANK_DATA_MODE=off|record|replay|live
+
+# Service URLs
+PRICING_URL=http://127.0.0.1:8001          # FastAPI service URL
+PRICING_FIXTURES_DIR=pricing-fixtures      # Replay fixtures directory
+```
+
 ## Troubleshooting
 
 ### Common Issues

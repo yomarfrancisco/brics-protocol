@@ -38,6 +38,22 @@ interface ICdsSwap {
     }
 
     /**
+     * @notice Price quote structure for settlement
+     * @param fairSpreadBps Fair spread in basis points
+     * @param correlationBps Correlation factor in basis points
+     * @param asOf Timestamp when quote was generated
+     * @param digest Hash of the quote data
+     * @param signature Signature of the quote
+     */
+    struct PriceQuote {
+        uint16 fairSpreadBps;
+        uint16 correlationBps;
+        uint64 asOf;
+        bytes32 digest;
+        bytes signature;
+    }
+
+    /**
      * @notice Propose a new CDS swap
      * @param params Swap parameters
      * @return swapId Unique identifier for the proposed swap
@@ -57,8 +73,9 @@ interface ICdsSwap {
     function cancelSwap(bytes32 swapId) external;
 
     /**
-     * @notice Settle a CDS swap (stub for future implementation)
+     * @notice Settle a CDS swap with price quote
      * @param swapId Unique identifier of the swap to settle
+     * @param quote Price quote for settlement
      */
-    function settleSwap(bytes32 swapId) external;
+    function settleSwap(bytes32 swapId, PriceQuote calldata quote) external;
 }

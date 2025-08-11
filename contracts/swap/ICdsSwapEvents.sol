@@ -66,4 +66,10 @@ interface ICdsSwapEvents {
         address indexed canceller,
         string reason
     );
+
+    /**
+     * @notice Emitted when price oracle adapter is set
+     * @param priceOracle Address of the price oracle adapter
+     */
+    event PriceOracleSet(address indexed priceOracle);
 }

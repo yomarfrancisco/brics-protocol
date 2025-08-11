@@ -1,0 +1,36 @@
+{
+  "network": "localhost-fork",
+  "blockTag": "0",
+  "txs": [
+    {
+      "name": "mintFor",
+      "hash": "0xf56062ede0ddebcca3b840586347711a46096e9c966e7e7e833d10ffae4d651a"
+    },
+    {
+      "name": "openNavWindow",
+      "hash": "0x8268bfeeb041ac9ec8da95ac0a659d2ec23547fad0abfab9a2fdb66d5f913517"
+    },
+    {
+      "name": "requestRedeemOnBehalf",
+      "hash": "0x1d233db6199191747d98f74ce38f213914faeea4f6d6043d066e8be30964f55c"
+    },
+    {
+      "name": "closeNavWindow",
+      "hash": "0x57cd50d03fa0898abce143edb3edda44ebcd1161fc89978b726a93ee99654a9c"
+    },
+    {
+      "name": "strikeRedemption",
+      "hash": "0xe8769e4785a884db8b3bfe3090db3ccf763b7d47fd5b2dcc8104c90d93732424"
+    },
+    {
+      "name": "settleClaim",
+      "hash": "0x8198484e6e367749568db48c572b0fdb34292b59acd136e33a6ab7ea3eb4a6fe"
+    }
+  ],
+  "events": [],
+  "summary": {
+    "totalIssued": "0",
+    "navAtStrike": "0",
+    "carriedOver": "0"
+  }
+}

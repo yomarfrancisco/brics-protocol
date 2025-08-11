@@ -48,15 +48,7 @@ const config: HardhatUserConfig = {
     outDir: "typechain",
     target: "ethers-v6"
   },
-  gasReporter: ENABLE_GAS ? {
-    enabled: true,
-    currency: "USD",
-    gasPrice: 21,
-    showMethodSig: true,
-    showTimeSpent: true,
-    outputFile: "gas-report.txt",
-    noColors: true
-  } : {
+  gasReporter: {
     enabled: false
   },
   coverage: {

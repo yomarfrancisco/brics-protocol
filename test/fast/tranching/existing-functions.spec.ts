@@ -127,5 +127,83 @@ describe("TrancheManagerV2 Existing Functions Fast Tests", function () {
       expect(lo).to.equal(10000); // bricsLo
       expect(hi).to.equal(10200); // bricsHi
     });
+
+    it("should allow setClaimRegistry with zero address (no validation)", async function () {
+      // The contract doesn't validate zero address, so this should succeed
+      await trancheManager.connect(gov).setClaimRegistry(ethers.ZeroAddress);
+      expect(await trancheManager.claimRegistry()).to.equal(ethers.ZeroAddress);
+    });
+
+    it("should reject non-gov setClaimRegistry", async function () {
+      const claimRegistry = await ethers.getContractFactory("ClaimRegistry");
+      const mockClaimRegistry = await claimRegistry.deploy(await gov.getAddress());
+      
+      await expect(
+        trancheManager.connect(user).setClaimRegistry(await mockClaimRegistry.getAddress())
+      ).to.be.revertedWithCustomError(trancheManager, "AccessControlUnauthorizedAccount");
+    });
+
+    it("should allow adjustSuperSeniorCap with zero amount (no validation)", async function () {
+      // The contract doesn't validate zero amount, so this should succeed
+      await expect(trancheManager.connect(gov).adjustSuperSeniorCap(0))
+        .to.emit(trancheManager, "CapAdjusted")
+        .withArgs(0);
+      
+      expect(await trancheManager.superSeniorCap()).to.equal(0);
+    });
+
+    it("should reject non-gov adjustSuperSeniorCap", async function () {
+      await expect(
+        trancheManager.connect(user).adjustSuperSeniorCap(ethers.parseUnits("1000000", 6))
+      ).to.be.revertedWithCustomError(trancheManager, "AccessControlUnauthorizedAccount");
+    });
+
+    it("should allow setting super senior cap to large value", async function () {
+      const largeCap = ethers.parseUnits("10000000", 6); // 10M USDC
+      await expect(trancheManager.connect(gov).adjustSuperSeniorCap(largeCap))
+        .to.emit(trancheManager, "CapAdjusted")
+        .withArgs(largeCap);
+      
+      expect(await trancheManager.superSeniorCap()).to.equal(largeCap);
+    });
+
+    it("should allow attestSupermajority with zero quorum", async function () {
+      // 0 is valid since the contract only checks yesBps <= 10_000
+      await expect(trancheManager.connect(gov).attestSupermajority(0))
+        .to.emit(trancheManager, "SupermajorityAttested");
+      
+      expect(await trancheManager.lastVoteYesBps()).to.equal(0);
+    });
+
+    it("should reject attestSupermajority with quorum too high", async function () {
+      await expect(
+        trancheManager.connect(gov).attestSupermajority(10001)
+      ).to.be.revertedWith("bad bps");
+    });
+
+    it("should allow attestSupermajority with valid quorum", async function () {
+      await expect(trancheManager.connect(gov).attestSupermajority(7500))
+        .to.emit(trancheManager, "SupermajorityAttested");
+      
+      expect(await trancheManager.lastVoteYesBps()).to.equal(7500);
+    });
+
+    it("should reject non-gov/non-ECC attestSupermajority", async function () {
+      await expect(
+        trancheManager.connect(user).attestSupermajority(6700)
+      ).to.be.revertedWith("unauthorized");
+    });
+
+    it("should reject non-gov/non-ECC setTriggersBreached", async function () {
+      await expect(
+        trancheManager.connect(user).setTriggersBreached(true)
+      ).to.be.revertedWith("unauthorized");
+    });
+
+    it("should reject non-gov/non-ECC setIssuanceLocked", async function () {
+      await expect(
+        trancheManager.connect(user).setIssuanceLocked(true)
+      ).to.be.revertedWith("unauthorized");
+    });
   });
 });

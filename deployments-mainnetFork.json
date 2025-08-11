@@ -1,0 +1,6 @@
+{
+  "env": {
+    "MODEL_SIGNERS": [],
+    "EMERGENCY_SIGNERS": []
+  }
+}

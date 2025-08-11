@@ -1,7 +1,74 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
+import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
+import { Wallet, getBytes } from "ethers";
 import { AdaptiveTranchingOracleAdapter } from "../../../typechain-types";
 import { TrancheManagerV2 } from "../../../typechain-types";
+
+const ORACLE_PK = "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d";
+
+async function deployFixture() {
+  const [gov, oracle, user] = await ethers.getSigners();
+  
+  // Create oracle wallet with provider and ensure it's connected
+  const oracleWallet = new Wallet(ORACLE_PK, ethers.provider);
+  
+  // Verify the wallet address is correct
+  const expectedAddress = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8";
+  const actualAddress = await oracleWallet.getAddress();
+  if (actualAddress !== expectedAddress) {
+    throw new Error(`Wallet address mismatch: expected ${expectedAddress}, got ${actualAddress}`);
+  }
+
+  // Deploy TrancheManagerV2 first (mock for testing)
+  const TrancheManagerV2 = await ethers.getContractFactory("TrancheManagerV2");
+  const trancheManager = await TrancheManagerV2.deploy(
+    await gov.getAddress(),
+    await gov.getAddress(), // mock oracle
+    await gov.getAddress()  // mock config
+  );
+
+  // Deploy adapter with deterministic risk oracle
+  const AdaptiveTranchingOracleAdapter = await ethers.getContractFactory("AdaptiveTranchingOracleAdapter");
+  const adapter = await AdaptiveTranchingOracleAdapter.deploy(
+    await gov.getAddress(),
+    await trancheManager.getAddress(),
+    await oracleWallet.getAddress() // Use deterministic address from the start
+  );
+
+  // Deploy mock RiskSignalLib for testing
+  const MockRiskSignalLib = await ethers.getContractFactory("MockRiskSignalLib");
+  const mockRiskSignalLib = await MockRiskSignalLib.deploy();
+
+  return { gov, oracle, user, trancheManager, adapter, mockRiskSignalLib, oracleWallet };
+}
+
+async function signPayload(mockLib: any, payload: any, oracleWallet: any) {
+  const digest = await mockLib.digest(payload);
+  
+  // Sign the raw digest with EIP-191 prefixing (signMessage adds prefix once)
+  const signature = await oracleWallet.signMessage(getBytes(digest));
+  
+  // Debug logging for CI
+  if (process.env.CI) {
+    console.log("Debug - oracleWallet address:", await oracleWallet.getAddress());
+    console.log("Debug - recovered address:", await mockLib.recoverSigner(payload, signature));
+    console.log("Debug - digest:", digest);
+    console.log("Debug - signature:", signature);
+    
+    // Test manual recovery using ethers with same logic as RiskSignalLib
+    const ethers = require("ethers");
+    const ethSigned = ethers.hashMessage(getBytes(digest));
+    const manualRecovered = ethers.recoverAddress(ethSigned, signature);
+    console.log("Debug - manual recovered:", manualRecovered);
+  }
+  
+  // Guard assertion: verify the signature is valid
+  const recovered = await mockLib.recoverSigner(payload, signature);
+  expect(recovered).to.equal(await oracleWallet.getAddress());
+  
+  return signature;
+}
 
 describe("AdaptiveTranchingOracleAdapter Fast Tests", function () {
   let adapter: AdaptiveTranchingOracleAdapter;
@@ -9,24 +76,21 @@ describe("AdaptiveTranchingOracleAdapter Fast Tests", function () {
   let gov: any;
   let oracle: any;
   let user: any;
+  let mockRiskSignalLib: any;
+  let oracleWallet: any;
 
   beforeEach(async function () {
-    [gov, oracle, user] = await ethers.getSigners();
-
-    // Deploy TrancheManagerV2 first (mock for testing)
-    const TrancheManagerV2 = await ethers.getContractFactory("TrancheManagerV2");
-    trancheManager = await TrancheManagerV2.deploy(
-      await gov.getAddress(),
-      await gov.getAddress(), // mock oracle
-      await gov.getAddress()  // mock config
-    );
-
-    // Deploy adapter
-    const AdaptiveTranchingOracleAdapter = await ethers.getContractFactory("AdaptiveTranchingOracleAdapter");
-    adapter = await AdaptiveTranchingOracleAdapter.deploy(
-      await gov.getAddress(),
-      await trancheManager.getAddress()
-    );
+    const fixture = await loadFixture(deployFixture);
+    gov = fixture.gov;
+    oracle = fixture.oracle;
+    user = fixture.user;
+    trancheManager = fixture.trancheManager;
+    adapter = fixture.adapter;
+    mockRiskSignalLib = fixture.mockRiskSignalLib;
+    oracleWallet = fixture.oracleWallet;
+    
+    // Ensure riskOracle is set exactly to the deterministic wallet every test
+    await adapter.connect(gov).setRiskOracle(await oracleWallet.getAddress());
   });
 
   describe("Constructor and Setup", function () {
@@ -136,7 +200,8 @@ describe("AdaptiveTranchingOracleAdapter Fast Tests", function () {
       
       const newAdapter = await (await ethers.getContractFactory("AdaptiveTranchingOracleAdapter")).deploy(
         await gov.getAddress(),
-        await mockTarget.getAddress()
+        await mockTarget.getAddress(),
+        await oracle.getAddress()
       );
       
       expect(await newAdapter.getTranchingMode()).to.equal(0); // DISABLED
@@ -148,7 +213,8 @@ describe("AdaptiveTranchingOracleAdapter Fast Tests", function () {
       
       const newAdapter = await (await ethers.getContractFactory("AdaptiveTranchingOracleAdapter")).deploy(
         await gov.getAddress(),
-        await mockTarget.getAddress()
+        await mockTarget.getAddress(),
+        await oracle.getAddress()
       );
       
       const [sovereignUsage, defaults, correlation] = await newAdapter.getTranchingThresholds();
@@ -214,6 +280,143 @@ describe("AdaptiveTranchingOracleAdapter Fast Tests", function () {
       expect(lastSignal.sovereignUsageBps).to.equal(0);
       expect(lastSignal.portfolioDefaultsBps).to.equal(0);
       expect(lastSignal.corrPpm).to.equal(0);
+    });
+  });
+
+  describe("Signed Signal Submission", function () {
+
+    it("should accept valid signed signal", async function () {
+      const payload = {
+        portfolioId: "0x1111111111111111111111111111111111111111111111111111111111111111",
+        asOf: Math.floor(Date.now() / 1000) - 60,
+        riskScore: 123456789,
+        correlationBps: 777,
+        spreadBps: 1500,
+        modelIdHash: "0x2222222222222222222222222222222222222222222222222222222222222222",
+        featuresHash: "0x3333333333333333333333333333333333333333333333333333333333333333"
+      };
+
+      const signature = await signPayload(mockRiskSignalLib, payload, oracleWallet);
+
+      await expect(adapter.submitSignedRiskSignal(payload, signature))
+        .to.emit(adapter, "SignalCached");
+    });
+
+    it("should reject signal with wrong signer", async function () {
+      const payload = {
+        portfolioId: "0x1111111111111111111111111111111111111111111111111111111111111111",
+        asOf: Math.floor(Date.now() / 1000) - 60,
+        riskScore: 123456789,
+        correlationBps: 777,
+        spreadBps: 1500,
+        modelIdHash: "0x2222222222222222222222222222222222222222222222222222222222222222",
+        featuresHash: "0x3333333333333333333333333333333333333333333333333333333333333333"
+      };
+
+      const digest = await mockRiskSignalLib.digest(payload);
+      // Use a different signer
+      const wrongSigner = new ethers.Wallet("0x1234567890123456789012345678901234567890123456789012345678901234", ethers.provider);
+      const signature = await wrongSigner.signMessage(ethers.getBytes(digest));
+
+      await expect(adapter.submitSignedRiskSignal(payload, signature))
+        .to.be.revertedWith("bad-signer");
+    });
+
+    it("should reject signal with invalid correlation", async function () {
+      const payload = {
+        portfolioId: "0x1111111111111111111111111111111111111111111111111111111111111111",
+        asOf: Math.floor(Date.now() / 1000) - 60,
+        riskScore: 123456789,
+        correlationBps: 10001, // > 10000
+        spreadBps: 1500,
+        modelIdHash: "0x2222222222222222222222222222222222222222222222222222222222222222",
+        featuresHash: "0x3333333333333333333333333333333333333333333333333333333333333333"
+      };
+
+      const signature = await signPayload(mockRiskSignalLib, payload, oracleWallet);
+
+      await expect(adapter.submitSignedRiskSignal(payload, signature))
+        .to.be.revertedWith("correlation > 100%");
+    });
+
+    it("should reject signal with invalid spread", async function () {
+      const payload = {
+        portfolioId: "0x1111111111111111111111111111111111111111111111111111111111111111",
+        asOf: Math.floor(Date.now() / 1000) - 60,
+        riskScore: 123456789,
+        correlationBps: 777,
+        spreadBps: 20001, // > 20000
+        modelIdHash: "0x2222222222222222222222222222222222222222222222222222222222222222",
+        featuresHash: "0x3333333333333333333333333333333333333333333333333333333333333333"
+      };
+
+      const signature = await signPayload(mockRiskSignalLib, payload, oracleWallet);
+
+      await expect(adapter.submitSignedRiskSignal(payload, signature))
+        .to.be.revertedWith("spread > 200%");
+    });
+
+    it("should reject signal with future timestamp", async function () {
+      // Get current block timestamp and add a large offset to ensure it's in the future
+      const currentBlock = await ethers.provider.getBlock('latest');
+      const futureTimestamp = currentBlock.timestamp + 86400; // 24 hours in future
+      
+      const payload = {
+        portfolioId: "0x1111111111111111111111111111111111111111111111111111111111111111",
+        asOf: futureTimestamp,
+        riskScore: 123456789,
+        correlationBps: 777,
+        spreadBps: 1500,
+        modelIdHash: "0x2222222222222222222222222222222222222222222222222222222222222222",
+        featuresHash: "0x3333333333333333333333333333333333333333333333333333333333333333"
+      };
+
+      const signature = await signPayload(mockRiskSignalLib, payload, oracleWallet);
+
+      await expect(adapter.submitSignedRiskSignal(payload, signature))
+        .to.be.revertedWith("future timestamp");
+    });
+
+    it("should cache the signal correctly", async function () {
+      const payload = {
+        portfolioId: "0x1111111111111111111111111111111111111111111111111111111111111111",
+        asOf: Math.floor(Date.now() / 1000) - 60,
+        riskScore: 123456789,
+        correlationBps: 777,
+        spreadBps: 1500,
+        modelIdHash: "0x2222222222222222222222222222222222222222222222222222222222222222",
+        featuresHash: "0x3333333333333333333333333333333333333333333333333333333333333333"
+      };
+
+      const signature = await signPayload(mockRiskSignalLib, payload, oracleWallet);
+
+      await adapter.submitSignedRiskSignal(payload, signature);
+
+      // Check that the signal was cached
+      const cachedSignal = await adapter.lastSignal();
+      expect(cachedSignal.corrPpm).to.equal(payload.correlationBps * 100); // Convert bps to ppm
+      expect(cachedSignal.asOf).to.equal(payload.asOf);
+    });
+  });
+
+  describe("Risk Oracle Management", function () {
+    it("should allow admin to set risk oracle", async function () {
+      const [_, __, ___, newOracle] = await ethers.getSigners();
+      await adapter.setRiskOracle(await newOracle.getAddress());
+      expect(await adapter.riskOracle()).to.equal(await newOracle.getAddress());
+    });
+
+    it("should reject non-admin setting risk oracle", async function () {
+      const [_, __, ___, newOracle] = await ethers.getSigners();
+      await expect(
+        adapter.connect(user).setRiskOracle(await newOracle.getAddress())
+      ).to.be.revertedWithCustomError(adapter, "AccessControlUnauthorizedAccount");
+    });
+
+    it("should reject zero address risk oracle", async function () {
+      await expect(
+        adapter.setRiskOracle(ethers.ZeroAddress)
+      ).to.be.revertedWith("oracle cannot be zero address");
     });
   });
 });

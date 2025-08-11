@@ -3,6 +3,7 @@
   "version": "4.0.0",
   "private": true,
   "license": "MIT",
+  "packageManager": "yarn@4.9.2",
   "scripts": {
     "clean": "rimraf cache artifacts typechain",
     "build": "hardhat compile",

@@ -1,0 +1,54 @@
+{
+  "network": "mainnet",
+  "chainId": 1,
+  "version": "v4.0.0-canary",
+  "addresses": {
+    "USDC": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+    "GOV_SAFE": "TODO_FILL_MAINNET_SAFE",
+    "OPS_SAFE": "TODO_FILL_MAINNET_SAFE",
+    "ECC_SAFE": "TODO_FILL_MAINNET_SAFE",
+    "BURNER_SAFE": "TODO_FILL_MAINNET_SAFE",
+    "NASASA_ENTITY": "TODO_FILL_MAINNET_SAFE"
+  },
+  "oracle": {
+    "modelHash": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "signers": [
+      "TODO_FILL_ORACLE_SIGNER_1",
+      "TODO_FILL_ORACLE_SIGNER_2",
+      "TODO_FILL_ORACLE_SIGNER_3"
+    ],
+    "threshold": 2
+  },
+  "sovereigns": [
+    {
+      "code": "ZA",
+      "utilCapBps": 8000,
+      "haircutBps": 2000,
+      "weightBps": 5000,
+      "enabled": true,
+      "softCapTokens": "250000000000000000000000",
+      "hardCapTokens": "500000000000000000000000"
+    },
+    {
+      "code": "BR",
+      "utilCapBps": 8000,
+      "haircutBps": 2000,
+      "weightBps": 5000,
+      "enabled": true,
+      "softCapTokens": "250000000000000000000000",
+      "hardCapTokens": "500000000000000000000000"
+    }
+  ],
+  "caps": {
+    "superSeniorCapTokens": "250000000000000000000000"
+  },
+  "emergency": {
+    "initialLevel": 0,
+    "tailCorrMaxPpm": 650000000
+  },
+  "bootstrap": {
+    "seedPreTrancheBufferUSDC": "0",
+    "seedTreasuryUSDC": "0",
+    "lockIssuanceByDefault": true
+  }
+}

@@ -26,6 +26,7 @@ task("roles:wire", "Assign production roles")
     const mem = await ethers.getContractAt("MemberRegistry", A.MemberRegistry);
     const reg = await ethers.getContractAt("ClaimRegistry", A.ClaimRegistry);
     const tm  = await ethers.getContractAt("TrancheManagerV2", A.TrancheManagerV2);
+    const cla = await ethers.getContractAt("RedemptionClaim", A.RedemptionClaim);
 
     // Roles
     console.log("Granting roles...");
@@ -56,6 +57,13 @@ task("roles:wire", "Assign production roles")
 
     await tm.connect(gov).grantRole(await tm.ECC_ROLE(), ecc);
     console.log("TrancheManager ECC_ROLE → ecc");
+
+    // RedemptionClaim roles
+    await cla.connect(gov).grantRole(await cla.ISSUER_ROLE(), A.IssuanceControllerV3);
+    console.log("RedemptionClaim ISSUER_ROLE → issuance");
+
+    await cla.connect(gov).grantRole(await cla.BURNER_ROLE(), burner);
+    console.log("RedemptionClaim BURNER_ROLE → burner");
 
     // Registrar/NASASA
     await mem.connect(gov).setRegistrar(nasasa);

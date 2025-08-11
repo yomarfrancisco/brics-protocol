@@ -66,12 +66,12 @@ jobs:
         run: npx hardhat compile
       
       - name: Run security analysis
-        run: slither . --config .slither.json --fail-high
+        run: slither . --ignore-compile --fail-high
       
       - name: Generate security reports
         run: |
-          slither . --sarif slither.sarif || true
-          slither . --print human-summary > audit/slither-report.md
+          slither . --ignore-compile --sarif slither.sarif || true
+          slither . --ignore-compile --print human-summary > audit/slither-report.md
       
       - name: Create release assets
         run: |

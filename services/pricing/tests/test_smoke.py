@@ -1,8 +1,4 @@
-import sys
-import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from app import health
+from services.pricing.app import health
 
 def test_health_endpoint():
     """Test that the health endpoint returns expected response"""
@@ -13,7 +9,7 @@ def test_health_endpoint():
 
 def test_app_import():
     """Test that the app module can be imported"""
-    import app
+    from services.pricing import app
     assert hasattr(app, 'app')
     assert hasattr(app, 'health')
     print("App import test passed")

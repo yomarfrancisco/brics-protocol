@@ -3,9 +3,9 @@ import logging
 from fastapi import FastAPI
 from dotenv import load_dotenv
 from eth_utils import to_bytes
-from schemas import ScoreRequest, ScoreResponse, PriceRequest, PriceResponse
-from baseline_model import score_risk, price_cds, generate_dummy_digest, generate_dummy_signature
-from crypto import load_or_create_key, sign_digest, public_address
+from .schemas import ScoreRequest, ScoreResponse, PriceRequest, PriceResponse
+from .baseline_model import score_risk, price_cds, generate_dummy_digest, generate_dummy_signature
+from .crypto import load_or_create_key, sign_digest, public_address
 
 load_dotenv()
 app = FastAPI(title="BRICS Pricing v0.1")

@@ -1,4 +1,4 @@
-from determinism import canonical_features_hash, model_id_hash, digest_for_signing
+from services.pricing.determinism import canonical_features_hash, model_id_hash, digest_for_signing
 from eth_utils import to_bytes
 
 def test_canonical_features_hash_is_stable():

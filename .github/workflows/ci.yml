@@ -86,8 +86,6 @@ jobs:
           yarn -v
           yarn install --immutable
       - run: yarn coverage
-        env:
-          HARDHAT_NETWORK: ""
 
       - name: Enforce coverage floor
         run: |

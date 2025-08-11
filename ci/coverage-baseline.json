@@ -1,5 +1,5 @@
 {
-  "fast_floor": 31,
+  "fast_floor": 55,
   "nightly_floor": 70,
-  "_comment": "fast_floor temporarily adjusted from 63 to 31 due to realistic coverage expectations. See issue #7 for coverage improvement plan."
+  "_comment": "fast_floor raised to 55 after successful coverage improvements. Target: 63% after stabilization."
 }

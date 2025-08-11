@@ -99,6 +99,59 @@ jobs:
         run: |
           npx ts-node scripts/pr-comment.ts || echo "PR comment skipped"
 
+  invariants-smoke:
+    name: Invariants Smoke Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Cache Hardhat & node_modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            node_modules
+            artifacts
+            cache
+          key: ${{ runner.os }}-node${{ env.NODE_VERSION }}-${{ hashFiles('package-lock.json') }}-invariants
+
+      - run: npm ci
+
+      - name: Create minimal deployment fixture
+        run: |
+          mkdir -p deployment
+          cat > deployment/localhost.addresses.json << 'EOF'
+          {
+            "issuance": {
+              "IssuanceControllerV3": "0x1234567890123456789012345678901234567890"
+            },
+            "tranche": {
+              "BRICSToken": "0x2345678901234567890123456789012345678901",
+              "TrancheManagerV2": "0x3456789012345678901234567890123456789012"
+            },
+            "core": {
+              "ConfigRegistry": "0x4567890123456789012345678901234567890123"
+            },
+            "oracle": {
+              "NAVOracleV3": "0x5678901234567890123456789012345678901234"
+            },
+            "finance": {
+              "Treasury": "0x6789012345678901234567890123456789012345",
+              "PreTrancheBuffer": "0x7890123456789012345678901234567890123456"
+            }
+          }
+          EOF
+
+      - name: Run invariants test
+        run: npm test -- --grep "Invariants"
+
   gas-report:
     name: Gas Report
     runs-on: ubuntu-latest

@@ -10,8 +10,15 @@ const ORACLE_PK = "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b7
 async function deployFixture() {
   const [gov, oracle, user] = await ethers.getSigners();
   
-  // Create oracle wallet with provider
+  // Create oracle wallet with provider and ensure it's connected
   const oracleWallet = new Wallet(ORACLE_PK, ethers.provider);
+  
+  // Verify the wallet address is correct
+  const expectedAddress = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8";
+  const actualAddress = await oracleWallet.getAddress();
+  if (actualAddress !== expectedAddress) {
+    throw new Error(`Wallet address mismatch: expected ${expectedAddress}, got ${actualAddress}`);
+  }
 
   // Deploy TrancheManagerV2 first (mock for testing)
   const TrancheManagerV2 = await ethers.getContractFactory("TrancheManagerV2");
@@ -45,6 +52,13 @@ async function signPayload(mockLib: any, payload: any, oracleWallet: any) {
     console.log("Debug - oracleWallet address:", await oracleWallet.getAddress());
     console.log("Debug - recovered address:", await mockLib.recoverSigner(digest, signature));
     console.log("Debug - digest:", digest);
+    console.log("Debug - signature:", signature);
+    
+    // Test manual recovery using ethers
+    const ethers = require("ethers");
+    const ethSigned = ethers.hashMessage(getBytes(digest));
+    const manualRecovered = ethers.recoverAddress(ethSigned, signature);
+    console.log("Debug - manual recovered:", manualRecovered);
   }
   
   // Guard assertion: verify the signature is valid

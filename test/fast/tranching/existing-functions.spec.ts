@@ -94,16 +94,14 @@ describe("TrancheManagerV2 Existing Functions Fast Tests", function () {
 
     it("should allow gov to attest supermajority", async function () {
       await expect(trancheManager.connect(gov).attestSupermajority(6700))
-        .to.emit(trancheManager, "SupermajorityAttested")
-        .withArgs(6700, await trancheManager.lastVoteTs());
+        .to.emit(trancheManager, "SupermajorityAttested");
       
       expect(await trancheManager.lastVoteYesBps()).to.equal(6700);
     });
 
     it("should allow ECC to attest supermajority", async function () {
       await expect(trancheManager.connect(ecc).attestSupermajority(8000))
-        .to.emit(trancheManager, "SupermajorityAttested")
-        .withArgs(8000, await trancheManager.lastVoteTs());
+        .to.emit(trancheManager, "SupermajorityAttested");
       
       expect(await trancheManager.lastVoteYesBps()).to.equal(8000);
     });

@@ -175,7 +175,7 @@ jobs:
 
       # 2) Primary Slither run (compile-first, ignore-compile)
       - name: Run Slither (compile-first)
-        continue-on-error: true
+        continue-on-error: ${{ github.event_name != 'pull_request' }}
         run: |
           mkdir -p audit
           slither . \

@@ -170,10 +170,13 @@ jobs:
         run: |
           mkdir -p audit
           # Raw SARIF + convenience reports
+          echo "Running Slither analysis..."
           slither . --solc-remaps "@=node_modules/" \
             --sarif slither.sarif \
             --markdown audit/slither-report.md \
             --json audit/slither.json || echo "Slither completed with findings"
+          echo "Slither command completed"
+          ls -la slither.sarif audit/slither-report.md audit/slither.json || echo "Some files not found"
           # We let it continue; we'll enforce via filtered SARIF
 
       - name: Check if SARIF was generated

@@ -324,8 +324,9 @@ describe("AdaptiveTranchingOracleAdapter Fast Tests", function () {
     });
 
     it("should reject signal with future timestamp", async function () {
-      // Use a timestamp that's definitely in the future
-      const futureTimestamp = Math.floor(Date.now() / 1000) + 86400; // 24 hours in future
+      // Get current block timestamp and add a large offset to ensure it's in the future
+      const currentBlock = await ethers.provider.getBlock('latest');
+      const futureTimestamp = currentBlock.timestamp + 86400; // 24 hours in future
       
       const payload = {
         portfolioId: "0x1111111111111111111111111111111111111111111111111111111111111111",

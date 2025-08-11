@@ -26,6 +26,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: 'yarn'
 
       - name: Cache Hardhat & node_modules
         uses: actions/cache@v4
@@ -35,10 +36,11 @@ jobs:
             node_modules
             artifacts
             cache
-          key: ${{ runner.os }}-node${{ env.NODE_VERSION }}-${{ hashFiles('package-lock.json') }}-tests
+          key: ${{ runner.os }}-node${{ env.NODE_VERSION }}-${{ hashFiles('yarn.lock') }}-tests
 
-      - run: npm ci
-      - run: npm test
+      - run: corepack enable
+      - run: yarn install --frozen-lockfile
+      - run: yarn test
 
       # Artifacts (tests don't always have files, but keep a pattern)
       - name: Upload gas report (if any)
@@ -72,10 +74,11 @@ jobs:
             node_modules
             artifacts
             cache
-          key: ${{ runner.os }}-node${{ env.NODE_VERSION }}-${{ hashFiles('package-lock.json') }}-coverage-fast
+          key: ${{ runner.os }}-node${{ env.NODE_VERSION }}-${{ hashFiles('yarn.lock') }}-coverage-fast
 
-      - run: npm ci
-      - run: npm run coverage
+      - run: corepack enable
+      - run: yarn install --frozen-lockfile
+      - run: yarn coverage
 
       - name: Enforce coverage floor
         run: |
@@ -120,9 +123,10 @@ jobs:
             node_modules
             artifacts
             cache
-          key: ${{ runner.os }}-node${{ env.NODE_VERSION }}-${{ hashFiles('package-lock.json') }}-invariants
+          key: ${{ runner.os }}-node${{ env.NODE_VERSION }}-${{ hashFiles('yarn.lock') }}-invariants
 
-      - run: npm ci
+      - run: corepack enable
+      - run: yarn install --frozen-lockfile
 
       - name: Create minimal deployment fixture
         run: |
@@ -150,7 +154,7 @@ jobs:
           EOF
 
           - name: Run invariants test
-            run: npm test -- --grep "Invariants"
+            run: yarn test --grep "Invariants"
 
   pricing-lint-test:
     name: Pricing Service (Lint + Test)
@@ -210,10 +214,11 @@ jobs:
             node_modules
             artifacts
             cache
-          key: ${{ runner.os }}-node${{ env.NODE_VERSION }}-${{ hashFiles('package-lock.json') }}-gas
+          key: ${{ runner.os }}-node${{ env.NODE_VERSION }}-${{ hashFiles('yarn.lock') }}-gas
 
-      - run: npm ci
-      - run: npm run gas
+      - run: corepack enable
+      - run: yarn install --frozen-lockfile
+      - run: yarn gas
 
       - name: Upload gas report
         if: always()
@@ -245,10 +250,12 @@ jobs:
             node_modules
             artifacts
             cache
-          key: ${{ runner.os }}-node${{ env.NODE_VERSION }}-${{ hashFiles('package-lock.json') }}-security
+          key: ${{ runner.os }}-node${{ env.NODE_VERSION }}-${{ hashFiles('yarn.lock') }}-security
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          corepack enable
+          yarn install --frozen-lockfile
 
       - name: Setup Python 3.11
         uses: actions/setup-python@v5

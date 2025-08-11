@@ -133,7 +133,9 @@ describe("Pricing Verification Fast Tests", function () {
     });
 
     it("should reject signal with future timestamp", async function () {
-      const futurePayload = { ...validPayload, asOf: Math.floor(Date.now() / 1000) + 86400 };
+      // Get current block timestamp and add a large offset to ensure it's in the future
+      const currentBlock = await ethers.provider.getBlock('latest');
+      const futurePayload = { ...validPayload, asOf: currentBlock.timestamp + 86400 };
       const digest = await mockRiskSignalLib.digest(futurePayload);
       const signature = await riskOracle.signMessage(ethers.getBytes(digest));
       

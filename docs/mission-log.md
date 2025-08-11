@@ -214,3 +214,11 @@ PR #17 is finalized with all critical CI jobs green. Follow-up issues created fo
 - Next: P1-2 Pricing Service implementation
 
 ---
+
+### 2025-08-11 21:00:00Z — P1-2 skeleton & CI smoke
+- Added minimal FastAPI service with /v1/health endpoint
+- CI pricing-service job installs pinned deps and runs smoke tests (continue-on-error: true)
+- Created test_smoke.py with health endpoint and app import tests
+- Pricing service ready for P1-2 implementation (Tasks #5-6: AI Risk Scoring API + CDS Pricing Engine)
+
+---

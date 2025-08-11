@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
 library RiskSignalLib {
     struct Payload {
@@ -27,6 +28,6 @@ library RiskSignalLib {
     }
 
     function recoverSigner(bytes32 digest, bytes calldata signature) internal pure returns (address) {
-        return ECDSA.recover(digest, signature);
+        return ECDSA.recover(MessageHashUtils.toEthSignedMessageHash(digest), signature);
     }
 }

@@ -1,5 +1,5 @@
 {
-  "fast_floor": 55,
+  "fast_floor": 63,
   "nightly_floor": 70,
-  "_comment": "fast_floor raised to 55 after successful coverage improvements. Target: 63% after stabilization."
+  "_comment": "fast_floor raised to 63 after two green runs with 55% floor. Current: 69.47% statements."
 }

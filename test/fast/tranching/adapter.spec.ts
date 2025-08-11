@@ -25,7 +25,8 @@ describe("AdaptiveTranchingOracleAdapter Fast Tests", function () {
     const AdaptiveTranchingOracleAdapter = await ethers.getContractFactory("AdaptiveTranchingOracleAdapter");
     adapter = await AdaptiveTranchingOracleAdapter.deploy(
       await gov.getAddress(),
-      await trancheManager.getAddress()
+      await trancheManager.getAddress(),
+      await oracle.getAddress() // risk oracle
     );
   });
 
@@ -136,7 +137,8 @@ describe("AdaptiveTranchingOracleAdapter Fast Tests", function () {
       
       const newAdapter = await (await ethers.getContractFactory("AdaptiveTranchingOracleAdapter")).deploy(
         await gov.getAddress(),
-        await mockTarget.getAddress()
+        await mockTarget.getAddress(),
+        await oracle.getAddress()
       );
       
       expect(await newAdapter.getTranchingMode()).to.equal(0); // DISABLED
@@ -148,7 +150,8 @@ describe("AdaptiveTranchingOracleAdapter Fast Tests", function () {
       
       const newAdapter = await (await ethers.getContractFactory("AdaptiveTranchingOracleAdapter")).deploy(
         await gov.getAddress(),
-        await mockTarget.getAddress()
+        await mockTarget.getAddress(),
+        await oracle.getAddress()
       );
       
       const [sovereignUsage, defaults, correlation] = await newAdapter.getTranchingThresholds();
@@ -214,6 +217,171 @@ describe("AdaptiveTranchingOracleAdapter Fast Tests", function () {
       expect(lastSignal.sovereignUsageBps).to.equal(0);
       expect(lastSignal.portfolioDefaultsBps).to.equal(0);
       expect(lastSignal.corrPpm).to.equal(0);
+    });
+  });
+
+  describe("Signed Signal Submission", function () {
+    let riskOracle: any;
+    let mockRiskSignalLib: any;
+
+    beforeEach(async function () {
+      // Use a deterministic private key for the risk oracle
+      const RISK_ORACLE_PRIV_KEY = "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d";
+      riskOracle = new ethers.Wallet(RISK_ORACLE_PRIV_KEY, ethers.provider);
+
+      // Deploy mock RiskSignalLib for testing
+      const MockRiskSignalLib = await ethers.getContractFactory("MockRiskSignalLib");
+      mockRiskSignalLib = await MockRiskSignalLib.deploy();
+
+      // Set the risk oracle in the adapter
+      const testPayload = {
+        portfolioId: "0x1111111111111111111111111111111111111111111111111111111111111111",
+        asOf: Math.floor(Date.now() / 1000) - 60,
+        riskScore: 123456789,
+        correlationBps: 777,
+        spreadBps: 1500,
+        modelIdHash: "0x2222222222222222222222222222222222222222222222222222222222222222",
+        featuresHash: "0x3333333333333333333333333333333333333333333333333333333333333333"
+      };
+      const testDigest = await mockRiskSignalLib.digest(testPayload);
+      const testSignature = await riskOracle.signMessage(ethers.getBytes(testDigest));
+      const actualSigner = await mockRiskSignalLib.recoverSigner(testDigest, testSignature);
+      await adapter.setRiskOracle(actualSigner);
+    });
+
+    it("should accept valid signed signal", async function () {
+      const payload = {
+        portfolioId: "0x1111111111111111111111111111111111111111111111111111111111111111",
+        asOf: Math.floor(Date.now() / 1000) - 60,
+        riskScore: 123456789,
+        correlationBps: 777,
+        spreadBps: 1500,
+        modelIdHash: "0x2222222222222222222222222222222222222222222222222222222222222222",
+        featuresHash: "0x3333333333333333333333333333333333333333333333333333333333333333"
+      };
+
+      const digest = await mockRiskSignalLib.digest(payload);
+      const signature = await riskOracle.signMessage(ethers.getBytes(digest));
+
+      await expect(adapter.submitSignedRiskSignal(payload, signature))
+        .to.emit(adapter, "SignalCached");
+    });
+
+    it("should reject signal with wrong signer", async function () {
+      const payload = {
+        portfolioId: "0x1111111111111111111111111111111111111111111111111111111111111111",
+        asOf: Math.floor(Date.now() / 1000) - 60,
+        riskScore: 123456789,
+        correlationBps: 777,
+        spreadBps: 1500,
+        modelIdHash: "0x2222222222222222222222222222222222222222222222222222222222222222",
+        featuresHash: "0x3333333333333333333333333333333333333333333333333333333333333333"
+      };
+
+      const digest = await mockRiskSignalLib.digest(payload);
+      // Use a different signer
+      const wrongSigner = new ethers.Wallet("0x1234567890123456789012345678901234567890123456789012345678901234", ethers.provider);
+      const signature = await wrongSigner.signMessage(ethers.getBytes(digest));
+
+      await expect(adapter.submitSignedRiskSignal(payload, signature))
+        .to.be.revertedWith("bad-signer");
+    });
+
+    it("should reject signal with invalid correlation", async function () {
+      const payload = {
+        portfolioId: "0x1111111111111111111111111111111111111111111111111111111111111111",
+        asOf: Math.floor(Date.now() / 1000) - 60,
+        riskScore: 123456789,
+        correlationBps: 10001, // > 10000
+        spreadBps: 1500,
+        modelIdHash: "0x2222222222222222222222222222222222222222222222222222222222222222",
+        featuresHash: "0x3333333333333333333333333333333333333333333333333333333333333333"
+      };
+
+      const digest = await mockRiskSignalLib.digest(payload);
+      const signature = await riskOracle.signMessage(ethers.getBytes(digest));
+
+      await expect(adapter.submitSignedRiskSignal(payload, signature))
+        .to.be.revertedWith("correlation > 100%");
+    });
+
+    it("should reject signal with invalid spread", async function () {
+      const payload = {
+        portfolioId: "0x1111111111111111111111111111111111111111111111111111111111111111",
+        asOf: Math.floor(Date.now() / 1000) - 60,
+        riskScore: 123456789,
+        correlationBps: 777,
+        spreadBps: 20001, // > 20000
+        modelIdHash: "0x2222222222222222222222222222222222222222222222222222222222222222",
+        featuresHash: "0x3333333333333333333333333333333333333333333333333333333333333333"
+      };
+
+      const digest = await mockRiskSignalLib.digest(payload);
+      const signature = await riskOracle.signMessage(ethers.getBytes(digest));
+
+      await expect(adapter.submitSignedRiskSignal(payload, signature))
+        .to.be.revertedWith("spread > 200%");
+    });
+
+    it("should reject signal with future timestamp", async function () {
+      const payload = {
+        portfolioId: "0x1111111111111111111111111111111111111111111111111111111111111111",
+        asOf: Math.floor(Date.now() / 1000) + 3600, // 1 hour in future
+        riskScore: 123456789,
+        correlationBps: 777,
+        spreadBps: 1500,
+        modelIdHash: "0x2222222222222222222222222222222222222222222222222222222222222222",
+        featuresHash: "0x3333333333333333333333333333333333333333333333333333333333333333"
+      };
+
+      const digest = await mockRiskSignalLib.digest(payload);
+      const signature = await riskOracle.signMessage(ethers.getBytes(digest));
+
+      await expect(adapter.submitSignedRiskSignal(payload, signature))
+        .to.be.revertedWith("future timestamp");
+    });
+
+    it("should cache the signal correctly", async function () {
+      const payload = {
+        portfolioId: "0x1111111111111111111111111111111111111111111111111111111111111111",
+        asOf: Math.floor(Date.now() / 1000) - 60,
+        riskScore: 123456789,
+        correlationBps: 777,
+        spreadBps: 1500,
+        modelIdHash: "0x2222222222222222222222222222222222222222222222222222222222222222",
+        featuresHash: "0x3333333333333333333333333333333333333333333333333333333333333333"
+      };
+
+      const digest = await mockRiskSignalLib.digest(payload);
+      const signature = await riskOracle.signMessage(ethers.getBytes(digest));
+
+      await adapter.submitSignedRiskSignal(payload, signature);
+
+      // Check that the signal was cached
+      const cachedSignal = await adapter.lastSignal();
+      expect(cachedSignal.corrPpm).to.equal(payload.correlationBps * 100); // Convert bps to ppm
+      expect(cachedSignal.asOf).to.equal(payload.asOf);
+    });
+  });
+
+  describe("Risk Oracle Management", function () {
+    it("should allow admin to set risk oracle", async function () {
+      const [_, __, ___, newOracle] = await ethers.getSigners();
+      await adapter.setRiskOracle(await newOracle.getAddress());
+      expect(await adapter.riskOracle()).to.equal(await newOracle.getAddress());
+    });
+
+    it("should reject non-admin setting risk oracle", async function () {
+      const [_, __, ___, newOracle] = await ethers.getSigners();
+      await expect(
+        adapter.connect(user).setRiskOracle(await newOracle.getAddress())
+      ).to.be.revertedWithCustomError(adapter, "AccessControlUnauthorizedAccount");
+    });
+
+    it("should reject zero address risk oracle", async function () {
+      await expect(
+        adapter.setRiskOracle(ethers.ZeroAddress)
+      ).to.be.revertedWith("oracle cannot be zero address");
     });
   });
 });

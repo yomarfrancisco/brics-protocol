@@ -3,17 +3,23 @@ import { ethers } from "hardhat";
 import { AdaptiveTranchingOracleAdapter } from "../../../typechain-types";
 import { TrancheManagerV2 } from "../../../typechain-types";
 import { RiskSignalLib } from "../../../typechain-types";
+import { MockRiskSignalLib } from "../../../typechain-types";
 
 describe("Pricing Verification Fast Tests", function () {
   let adapter: AdaptiveTranchingOracleAdapter;
   let trancheManager: TrancheManagerV2;
+  let mockRiskSignalLib: MockRiskSignalLib;
   let gov: any;
   let oracle: any;
   let user: any;
   let riskOracle: any;
 
   beforeEach(async function () {
-    [gov, oracle, user, riskOracle] = await ethers.getSigners();
+    [gov, oracle, user] = await ethers.getSigners();
+
+    // Use a deterministic private key for the risk oracle
+    const RISK_ORACLE_PRIV_KEY = "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d";
+    riskOracle = new ethers.Wallet(RISK_ORACLE_PRIV_KEY, ethers.provider);
 
     // Deploy TrancheManagerV2
     const TrancheManagerV2 = await ethers.getContractFactory("TrancheManagerV2");
@@ -33,6 +39,25 @@ describe("Pricing Verification Fast Tests", function () {
 
     // Grant ECC role to tranche manager
     await trancheManager.grantRole(await trancheManager.ECC_ROLE(), await gov.getAddress());
+
+    // Deploy mock RiskSignalLib for testing
+    const MockRiskSignalLib = await ethers.getContractFactory("MockRiskSignalLib");
+    mockRiskSignalLib = await MockRiskSignalLib.deploy();
+    
+    // Determine the actual signer address and update the risk oracle
+    const testPayload: RiskSignalLib.PayloadStruct = {
+      portfolioId: "0x1111111111111111111111111111111111111111111111111111111111111111",
+      asOf: 1700000000,
+      riskScore: 123456789,
+      correlationBps: 777,
+      spreadBps: 1500,
+      modelIdHash: "0x2222222222222222222222222222222222222222222222222222222222222222",
+      featuresHash: "0x3333333333333333333333333333333333333333333333333333333333333333"
+    };
+    const testDigest = await mockRiskSignalLib.digest(testPayload);
+    const testSignature = await riskOracle.signMessage(ethers.getBytes(testDigest));
+    const actualSigner = await mockRiskSignalLib.recoverSigner(testDigest, testSignature);
+    await adapter.setRiskOracle(actualSigner);
   });
 
   describe("RiskSignalLib", function () {
@@ -47,7 +72,7 @@ describe("Pricing Verification Fast Tests", function () {
         featuresHash: "0x3333333333333333333333333333333333333333333333333333333333333333"
       };
 
-      const digest = await adapter.RiskSignalLib_digest(payload);
+      const digest = await mockRiskSignalLib.digest(payload);
       expect(digest).to.have.length(66); // 0x + 64 hex chars
     });
   });
@@ -60,7 +85,7 @@ describe("Pricing Verification Fast Tests", function () {
       // Create a valid payload
       validPayload = {
         portfolioId: "0x1111111111111111111111111111111111111111111111111111111111111111",
-        asOf: Math.floor(Date.now() / 1000),
+        asOf: Math.floor(Date.now() / 1000) - 60, // Use a timestamp 60 seconds in the past
         riskScore: 123456789,
         correlationBps: 777,
         spreadBps: 1500,
@@ -69,7 +94,8 @@ describe("Pricing Verification Fast Tests", function () {
       };
 
       // Create a valid signature from the risk oracle
-      const digest = await adapter.RiskSignalLib_digest(validPayload);
+      const digest = await mockRiskSignalLib.digest(validPayload);
+      // Sign the raw digest bytes
       validSignature = await riskOracle.signMessage(ethers.getBytes(digest));
     });
 
@@ -79,7 +105,7 @@ describe("Pricing Verification Fast Tests", function () {
     });
 
     it("should reject signal with wrong signer", async function () {
-      const wrongSignature = await user.signMessage(ethers.getBytes(await adapter.RiskSignalLib_digest(validPayload)));
+      const wrongSignature = await user.signMessage(ethers.getBytes(await mockRiskSignalLib.digest(validPayload)));
       
       await expect(
         adapter.submitSignedRiskSignal(validPayload, wrongSignature)
@@ -88,7 +114,7 @@ describe("Pricing Verification Fast Tests", function () {
 
     it("should reject signal with invalid correlation", async function () {
       const invalidPayload = { ...validPayload, correlationBps: 10001 };
-      const digest = await adapter.RiskSignalLib_digest(invalidPayload);
+      const digest = await mockRiskSignalLib.digest(invalidPayload);
       const signature = await riskOracle.signMessage(ethers.getBytes(digest));
       
       await expect(
@@ -98,7 +124,7 @@ describe("Pricing Verification Fast Tests", function () {
 
     it("should reject signal with invalid spread", async function () {
       const invalidPayload = { ...validPayload, spreadBps: 20001 };
-      const digest = await adapter.RiskSignalLib_digest(invalidPayload);
+      const digest = await mockRiskSignalLib.digest(invalidPayload);
       const signature = await riskOracle.signMessage(ethers.getBytes(digest));
       
       await expect(
@@ -108,7 +134,7 @@ describe("Pricing Verification Fast Tests", function () {
 
     it("should reject signal with future timestamp", async function () {
       const futurePayload = { ...validPayload, asOf: Math.floor(Date.now() / 1000) + 86400 };
-      const digest = await adapter.RiskSignalLib_digest(futurePayload);
+      const digest = await mockRiskSignalLib.digest(futurePayload);
       const signature = await riskOracle.signMessage(ethers.getBytes(digest));
       
       await expect(
@@ -127,13 +153,13 @@ describe("Pricing Verification Fast Tests", function () {
 
   describe("Risk Oracle Management", function () {
     it("should allow admin to set risk oracle", async function () {
-      const newOracle = await ethers.getSigner(4);
+      const [_, __, ___, newOracle] = await ethers.getSigners();
       await adapter.setRiskOracle(await newOracle.getAddress());
       expect(await adapter.riskOracle()).to.equal(await newOracle.getAddress());
     });
 
     it("should reject non-admin setting risk oracle", async function () {
-      const newOracle = await ethers.getSigner(4);
+      const [_, __, ___, newOracle] = await ethers.getSigners();
       await expect(
         adapter.connect(user).setRiskOracle(await newOracle.getAddress())
       ).to.be.revertedWithCustomError(adapter, "AccessControlUnauthorizedAccount");
@@ -161,7 +187,7 @@ describe("Pricing Verification Fast Tests", function () {
         featuresHash: "0x" + "bb".repeat(32)
       };
 
-      const digest = await adapter.RiskSignalLib_digest(samplePayload);
+      const digest = await mockRiskSignalLib.digest(samplePayload);
       const signature = await riskOracle.signMessage(ethers.getBytes(digest));
       
       await expect(adapter.submitSignedRiskSignal(samplePayload, signature))

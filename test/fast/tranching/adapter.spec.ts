@@ -6,10 +6,12 @@ import { AdaptiveTranchingOracleAdapter } from "../../../typechain-types";
 import { TrancheManagerV2 } from "../../../typechain-types";
 
 const ORACLE_PK = "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d";
-const oracleWallet = new Wallet(ORACLE_PK);
 
 async function deployFixture() {
   const [gov, oracle, user] = await ethers.getSigners();
+  
+  // Create oracle wallet with provider
+  const oracleWallet = new Wallet(ORACLE_PK, ethers.provider);
 
   // Deploy TrancheManagerV2 first (mock for testing)
   const TrancheManagerV2 = await ethers.getContractFactory("TrancheManagerV2");
@@ -31,10 +33,10 @@ async function deployFixture() {
   const MockRiskSignalLib = await ethers.getContractFactory("MockRiskSignalLib");
   const mockRiskSignalLib = await MockRiskSignalLib.deploy();
 
-  return { gov, oracle, user, trancheManager, adapter, mockRiskSignalLib };
+  return { gov, oracle, user, trancheManager, adapter, mockRiskSignalLib, oracleWallet };
 }
 
-async function signPayload(mockLib: any, payload: any) {
+async function signPayload(mockLib: any, payload: any, oracleWallet: any) {
   const digest = await mockLib.digest(payload);
   const signature = await oracleWallet.signMessage(getBytes(digest));
   
@@ -52,6 +54,7 @@ describe("AdaptiveTranchingOracleAdapter Fast Tests", function () {
   let oracle: any;
   let user: any;
   let mockRiskSignalLib: any;
+  let oracleWallet: any;
 
   beforeEach(async function () {
     const fixture = await loadFixture(deployFixture);
@@ -61,6 +64,7 @@ describe("AdaptiveTranchingOracleAdapter Fast Tests", function () {
     trancheManager = fixture.trancheManager;
     adapter = fixture.adapter;
     mockRiskSignalLib = fixture.mockRiskSignalLib;
+    oracleWallet = fixture.oracleWallet;
     
     // Ensure riskOracle is set exactly to the deterministic wallet every test
     await adapter.connect(gov).setRiskOracle(await oracleWallet.getAddress());
@@ -269,7 +273,7 @@ describe("AdaptiveTranchingOracleAdapter Fast Tests", function () {
         featuresHash: "0x3333333333333333333333333333333333333333333333333333333333333333"
       };
 
-      const signature = await signPayload(mockRiskSignalLib, payload);
+      const signature = await signPayload(mockRiskSignalLib, payload, oracleWallet);
 
       await expect(adapter.submitSignedRiskSignal(payload, signature))
         .to.emit(adapter, "SignalCached");
@@ -306,7 +310,7 @@ describe("AdaptiveTranchingOracleAdapter Fast Tests", function () {
         featuresHash: "0x3333333333333333333333333333333333333333333333333333333333333333"
       };
 
-      const signature = await signPayload(mockRiskSignalLib, payload);
+      const signature = await signPayload(mockRiskSignalLib, payload, oracleWallet);
 
       await expect(adapter.submitSignedRiskSignal(payload, signature))
         .to.be.revertedWith("correlation > 100%");
@@ -323,7 +327,7 @@ describe("AdaptiveTranchingOracleAdapter Fast Tests", function () {
         featuresHash: "0x3333333333333333333333333333333333333333333333333333333333333333"
       };
 
-      const signature = await signPayload(mockRiskSignalLib, payload);
+      const signature = await signPayload(mockRiskSignalLib, payload, oracleWallet);
 
       await expect(adapter.submitSignedRiskSignal(payload, signature))
         .to.be.revertedWith("spread > 200%");
@@ -344,7 +348,7 @@ describe("AdaptiveTranchingOracleAdapter Fast Tests", function () {
         featuresHash: "0x3333333333333333333333333333333333333333333333333333333333333333"
       };
 
-      const signature = await signPayload(mockRiskSignalLib, payload);
+      const signature = await signPayload(mockRiskSignalLib, payload, oracleWallet);
 
       await expect(adapter.submitSignedRiskSignal(payload, signature))
         .to.be.revertedWith("future timestamp");
@@ -361,7 +365,7 @@ describe("AdaptiveTranchingOracleAdapter Fast Tests", function () {
         featuresHash: "0x3333333333333333333333333333333333333333333333333333333333333333"
       };
 
-      const signature = await signPayload(mockRiskSignalLib, payload);
+      const signature = await signPayload(mockRiskSignalLib, payload, oracleWallet);
 
       await adapter.submitSignedRiskSignal(payload, signature);
 

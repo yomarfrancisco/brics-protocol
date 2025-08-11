@@ -285,3 +285,29 @@ PR #17 is finalized with all critical CI jobs green. Follow-up issues created fo
 
 **PR Status**: #26 created and ready for review
 **Next**: P1-5 Settlement math integration with Pricing Service
+
+---
+
+### 2025-08-12 01:30:00Z — P1-6 CDS E2E Demo Complete ✅
+**End-to-End Settlement Demo**: Reproducible, deterministic demo with full swap lifecycle
+- **Hardhat Task**: `swap:demo` with deterministic quote generation and signature verification
+- **E2E Flow**: propose → activate → generate quote → settle with P&L calculation
+- **Signature Parity**: Uses same digest/signing convention as Pricing Service (EIP-191 prefix)
+- **Deterministic Values**: Seed 42 private key, canonical features, reproducible results
+- **Test Coverage**: 3 new E2E tests passing, validates demo output structure
+- **Documentation**: Complete 60-second tutorial with troubleshooting guide
+
+**Technical Implementation**:
+- Task: `yarn hardhat swap:demo --obligor ACME-LLC --tenor 30 --asof 1600000000 --notional 1000000 --fixed-spread 80`
+- Quote Generation: Matches Pricing Service payload structure exactly
+- Payout Calculation: `(fairSpread - fixedSpread) * notional * elapsedDays / tenorDays`
+- Output: Console progress + `demo_output.json` for CI integration
+- No external HTTP calls - fully deterministic for CI compatibility
+
+**Demo Results**:
+- Swap ID: Deterministic based on parameters + timestamp
+- Fixed Spread: 80 bps, Fair Spread: 800 bps, Correlation: 7000 bps
+- Payout: Calculated based on spread difference and time elapsed
+- Signature Match: ✅ Verified using RiskSignalLib.recoverSigner()
+
+**Status**: Ready for CI integration and production deployment

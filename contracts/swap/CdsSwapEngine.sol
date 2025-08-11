@@ -303,14 +303,16 @@ contract CdsSwapEngine is ICdsSwap, ICdsSwapEvents, CdsSwapRegistry, AccessContr
         }
 
         // Reconstruct the payload that was signed
+        // Note: For demo purposes, we use placeholder values for riskScore, modelIdHash, and featuresHash
+        // In production, these would be extracted from the quote or passed as additional parameters
         RiskSignalLib.Payload memory payload = RiskSignalLib.Payload({
             portfolioId: portfolioId,
             asOf: quote.asOf,
-            riskScore: 0, // Not used in this context
+            riskScore: 0, // Placeholder - would be extracted from quote in production
             correlationBps: quote.correlationBps,
             spreadBps: quote.fairSpreadBps,
-            modelIdHash: bytes32(0), // Not used in this context
-            featuresHash: bytes32(0) // Not used in this context
+            modelIdHash: bytes32(0), // Placeholder - would be extracted from quote in production
+            featuresHash: bytes32(0) // Placeholder - would be extracted from quote in production
         });
 
         // Recover signer from signature

@@ -81,27 +81,116 @@ describe("TrancheManagerV2 Adaptive Tranching Governance Tests", function () {
     });
   });
 
-  describe("Event Emissions", function () {
-    it("should emit RiskSignalSubmitted event when signal is submitted", async function () {
+  describe("Governance Functions", function () {
+    it("should allow gov to set tranching mode", async function () {
+      await expect(trancheManager.connect(gov).setTranchingMode(1))
+        .to.emit(trancheManager, "TranchingModeChanged")
+        .withArgs(1, await gov.getAddress());
+      
+      expect(await trancheManager.getTranchingMode()).to.equal(1);
+    });
+
+    it("should allow gov to set tranching thresholds", async function () {
+      await expect(trancheManager.connect(gov).setTranchingThresholds(2000, 1000, 650000))
+        .to.emit(trancheManager, "ThresholdsUpdated")
+        .withArgs(2000, 1000, 650000);
+      
+      const [sovereignUsage, defaults, correlation] = await trancheManager.getTranchingThresholds();
+      expect(sovereignUsage).to.equal(2000);
+      expect(defaults).to.equal(1000);
+      expect(correlation).to.equal(650000);
+    });
+
+    it("should revert when non-gov sets tranching mode", async function () {
+      await expect(
+        trancheManager.connect(user).setTranchingMode(1)
+      ).to.be.revertedWithCustomError(trancheManager, "AccessControlUnauthorizedAccount");
+    });
+
+    it("should revert when non-gov sets thresholds", async function () {
+      await expect(
+        trancheManager.connect(user).setTranchingThresholds(2000, 1000, 650000)
+      ).to.be.revertedWithCustomError(trancheManager, "AccessControlUnauthorizedAccount");
+    });
+
+    it("should revert when setting invalid mode", async function () {
+      await expect(
+        trancheManager.connect(gov).setTranchingMode(3)
+      ).to.be.revertedWith("Invalid mode");
+    });
+
+    it("should revert when setting invalid sovereign usage", async function () {
+      await expect(
+        trancheManager.connect(gov).setTranchingThresholds(10001, 1000, 650000)
+      ).to.be.revertedWith("Sovereign usage > 100%");
+    });
+
+    it("should revert when setting invalid defaults", async function () {
+      await expect(
+        trancheManager.connect(gov).setTranchingThresholds(2000, 10001, 650000)
+      ).to.be.revertedWith("Defaults > 100%");
+    });
+
+    it("should revert when setting invalid correlation", async function () {
+      await expect(
+        trancheManager.connect(gov).setTranchingThresholds(2000, 1000, 1000001)
+      ).to.be.revertedWith("Correlation > 100%");
+    });
+  });
+
+  describe("Signal Submission with Enabled Mode", function () {
+    const validSignal: IAdaptiveTranching.RiskSignalStruct = {
+      sovereignUsageBps: 2000,
+      portfolioDefaultsBps: 500,
+      corrPpm: 300000,
+      asOf: 0 // Will be set in test
+    };
+
+    beforeEach(async function () {
       const currentBlock = await ethers.provider.getBlock("latest");
-      const signal: IAdaptiveTranching.RiskSignalStruct = {
-        sovereignUsageBps: 2000,
-        portfolioDefaultsBps: 500,
-        corrPpm: 300000,
-        asOf: currentBlock!.timestamp
-      };
-
-      // Note: This test would need the tranching mode to be enabled
-      // For now, we'll test that the event signature is correct
-      expect(trancheManager.interface.getEventTopic("RiskSignalSubmitted")).to.not.be.undefined;
+      validSignal.asOf = currentBlock!.timestamp;
+      
+      // Enable tranching mode
+      await trancheManager.connect(gov).setTranchingMode(1); // DRY_RUN
     });
 
-    it("should emit TranchingModeChanged event when mode changes", async function () {
-      expect(trancheManager.interface.getEventTopic("TranchingModeChanged")).to.not.be.undefined;
+    it("should allow gov to submit signal when mode is enabled", async function () {
+      await expect(trancheManager.connect(gov).submitSignal(validSignal))
+        .to.emit(trancheManager, "RiskSignalSubmitted")
+        .withArgs(validSignal, await gov.getAddress());
     });
 
-    it("should emit ThresholdsUpdated event when thresholds change", async function () {
-      expect(trancheManager.interface.getEventTopic("ThresholdsUpdated")).to.not.be.undefined;
+    it("should allow ECC to submit signal when mode is enabled", async function () {
+      await expect(trancheManager.connect(ecc).submitSignal(validSignal))
+        .to.emit(trancheManager, "RiskSignalSubmitted")
+        .withArgs(validSignal, await ecc.getAddress());
+    });
+
+    it("should revert when unauthorized user submits signal", async function () {
+      await expect(
+        trancheManager.connect(user).submitSignal(validSignal)
+      ).to.be.revertedWith("unauthorized");
+    });
+  });
+
+  describe("Event Emissions", function () {
+    it("should have RiskSignalSubmitted event signature", async function () {
+      // Test that the event exists in the contract interface
+      const events = trancheManager.interface.fragments.filter(f => f.type === 'event');
+      const eventNames = events.map(e => e.name);
+      expect(eventNames).to.include('RiskSignalSubmitted');
+    });
+
+    it("should have TranchingModeChanged event signature", async function () {
+      const events = trancheManager.interface.fragments.filter(f => f.type === 'event');
+      const eventNames = events.map(e => e.name);
+      expect(eventNames).to.include('TranchingModeChanged');
+    });
+
+    it("should have ThresholdsUpdated event signature", async function () {
+      const events = trancheManager.interface.fragments.filter(f => f.type === 'event');
+      const eventNames = events.map(e => e.name);
+      expect(eventNames).to.include('ThresholdsUpdated');
     });
   });
 

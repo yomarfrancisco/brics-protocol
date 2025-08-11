@@ -153,7 +153,6 @@ jobs:
           files: |
             release-assets.tar.gz
             gas-report.txt
-            audit/slither-report.md
             slither.sarif
           body: |
             ## Release Validation Results

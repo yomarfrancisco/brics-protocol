@@ -240,3 +240,27 @@ PR #17 is finalized with all critical CI jobs green. Follow-up issues created fo
 **Next**: P1-3 KYC/AML interface documentation and API skeleton
 
 ---
+
+### 2025-08-11 23:55:00Z — P1-3 KYC/AML Complete ✅
+**KYC/AML Service**: Comprehensive compliance service with deterministic mock responses
+- Added ADR-0003: KYC/AML Interface documentation with data minimization principles
+- Implemented FastAPI service with /v1/kyc/check and /v1/aml/screen endpoints
+- Created deterministic mock provider with keccak256-based responses
+- Added CLI with --json-only support and comprehensive test suite (12 tests)
+- Enhanced CI with Compliance Service job and deterministic artifacts
+- All tests passing with golden vectors: KYC (fail, 0.26), AML (clear, 86)
+
+**Status**: PR #25 merged, all checks passing
+**Next**: P1-4 CDS Swap Module scaffold (on-chain contracts)
+
+---
+
+### 2025-08-12 00:15:00Z — PR #25 Compliance Service Merged ✅
+**Compliance Service**: Successfully merged with all CI checks passing
+- All 8 CI checks successful: Compliance Service, Coverage, Gas Report, Invariants, Pricing Service, Security, Slither, Unit & Integration Tests
+- Squash merged and branch deleted
+- P1-3 KYC/AML interface formally completed
+- Next: P1-4 Back-to-Back CDS Swap Module scaffold (on-chain contracts)
+
+**Status**: Ready to begin P1-4 implementation
+**Next**: Create feat/p1-4-cds-swap-scaffold branch and implement thin scaffold

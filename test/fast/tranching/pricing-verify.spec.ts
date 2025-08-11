@@ -44,20 +44,8 @@ describe("Pricing Verification Fast Tests", function () {
     const MockRiskSignalLib = await ethers.getContractFactory("MockRiskSignalLib");
     mockRiskSignalLib = await MockRiskSignalLib.deploy();
     
-    // Determine the actual signer address and update the risk oracle
-    const testPayload: RiskSignalLib.PayloadStruct = {
-      portfolioId: "0x1111111111111111111111111111111111111111111111111111111111111111",
-      asOf: 1700000000,
-      riskScore: 123456789,
-      correlationBps: 777,
-      spreadBps: 1500,
-      modelIdHash: "0x2222222222222222222222222222222222222222222222222222222222222222",
-      featuresHash: "0x3333333333333333333333333333333333333333333333333333333333333333"
-    };
-    const testDigest = await mockRiskSignalLib.digest(testPayload);
-    const testSignature = await riskOracle.signMessage(ethers.getBytes(testDigest));
-    const actualSigner = await mockRiskSignalLib.recoverSigner(testDigest, testSignature);
-    await adapter.setRiskOracle(actualSigner);
+    // Set the risk oracle directly from the deterministic PK
+    await adapter.setRiskOracle(await riskOracle.getAddress());
   });
 
   describe("RiskSignalLib", function () {
@@ -77,9 +65,20 @@ describe("Pricing Verification Fast Tests", function () {
     });
   });
 
+  // Helper function to sign a payload with the current risk oracle
+  async function signPayload(payload: RiskSignalLib.PayloadStruct) {
+    const digest = await mockRiskSignalLib.digest(payload);
+    const signature = await riskOracle.signMessage(ethers.getBytes(digest));
+    
+    // Guard assertion: verify the signature is valid
+    const recovered = await mockRiskSignalLib.recoverSigner(digest, signature);
+    expect(recovered).to.equal(await adapter.riskOracle());
+    
+    return signature;
+  }
+
   describe("Signed Signal Submission", function () {
     let validPayload: RiskSignalLib.PayloadStruct;
-    let validSignature: string;
 
     beforeEach(async function () {
       // Create a valid payload
@@ -92,15 +91,11 @@ describe("Pricing Verification Fast Tests", function () {
         modelIdHash: "0x2222222222222222222222222222222222222222222222222222222222222222",
         featuresHash: "0x3333333333333333333333333333333333333333333333333333333333333333"
       };
-
-      // Create a valid signature from the risk oracle
-      const digest = await mockRiskSignalLib.digest(validPayload);
-      // Sign the raw digest bytes
-      validSignature = await riskOracle.signMessage(ethers.getBytes(digest));
     });
 
     it("should accept valid signed signal", async function () {
-      await expect(adapter.submitSignedRiskSignal(validPayload, validSignature))
+      const signature = await signPayload(validPayload);
+      await expect(adapter.submitSignedRiskSignal(validPayload, signature))
         .to.emit(adapter, "SignalCached");
     });
 
@@ -114,8 +109,7 @@ describe("Pricing Verification Fast Tests", function () {
 
     it("should reject signal with invalid correlation", async function () {
       const invalidPayload = { ...validPayload, correlationBps: 10001 };
-      const digest = await mockRiskSignalLib.digest(invalidPayload);
-      const signature = await riskOracle.signMessage(ethers.getBytes(digest));
+      const signature = await signPayload(invalidPayload);
       
       await expect(
         adapter.submitSignedRiskSignal(invalidPayload, signature)
@@ -124,8 +118,7 @@ describe("Pricing Verification Fast Tests", function () {
 
     it("should reject signal with invalid spread", async function () {
       const invalidPayload = { ...validPayload, spreadBps: 20001 };
-      const digest = await mockRiskSignalLib.digest(invalidPayload);
-      const signature = await riskOracle.signMessage(ethers.getBytes(digest));
+      const signature = await signPayload(invalidPayload);
       
       await expect(
         adapter.submitSignedRiskSignal(invalidPayload, signature)
@@ -136,8 +129,7 @@ describe("Pricing Verification Fast Tests", function () {
       // Get current block timestamp and add a large offset to ensure it's in the future
       const currentBlock = await ethers.provider.getBlock('latest');
       const futurePayload = { ...validPayload, asOf: currentBlock.timestamp + 86400 };
-      const digest = await mockRiskSignalLib.digest(futurePayload);
-      const signature = await riskOracle.signMessage(ethers.getBytes(digest));
+      const signature = await signPayload(futurePayload);
       
       await expect(
         adapter.submitSignedRiskSignal(futurePayload, signature)
@@ -145,7 +137,8 @@ describe("Pricing Verification Fast Tests", function () {
     });
 
     it("should cache the signal correctly", async function () {
-      await adapter.submitSignedRiskSignal(validPayload, validSignature);
+      const signature = await signPayload(validPayload);
+      await adapter.submitSignedRiskSignal(validPayload, signature);
       
       const lastSignal = await adapter.lastSignal();
       expect(lastSignal.corrPpm).to.equal(77700); // 777 bps * 100 = 77700 ppm
@@ -189,8 +182,7 @@ describe("Pricing Verification Fast Tests", function () {
         featuresHash: "0x" + "bb".repeat(32)
       };
 
-      const digest = await mockRiskSignalLib.digest(samplePayload);
-      const signature = await riskOracle.signMessage(ethers.getBytes(digest));
+      const signature = await signPayload(samplePayload);
       
       await expect(adapter.submitSignedRiskSignal(samplePayload, signature))
         .to.emit(adapter, "SignalCached");

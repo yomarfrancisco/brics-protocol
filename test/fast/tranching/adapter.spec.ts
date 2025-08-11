@@ -233,21 +233,21 @@ describe("AdaptiveTranchingOracleAdapter Fast Tests", function () {
       const MockRiskSignalLib = await ethers.getContractFactory("MockRiskSignalLib");
       mockRiskSignalLib = await MockRiskSignalLib.deploy();
 
-      // Set the risk oracle in the adapter
-      const testPayload = {
-        portfolioId: "0x1111111111111111111111111111111111111111111111111111111111111111",
-        asOf: Math.floor(Date.now() / 1000) - 60,
-        riskScore: 123456789,
-        correlationBps: 777,
-        spreadBps: 1500,
-        modelIdHash: "0x2222222222222222222222222222222222222222222222222222222222222222",
-        featuresHash: "0x3333333333333333333333333333333333333333333333333333333333333333"
-      };
-      const testDigest = await mockRiskSignalLib.digest(testPayload);
-      const testSignature = await riskOracle.signMessage(ethers.getBytes(testDigest));
-      const actualSigner = await mockRiskSignalLib.recoverSigner(testDigest, testSignature);
-      await adapter.setRiskOracle(actualSigner);
+      // Set the risk oracle directly from the deterministic PK
+      await adapter.setRiskOracle(await riskOracle.getAddress());
     });
+
+    // Helper function to sign a payload with the current risk oracle
+    async function signPayload(payload: any) {
+      const digest = await mockRiskSignalLib.digest(payload);
+      const signature = await riskOracle.signMessage(ethers.getBytes(digest));
+      
+      // Guard assertion: verify the signature is valid
+      const recovered = await mockRiskSignalLib.recoverSigner(digest, signature);
+      expect(recovered).to.equal(await adapter.riskOracle());
+      
+      return signature;
+    }
 
     it("should accept valid signed signal", async function () {
       const payload = {
@@ -260,8 +260,7 @@ describe("AdaptiveTranchingOracleAdapter Fast Tests", function () {
         featuresHash: "0x3333333333333333333333333333333333333333333333333333333333333333"
       };
 
-      const digest = await mockRiskSignalLib.digest(payload);
-      const signature = await riskOracle.signMessage(ethers.getBytes(digest));
+      const signature = await signPayload(payload);
 
       await expect(adapter.submitSignedRiskSignal(payload, signature))
         .to.emit(adapter, "SignalCached");
@@ -298,8 +297,7 @@ describe("AdaptiveTranchingOracleAdapter Fast Tests", function () {
         featuresHash: "0x3333333333333333333333333333333333333333333333333333333333333333"
       };
 
-      const digest = await mockRiskSignalLib.digest(payload);
-      const signature = await riskOracle.signMessage(ethers.getBytes(digest));
+      const signature = await signPayload(payload);
 
       await expect(adapter.submitSignedRiskSignal(payload, signature))
         .to.be.revertedWith("correlation > 100%");
@@ -316,8 +314,7 @@ describe("AdaptiveTranchingOracleAdapter Fast Tests", function () {
         featuresHash: "0x3333333333333333333333333333333333333333333333333333333333333333"
       };
 
-      const digest = await mockRiskSignalLib.digest(payload);
-      const signature = await riskOracle.signMessage(ethers.getBytes(digest));
+      const signature = await signPayload(payload);
 
       await expect(adapter.submitSignedRiskSignal(payload, signature))
         .to.be.revertedWith("spread > 200%");
@@ -338,8 +335,7 @@ describe("AdaptiveTranchingOracleAdapter Fast Tests", function () {
         featuresHash: "0x3333333333333333333333333333333333333333333333333333333333333333"
       };
 
-      const digest = await mockRiskSignalLib.digest(payload);
-      const signature = await riskOracle.signMessage(ethers.getBytes(digest));
+      const signature = await signPayload(payload);
 
       await expect(adapter.submitSignedRiskSignal(payload, signature))
         .to.be.revertedWith("future timestamp");
@@ -356,8 +352,7 @@ describe("AdaptiveTranchingOracleAdapter Fast Tests", function () {
         featuresHash: "0x3333333333333333333333333333333333333333333333333333333333333333"
       };
 
-      const digest = await mockRiskSignalLib.digest(payload);
-      const signature = await riskOracle.signMessage(ethers.getBytes(digest));
+      const signature = await signPayload(payload);
 
       await adapter.submitSignedRiskSignal(payload, signature);
 

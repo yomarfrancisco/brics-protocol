@@ -264,3 +264,24 @@ PR #17 is finalized with all critical CI jobs green. Follow-up issues created fo
 
 **Status**: Ready to begin P1-4 implementation
 **Next**: Create feat/p1-4-cds-swap-scaffold branch and implement thin scaffold
+
+---
+
+### 2025-08-12 00:45:00Z — P1-4 CDS Swap Module Scaffold Complete ✅
+**Back-to-Back CDS Swap Module**: Thin scaffold implementation with RBAC and lifecycle management
+- **New Contracts**: ICdsSwap, ICdsSwapEvents, CdsSwapRegistry, CdsSwapEngine
+- **RBAC System**: GOV_ROLE and BROKER_ROLE with proper access controls
+- **Swap Lifecycle**: propose → activate → cancel/settle (stub implementation)
+- **Parameter Validation**: Basic validation for swap parameters and timestamps
+- **Event System**: All required events with proper indexing and parameters
+- **Test Suite**: 45 tests passing across 3 comprehensive test files
+- **Status Management**: Proposed → Active → Settled/Cancelled enum states
+
+**Technical Implementation**:
+- Structs: Leg (counterparty, notional, spreadBps, start, maturity), SwapParams (portfolioId, protectionBuyer, protectionSeller, correlationBps)
+- Events: SwapProposed, SwapActivated, SwapSettled, SwapCancelled
+- Errors: Unauthorized(), InvalidParams(string), NotFound(bytes32)
+- Storage: Minimal metadata + status tracking in CdsSwapRegistry
+
+**PR Status**: #26 created and ready for review
+**Next**: P1-5 Settlement math integration with Pricing Service

@@ -1,0 +1,207 @@
+#!/usr/bin/env python3
+"""
+BRICS Pricing Service CLI
+"""
+import argparse
+import json
+import sys
+import time
+from typing import Dict, Any
+
+try:
+    from .baseline_model import score_risk, price_cds, get_risk_score_bps
+    from .signing import digest, sign_digest, load_or_create_key, public_address
+except ImportError:
+    # Allow running as script
+    from baseline_model import score_risk, price_cds, get_risk_score_bps
+    from signing import digest, sign_digest, load_or_create_key, public_address
+from eth_utils import to_bytes
+
+def create_sample_features() -> Dict[str, Any]:
+    """Create sample features for testing"""
+    return {
+        "size": 0.5,
+        "leverage": 0.3,
+        "volatility": 0.4,
+        "fxExposure": 0.2,
+        "countryRisk": 0.1,
+        "industryStress": 0.2,
+        "collateralQuality": 0.7,
+        "dataQuality": 0.8,
+        "modelShift": 0.1
+    }
+
+def price_command(args):
+    """Handle the price command"""
+    obligor_id = args.obligor
+    tenor_days = args.tenor
+    notional = args.notional
+    
+    # Parse asof
+    if args.asof == "now":
+        as_of = int(time.time())
+    else:
+        try:
+            as_of = int(args.asof)
+        except ValueError:
+            print(f"Error: Invalid asof value '{args.asof}'. Use 'now' or unix timestamp.")
+            sys.exit(1)
+    
+    # Use provided features or defaults
+    if args.features:
+        try:
+            features = json.loads(args.features)
+        except json.JSONDecodeError:
+            print(f"Error: Invalid JSON in features '{args.features}'")
+            sys.exit(1)
+    else:
+        features = create_sample_features()
+    
+    # Only print verbose output if not --json-only
+    if not getattr(args, 'json_only', False):
+        print(f"Pricing CDS for obligor: {obligor_id}")
+        print(f"Tenor: {tenor_days} days")
+        print(f"Notional: {notional:,}")
+        print(f"As of: {as_of}")
+        print(f"Features: {json.dumps(features, indent=2)}")
+        print("-" * 50)
+    
+    # Score the risk
+    score_result = score_risk(features, obligor_id, tenor_days, as_of)
+    
+    # Only print verbose output if not --json-only
+    if not getattr(args, 'json_only', False):
+        print(f"Risk Score:")
+        print(f"  PD: {score_result['pdBps']} bps")
+        print(f"  LGD: {score_result['lgdBps']} bps")
+        print(f"  Confidence: {score_result['scoreConfidence']}")
+    
+    # Price the CDS
+    price_result = price_cds(obligor_id, tenor_days, features, 
+                           score_result['pdBps'], score_result['lgdBps'], as_of)
+    
+    # Only print verbose output if not --json-only
+    if not getattr(args, 'json_only', False):
+        print(f"\nCDS Pricing:")
+        print(f"  Fair Spread: {price_result['fairSpreadBps']} bps")
+        print(f"  Correlation: {price_result['correlationBps']} bps")
+        print(f"  Expected Loss: {price_result['elBps']:.4f} bps")
+    
+    # Generate real digest and signature
+    portfolio_id = to_bytes(hexstr='0x' + '11' * 32)  # Use fixed portfolio ID for now
+    risk_score_bps = get_risk_score_bps(score_result['pdBps'], score_result['lgdBps'])
+    
+    digest_bytes = digest(
+        portfolio_id,
+        as_of,
+        risk_score_bps,
+        price_result['correlationBps'],
+        price_result['fairSpreadBps'],
+        "baseline-v0",
+        features
+    )
+    
+    private_key = load_or_create_key()
+    signature = sign_digest(digest_bytes, private_key)
+    signer_address = public_address(private_key)
+    
+    # Only print verbose output if not --json-only
+    if not getattr(args, 'json_only', False):
+        print(f"\nDigest: 0x{digest_bytes.hex()}")
+        print(f"Signature: {signature}")
+        print(f"Signer: {signer_address}")
+        
+        # Calculate annual premium
+        annual_premium = (notional * price_result['fairSpreadBps']) // 10000
+        print(f"\nAnnual Premium: ${annual_premium:,}")
+    
+    # Print JSON output
+    result = {
+        "obligorId": obligor_id,
+        "tenorDays": tenor_days,
+        "asOf": as_of,
+        "notional": notional,
+        "fairSpreadBps": price_result['fairSpreadBps'],
+        "correlationBps": price_result['correlationBps'],
+        "digest": "0x" + digest_bytes.hex(),
+        "signature": signature,
+        "signer": signer_address
+    }
+    
+    if getattr(args, 'json_only', False):
+        print(json.dumps(result))
+    else:
+        print(f"\nJSON Output:")
+        print(json.dumps(result, indent=2))
+
+def score_command(args):
+    """Handle the score command"""
+    obligor_id = args.obligor
+    tenor_days = args.tenor
+    
+    # Parse asof
+    if args.asof == "now":
+        as_of = int(time.time())
+    else:
+        try:
+            as_of = int(args.asof)
+        except ValueError:
+            print(f"Error: Invalid asof value '{args.asof}'. Use 'now' or unix timestamp.")
+            sys.exit(1)
+    
+    # Use provided features or defaults
+    if args.features:
+        try:
+            features = json.loads(args.features)
+        except json.JSONDecodeError:
+            print(f"Error: Invalid JSON in features '{args.features}'")
+            sys.exit(1)
+    else:
+        features = create_sample_features()
+    
+    print(f"Scoring risk for obligor: {obligor_id}")
+    print(f"Tenor: {tenor_days} days")
+    print(f"As of: {as_of}")
+    print(f"Features: {json.dumps(features, indent=2)}")
+    print("-" * 50)
+    
+    # Score the risk
+    score_result = score_risk(features, obligor_id, tenor_days, as_of)
+    
+    print(f"Risk Score Results:")
+    print(f"  PD: {score_result['pdBps']} bps")
+    print(f"  LGD: {score_result['lgdBps']} bps")
+    print(f"  Confidence: {score_result['scoreConfidence']}")
+
+def main():
+    parser = argparse.ArgumentParser(description="BRICS Pricing Service CLI")
+    subparsers = parser.add_subparsers(dest="command", help="Available commands")
+    
+    # Price command
+    price_parser = subparsers.add_parser("price", help="Price a CDS")
+    price_parser.add_argument("--obligor", "-o", required=True, help="Obligor ID")
+    price_parser.add_argument("--tenor", "-t", type=int, default=365, help="Tenor in days")
+    price_parser.add_argument("--asof", "-a", default="now", help="As of time (now or unix timestamp)")
+    price_parser.add_argument("--notional", "-n", type=int, required=True, help="Notional amount")
+    price_parser.add_argument("--features", "-f", help="JSON features object")
+    price_parser.add_argument("--json-only", action="store_true", help="Output only JSON")
+    price_parser.set_defaults(func=price_command)
+    
+    # Score command
+    score_parser = subparsers.add_parser("score", help="Score risk for an obligor")
+    score_parser.add_argument("--obligor", "-o", required=True, help="Obligor ID")
+    score_parser.add_argument("--tenor", "-t", type=int, default=365, help="Tenor in days")
+    score_parser.add_argument("--asof", "-a", default="now", help="As of time (now or unix timestamp)")
+    score_parser.add_argument("--features", "-f", help="JSON features object")
+    score_parser.set_defaults(func=score_command)
+    
+    args = parser.parse_args()
+    
+    if not args.command:
+        parser.print_help()
+        sys.exit(1)
+    
+    args.func(args)
+
+if __name__ == "__main__":
+    main()

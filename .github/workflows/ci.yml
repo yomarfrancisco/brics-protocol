@@ -82,7 +82,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-fast_${{ github.sha }}
+          name: coverage-fast_${{ github.event_name }}_${{ github.sha }}
           path: |
             coverage/lcov.info
             coverage.json
@@ -124,7 +124,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: gas-report_${{ github.sha }}
+          name: gas-report_${{ github.event_name }}_${{ github.sha }}
           path: gas-report.txt
           retention-days: 14
 
@@ -161,21 +161,21 @@ jobs:
 
       - name: Fail on High severity
         run: |
-          if grep -Ei '"level"\s*:\s*"error"|"\bhigh\b"|SEVERITY_HIGH' audit/slither.sarif > /dev/null; then
+          if grep -Ei '"level"\s*:\s*"error"|"\bhigh\b"|SEVERITY_HIGH' slither.sarif > /dev/null; then
             echo "High severity findings present"; exit 1;
           fi
 
       - name: Upload SARIF to GitHub Security
         uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: audit/slither.sarif
+          sarif_file: slither.sarif
 
       - name: Upload slither artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: slither_${{ github.sha }}
+          name: slither_${{ github.event_name }}_${{ github.sha }}
           path: |
             audit/slither-report.md
-            audit/slither.sarif
+            slither.sarif
           retention-days: 14

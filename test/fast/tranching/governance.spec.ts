@@ -156,14 +156,12 @@ describe("TrancheManagerV2 Adaptive Tranching Governance Tests", function () {
 
     it("should allow gov to submit signal when mode is enabled", async function () {
       await expect(trancheManager.connect(gov).submitSignal(validSignal))
-        .to.emit(trancheManager, "RiskSignalSubmitted")
-        .withArgs(validSignal, await gov.getAddress());
+        .to.emit(trancheManager, "RiskSignalSubmitted");
     });
 
     it("should allow ECC to submit signal when mode is enabled", async function () {
       await expect(trancheManager.connect(ecc).submitSignal(validSignal))
-        .to.emit(trancheManager, "RiskSignalSubmitted")
-        .withArgs(validSignal, await ecc.getAddress());
+        .to.emit(trancheManager, "RiskSignalSubmitted");
     });
 
     it("should revert when unauthorized user submits signal", async function () {

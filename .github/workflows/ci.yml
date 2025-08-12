@@ -576,6 +576,53 @@ jobs:
           PRICING_PROVIDER=replay BANK_DATA_MODE=off yarn test:replay
         continue-on-error: false
 
+      - name: Prepare REPRO bundle
+        if: always()
+        run: |
+          mkdir -p ci-artifacts/replay
+          # Fixture(s)
+          cp -f pricing-fixtures/ACME-LLC-30-latest.json ci-artifacts/replay/ || true
+          cp -f pricing-fixtures/*-frozen.json ci-artifacts/replay/ || true
+          cp -f pricing-fixtures/*-frozen.sha256 ci-artifacts/replay/ || true
+          # Build artifacts (Hardhat)
+          if [ -d artifacts ]; then tar -czf ci-artifacts/replay/artifacts.tgz artifacts; fi
+          # Gas report (if any)
+          if [ -f gas-report.txt ]; then cp gas-report.txt ci-artifacts/replay/; fi
+          # Test results (if jest/mocha writes XML/JSON)
+          if [ -d test-results ]; then tar -czf ci-artifacts/replay/test-results.tgz test-results; fi
+          # Auto-generate REPRO.md
+          cat > ci-artifacts/replay/REPRO.md << 'EOF'
+          # Repro replay locally
+
+          ## Prereqs
+          - Node 20, Yarn 4 (corepack)
+          - `cp pricing-fixtures/ACME-LLC-30-latest.json` into repo root (or leave in `ci-artifacts/replay/` and point to it)
+          - Start from a clean tree
+
+          ## Install
+          corepack enable
+          corepack prepare yarn@4.9.2 --activate
+          yarn install --immutable
+
+          ## Optional: set signer if you want to override CI fallback
+          # export CI_SIGNER_PRIVKEY=0x...
+
+          ## Verify fixtures
+          yarn fixtures:hashcheck
+
+          ## Run replay
+          PRICING_PROVIDER=replay BANK_DATA_MODE=off yarn test -g "replay"
+          EOF
+
+      - name: Upload replay artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: replay-artifacts-${{ github.run_id }}
+          path: ci-artifacts/replay
+          if-no-files-found: warn
+          retention-days: 14
+
   swap-e2e-replay:
     name: Swap E2E (Replay)
     runs-on: ubuntu-latest
@@ -647,6 +694,54 @@ jobs:
           BANK_DATA_MODE: off
         run: |
           PRICING_PROVIDER=replay BANK_DATA_MODE=off yarn test:replay
+
+      - name: Prepare REPRO bundle
+        if: always()
+        run: |
+          mkdir -p ci-artifacts/replay
+          # Fixture(s)
+          cp -f pricing-fixtures/ACME-LLC-30-latest.json ci-artifacts/replay/ || true
+          cp -f pricing-fixtures/*-frozen.json ci-artifacts/replay/ || true
+          cp -f pricing-fixtures/*-frozen.sha256 ci-artifacts/replay/ || true
+          # Build artifacts (Hardhat)
+          if [ -d artifacts ]; then tar -czf ci-artifacts/replay/artifacts.tgz artifacts; fi
+          # Gas report (if any)
+          if [ -f gas-report.txt ]; then cp gas-report.txt ci-artifacts/replay/; fi
+          # Test results (if jest/mocha writes XML/JSON)
+          if [ -d test-results ]; then tar -czf ci-artifacts/replay/test-results.tgz test-results; fi
+          # Auto-generate REPRO.md
+          cat > ci-artifacts/replay/REPRO.md << 'EOF'
+          # Repro replay locally
+
+          ## Prereqs
+          - Node 20, Yarn 4 (corepack)
+          - `cp pricing-fixtures/ACME-LLC-30-latest.json` into repo root (or leave in `ci-artifacts/replay/` and point to it)
+          - Start from a clean tree
+
+          ## Install
+          corepack enable
+          corepack prepare yarn@4.9.2 --activate
+          yarn install --immutable
+
+          ## Optional: set signer if you want to override CI fallback
+          # export CI_SIGNER_PRIVKEY=0x...
+
+          ## Verify fixtures
+          yarn fixtures:hashcheck
+
+          ## Run replay
+          PRICING_PROVIDER=replay BANK_DATA_MODE=off yarn test -g "replay"
+          EOF
+
+      - name: Upload replay artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: replay-artifacts-${{ github.run_id }}
+          path: ci-artifacts/replay
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Generate SBOM
         run: |
           yarn ts-node scripts/sbom.ts

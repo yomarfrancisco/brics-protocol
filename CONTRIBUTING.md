@@ -101,9 +101,10 @@ The Replay E2E tests use deterministic fixtures and signers for consistent resul
 #### Updating Replay Fixture
 To update the Replay fixture:
 1. Set `export CI_SIGNER_PRIVKEY=<your-fixed-key>`
-2. Run `yarn fixtures:freeze`
+2. Run `yarn fixtures:freeze && yarn fixtures:hashcheck`
 3. Commit BOTH: `pricing-fixtures/ACME-LLC-30-frozen.json` and `.sha256`
-4. **Do NOT modify frozen fixture in PRs** unless intentionally regenerating
+4. **Include rationale** in PR description for why fixture was updated
+5. **Do NOT modify frozen fixture in PRs** unless intentionally regenerating
 
 ## Code Standards
 

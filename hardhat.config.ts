@@ -53,15 +53,7 @@ const config: HardhatUserConfig = {
   gasReporter: {
     enabled: false
   },
-  coverage: {
-    reporter: ["text", "lcov", "html"],
-    exclude: [
-      "contracts/mocks/",
-      "contracts/malicious/",
-      "test/",
-      "deploy/"
-    ]
-  },
+
   mocha: {
     reporter: process.env.CI ? "min" : "spec",
     timeout: COVERAGE ? 180000 : 60000,

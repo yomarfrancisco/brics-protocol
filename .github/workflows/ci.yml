@@ -54,6 +54,22 @@ jobs:
           if git grep -nE -- '--tests|--grep-v' -- package.json; then
             echo "Disallowed Hardhat flags found"; exit 1; 
           fi
+      - name: Check CI_SIGNER_PRIVKEY
+        run: |
+          if [ -z "${{ secrets.CI_SIGNER_PRIVKEY }}" ]; then
+            echo "ERROR: CI_SIGNER_PRIVKEY secret is not set"
+            echo "Please add CI_SIGNER_PRIVKEY to repository secrets"
+            exit 1
+          fi
+      - name: Check frozen fixture integrity
+        run: |
+          if git diff --name-only | grep -q "pricing-fixtures/ACME-LLC-30-frozen.json"; then
+            if ! git diff --name-only | grep -q "pricing-fixtures/ACME-LLC-30-frozen.sha256"; then
+              echo "ERROR: Frozen fixture modified without hash update"
+              echo "Please run: yarn fixtures:freeze && yarn fixtures:hashcheck"
+              exit 1
+            fi
+          fi
       - run: PRICING_PROVIDER=stub BANK_DATA_MODE=off yarn test:unit
 
       # Artifacts (tests don't always have files, but keep a pattern)
@@ -489,7 +505,6 @@ jobs:
   swap-e2e-replay:
     name: Swap E2E (Replay)
     runs-on: ubuntu-latest
-    continue-on-error: true
     outputs:
       artifacts: ${{ steps.upload.outputs.artifacts }}
     steps:

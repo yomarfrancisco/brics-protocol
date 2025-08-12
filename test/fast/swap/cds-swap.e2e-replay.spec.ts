@@ -3,7 +3,7 @@ import { ethers, network } from "hardhat";
 import { keccak256, toUtf8Bytes } from "ethers";
 import { readFileSync } from "fs";
 
-const FIX = "pricing-fixtures/ACME-LLC-30-1754988155.json";
+const FIX = "pricing-fixtures/ACME-LLC-30-latest.json";
 
 describe("CDS Swap – E2E (replay)", () => {
   it("settles with replayed signed quote", async () => {

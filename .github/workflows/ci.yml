@@ -48,7 +48,7 @@ jobs:
           corepack enable
           yarn -v
           yarn install --immutable
-      - run: yarn test
+      - run: PRICING_PROVIDER=stub BANK_DATA_MODE=off yarn test:unit
 
       # Artifacts (tests don't always have files, but keep a pattern)
       - name: Upload gas report (if any)
@@ -467,7 +467,15 @@ jobs:
       - run: make bootstrap
       - name: Generate replay fixture
         run: yarn fixtures:gen
-      - run: PRICING_PROVIDER=replay BANK_DATA_MODE=off yarn test tests/replay/cds-swap.e2e-replay.spec.ts
+      - name: Print fixture summary
+        run: yarn ts-node scripts/print-fixture-summary.ts
+      - name: Run replay E2E (no HTTP, no bank)
+        env:
+          PRICING_PROVIDER: replay
+          BANK_DATA_MODE: off
+        run: |
+          echo "Pricing provider: replay, Bank mode: off"
+          yarn test:replay
 
   swap-e2e-replay:
     name: Swap E2E (Replay)
@@ -483,6 +491,8 @@ jobs:
       - run: yarn install --immutable
       - name: Generate replay fixture
         run: yarn fixtures:gen
+      - name: Print fixture summary
+        run: yarn ts-node scripts/print-fixture-summary.ts
       - name: Check fixture drift
         run: yarn ts-node scripts/check-fixture-drift.ts pricing-fixtures/ACME-LLC-30-latest.json pricing-fixtures/ACME-LLC-30-latest.sha256
       - name: Check fixture signer parity
@@ -514,12 +524,10 @@ jobs:
       - name: Run replay E2E (no HTTP, no bank)
         env:
           PRICING_PROVIDER: replay
-          PRICING_FIXTURES_DIR: pricing-fixtures
           BANK_DATA_MODE: off
         run: |
-          export PRICING_PROVIDER=replay
-          export BANK_DATA_MODE=off
-          yarn test tests/replay/cds-swap.e2e-replay.spec.ts
+          echo "Pricing provider: replay, Bank mode: off"
+          yarn test:replay
       - name: Generate SBOM
         run: |
           yarn ts-node scripts/sbom.ts

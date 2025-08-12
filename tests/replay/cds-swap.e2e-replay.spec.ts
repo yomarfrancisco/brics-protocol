@@ -23,6 +23,9 @@ describe("CDS Swap – E2E (replay)", () => {
     // set oracle adapter
     await engine.connect(gov).setPriceOracle(await mockOracle.getAddress());
     
+    // Quick guardrails: assert signer parity
+    expect(f.signer.toLowerCase()).to.equal((await mockOracle.riskOracle()).toLowerCase());
+    
     // Grant BROKER_ROLE to gov for testing
     const BROKER_ROLE = await engine.BROKER_ROLE();
     await engine.connect(gov).grantRole(BROKER_ROLE, gov.address);
@@ -44,8 +47,14 @@ describe("CDS Swap – E2E (replay)", () => {
     ).args.swapId;
     await engine.activateSwap(swapId);
 
-    // Advance time to be within quote validity window
-    await time.increaseTo(START + 24 * 60 * 60); // 1 day after start
+    // Freshness: use Hardhat time helpers to ensure quote is fresh
+    const now = await time.latest();
+    const QUOTE_STALE_SECONDS = 300; // 5 minutes
+    
+    // If fixture.asOf is stale, advance block time to fixture.asOf + 60
+    if (Number(f.asOf) < Number(now) - QUOTE_STALE_SECONDS) {
+      await time.increaseTo(Number(f.asOf) + 60);
+    }
 
     const settleTx = await engine.settleSwap(swapId, {
       fairSpreadBps: f.fairSpreadBps,

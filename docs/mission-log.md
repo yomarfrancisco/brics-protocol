@@ -240,3 +240,106 @@ PR #17 is finalized with all critical CI jobs green. Follow-up issues created fo
 **Next**: P1-3 KYC/AML interface documentation and API skeleton
 
 ---
+
+### 2025-08-11 23:55:00Z — P1-3 KYC/AML Complete ✅
+**KYC/AML Service**: Comprehensive compliance service with deterministic mock responses
+- Added ADR-0003: KYC/AML Interface documentation with data minimization principles
+- Implemented FastAPI service with /v1/kyc/check and /v1/aml/screen endpoints
+- Created deterministic mock provider with keccak256-based responses
+- Added CLI with --json-only support and comprehensive test suite (12 tests)
+- Enhanced CI with Compliance Service job and deterministic artifacts
+- All tests passing with golden vectors: KYC (fail, 0.26), AML (clear, 86)
+
+**Status**: PR #25 merged, all checks passing
+**Next**: P1-4 CDS Swap Module scaffold (on-chain contracts)
+
+---
+
+### 2025-08-12 00:15:00Z — PR #25 Compliance Service Merged ✅
+**Compliance Service**: Successfully merged with all CI checks passing
+- All 8 CI checks successful: Compliance Service, Coverage, Gas Report, Invariants, Pricing Service, Security, Slither, Unit & Integration Tests
+- Squash merged and branch deleted
+- P1-3 KYC/AML interface formally completed
+- Next: P1-4 Back-to-Back CDS Swap Module scaffold (on-chain contracts)
+
+**Status**: Ready to begin P1-4 implementation
+**Next**: Create feat/p1-4-cds-swap-scaffold branch and implement thin scaffold
+
+---
+
+### 2025-08-12 00:45:00Z — P1-4 CDS Swap Module Scaffold Complete ✅
+**Back-to-Back CDS Swap Module**: Thin scaffold implementation with RBAC and lifecycle management
+- **New Contracts**: ICdsSwap, ICdsSwapEvents, CdsSwapRegistry, CdsSwapEngine
+- **RBAC System**: GOV_ROLE and BROKER_ROLE with proper access controls
+- **Swap Lifecycle**: propose → activate → cancel/settle (stub implementation)
+- **Parameter Validation**: Basic validation for swap parameters and timestamps
+- **Event System**: All required events with proper indexing and parameters
+- **Test Suite**: 45 tests passing across 3 comprehensive test files
+- **Status Management**: Proposed → Active → Settled/Cancelled enum states
+
+**Technical Implementation**:
+- Structs: Leg (counterparty, notional, spreadBps, start, maturity), SwapParams (portfolioId, protectionBuyer, protectionSeller, correlationBps)
+- Events: SwapProposed, SwapActivated, SwapSettled, SwapCancelled
+- Errors: Unauthorized(), InvalidParams(string), NotFound(bytes32)
+- Storage: Minimal metadata + status tracking in CdsSwapRegistry
+
+**PR Status**: #26 created and ready for review
+**Next**: P1-5 Settlement math integration with Pricing Service
+
+---
+
+### 2025-08-12 01:30:00Z — P1-6 CDS E2E Demo Complete ✅
+**End-to-End Settlement Demo**: Reproducible, deterministic demo with full swap lifecycle
+- **Hardhat Task**: `swap:demo` with deterministic quote generation and signature verification
+- **E2E Flow**: propose → activate → generate quote → settle with P&L calculation
+- **Signature Parity**: Uses same digest/signing convention as Pricing Service (EIP-191 prefix)
+- **Deterministic Values**: Seed 42 private key, canonical features, reproducible results
+- **Test Coverage**: 3 new E2E tests passing, validates demo output structure
+- **Documentation**: Complete 60-second tutorial with troubleshooting guide
+
+**Technical Implementation**:
+- Task: `yarn hardhat swap:demo --obligor ACME-LLC --tenor 30 --asof 1600000000 --notional 1000000 --fixed-spread 80`
+- Quote Generation: Matches Pricing Service payload structure exactly
+- Payout Calculation: `(fairSpread - fixedSpread) * notional * elapsedDays / tenorDays`
+- Output: Console progress + `demo_output.json` for CI integration
+- No external HTTP calls - fully deterministic for CI compatibility
+
+**Demo Results**:
+- Swap ID: Deterministic based on parameters + timestamp
+- Fixed Spread: 80 bps, Fair Spread: 800 bps, Correlation: 7000 bps
+- Payout: Calculated based on spread difference and time elapsed
+- Signature Match: ✅ Verified using RiskSignalLib.recoverSigner()
+
+**Status**: Ready for CI integration and production deployment
+
+---
+
+### 2025-08-12 02:00:00Z — P1-7 Live-Shaped Integration & Token Settlement Complete ✅
+**Live-Shaped Integration & Token Settlement**: Pricing facade with bank data feature flags and guarded token transfers
+- **Pricing Facade**: Provider abstraction (stub/fastapi/replay/bank) with environment-driven selection
+- **Bank Data Safety**: Explicit opt-in required; disabled by default in all environments
+- **Token Settlement**: SafeERC20 transfers with ACCOUNTING/TRANSFERS modes, default accounting-only
+- **Provider Matrix**: stub (CI) → fastapi (dev) → replay (parity) → bank (prod, opt-in)
+- **Environment Flags**: PRICING_PROVIDER, BANK_DATA_MODE, PRICING_URL, PRICING_FIXTURES_DIR
+- **Test Coverage**: 8 new token settlement tests, pricing provider integration tests
+
+**Technical Implementation**:
+- **Pricing Providers**: Stub (deterministic), FastAPI (local HTTP), Replay (fixtures), Bank (disabled)
+- **Token Settlement**: IERC20 + SafeERC20, settlement mode enum, guarded transfers
+- **Settlement Logic**: pnl = (fairSpread - fixedSpread) * notional * elapsedDays / tenorDays / 10000
+- **Transfer Rules**: pnl > 0 → seller pays buyer, pnl < 0 → buyer pays seller
+- **Security**: SafeERC20, approval-based transfers, zero-address guards, RBAC controls
+
+**Demo Integration**:
+- **Provider Selection**: Environment-driven provider factory
+- **Bank Safety**: Bank provider throws unless BANK_DATA_MODE=live
+- **Deterministic CI**: Stub provider with golden vectors, no external calls
+- **Dev Flexibility**: Easy switching between providers via environment variables
+
+**Guardrails Implemented**:
+- **No External Bank Calls**: CI uses stub, dev uses fastapi (no bank data)
+- **Deterministic Outputs**: Stub provider with crypto-based deterministic values
+- **Safe Transfers**: SafeERC20, approval-based, settlement mode gating
+- **Explicit Opt-in**: Bank data requires BANK_DATA_MODE=live
+
+**Status**: Ready for production deployment with bank data safety controls

@@ -1,6 +1,6 @@
 {
   "name": "brics-protocol",
-  "version": "4.0.0",
+  "version": "0.1.0-rc1",
   "private": true,
   "license": "MIT",
   "packageManager": "yarn@4.9.2",
@@ -20,6 +20,7 @@
     "deploy:dev:legacy": "hardhat run --network hardhat deploy/00_env.ts && hardhat run --network hardhat deploy/01_core.ts && hardhat run --network hardhat deploy/02_finance.ts && hardhat run --network hardhat deploy/04_oracle.ts && hardhat run --network hardhat deploy/03_tranche.ts && hardhat run --network hardhat deploy/05_issuance_and_claims.ts && hardhat run --network hardhat deploy/90_roles_and_params.ts && hardhat run --network hardhat deploy/99_report.ts",
     "deploy:sepolia:legacy": "hardhat run --network sepolia deploy/00_env.ts && hardhat run --network sepolia deploy/01_core.ts && hardhat run --network sepolia deploy/02_finance.ts && hardhat run --network sepolia deploy/04_oracle.ts && hardhat run --network sepolia deploy/03_tranche.ts && hardhat run --network sepolia deploy/05_issuance_and_claims.ts && hardhat run --network hardhat deploy/90_roles_and_params.ts && hardhat run --network hardhat deploy/99_report.ts",
     "verify:all": "ts-node scripts/verifyAll.ts",
+    "fixtures:gen": "hardhat pricing:fixture --obligor ACME-LLC --tenor 30",
     "lint:sol": "solhint 'contracts/**/*.sol'",
     "lint:ts": "eslint . --ext .ts"
   },

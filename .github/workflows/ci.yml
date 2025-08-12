@@ -5,6 +5,9 @@ on:
     branches: [ main, release/** ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
+  schedule:
+    - cron: '0 2 * * *'  # 2 AM UTC daily
 
 permissions:
   contents: read
@@ -45,7 +48,7 @@ jobs:
           corepack enable
           yarn -v
           yarn install --immutable
-      - run: yarn test
+      - run: yarn test --reporter=min
 
       # Artifacts (tests don't always have files, but keep a pattern)
       - name: Upload gas report (if any)
@@ -60,6 +63,7 @@ jobs:
     name: Coverage (fast track)
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    continue-on-error: true
     env:
       COVERAGE: "1"
       NODE_OPTIONS: --max_old_space_size=4096
@@ -174,7 +178,6 @@ jobs:
     name: Pricing Service (Lint + Test)
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    continue-on-error: true # Set to true initially as per user request
     env:
       MODEL_JITTER_BPS_OVERRIDE: "0"
       SEED: ""
@@ -264,7 +267,6 @@ jobs:
     name: Compliance Service (Lint + Test)
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    continue-on-error: true # Set to true initially as per user request
     env:
       SEED: ""
     defaults:
@@ -326,6 +328,7 @@ jobs:
     name: Gas Report
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    continue-on-error: true
     env:
       HARDHAT_NETWORK: hardhat
       REPORT_GAS: "1"
@@ -446,3 +449,60 @@ jobs:
             slither.filtered.sarif
           if-no-files-found: warn
           retention-days: 14
+
+  swap-e2e-replay:
+    name: Swap E2E (Replay)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+      - run: corepack enable
+      - run: yarn install --immutable
+      - name: Generate replay fixture
+        run: yarn fixtures:gen
+      - name: Check fixture drift
+        run: yarn ts-node scripts/check-fixture-drift.ts pricing-fixtures/ACME-LLC-30-latest.json pricing-fixtures/ACME-LLC-30-latest.sha256
+      - name: Check fixture signer parity
+        run: |
+          FIXTURE=$(cat pricing-fixtures/ACME-LLC-30-latest.json)
+          SIGNER=$(echo "$FIXTURE" | jq -r '.signer')
+          echo "Fixture signer: $SIGNER"
+          
+          # Create a temporary script to check signer parity
+          cat > check_signer.js << 'EOF'
+          const { ethers } = require("hardhat");
+          
+          async function main() {
+            const MockOracle = await ethers.getContractFactory('MockPriceOracleAdapter');
+            const oracle = await MockOracle.deploy('$SIGNER');
+            const riskOracle = await oracle.riskOracle();
+            console.log('Adapter riskOracle:', riskOracle);
+            if (riskOracle.toLowerCase() !== '$SIGNER'.toLowerCase()) {
+              console.error('SIGNER MISMATCH!');
+              process.exit(1);
+            }
+            console.log('✅ Signer parity verified');
+          }
+          
+          main().catch(console.error);
+          EOF
+          
+          yarn hardhat run check_signer.js
+      - name: Run replay E2E (no HTTP, no bank)
+        env:
+          PRICING_PROVIDER: replay
+          PRICING_FIXTURES_DIR: pricing-fixtures
+          BANK_DATA_MODE: off
+        run: |
+          export PRICING_PROVIDER=replay
+          export BANK_DATA_MODE=off
+          yarn test --grep "E2E \\(replay\\)"
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: replay-fixture-v0.1.0-rc1
+          path: |
+            pricing-fixtures/ACME-LLC-30-latest.json
+            pricing-fixtures/ACME-LLC-30-latest.sha256

@@ -1,0 +1,63 @@
+import { expect } from "chai";
+import { ethers, network } from "hardhat";
+import { keccak256, toUtf8Bytes } from "ethers";
+import { readFileSync } from "fs";
+
+const FIX = "pricing-fixtures/ACME-LLC-30-latest.json";
+
+describe("CDS Swap – E2E (replay)", () => {
+  it("settles with replayed signed quote", async () => {
+    const f = JSON.parse(readFileSync(FIX, "utf8"));
+    const portfolioId = keccak256(toUtf8Bytes(f.obligorId));
+
+    const [gov, buyer, seller] = await ethers.getSigners();
+    const Engine = await ethers.getContractFactory("CdsSwapEngine");
+    const engine = await Engine.deploy(gov.address); await engine.waitForDeployment();
+
+    // Deploy MockPriceOracleAdapter with the fixture signer
+    const MockPriceOracle = await ethers.getContractFactory("MockPriceOracleAdapter");
+    const mockOracle = await MockPriceOracle.deploy(f.signer);
+    await mockOracle.waitForDeployment();
+    
+    // set oracle adapter
+    await engine.connect(gov).setPriceOracle(await mockOracle.getAddress());
+    
+    // Grant BROKER_ROLE to gov for testing
+    const BROKER_ROLE = await engine.BROKER_ROLE();
+    await engine.connect(gov).grantRole(BROKER_ROLE, gov.address);
+
+    const now = Math.floor(Date.now() / 1000) + 60; // 1 minute in the future
+    const notional = 1_000_000n;
+    const proposeTx = await engine.proposeSwap({
+      portfolioId,
+      protectionBuyer:  { counterparty: buyer.address,  notional, spreadBps: 80, start: BigInt(now), maturity: BigInt(now + 30*86400) },
+      protectionSeller: { counterparty: seller.address, notional, spreadBps: 80, start: BigInt(now), maturity: BigInt(now + 30*86400) },
+      correlationBps: f.correlationBps
+    });
+    const receipt = await proposeTx.wait();
+    const swapId = receipt.logs.find((log: any) => 
+      log.fragment?.name === "SwapProposed"
+    ).args.swapId;
+    await engine.activateSwap(swapId);
+
+    // Advance time to be within quote validity window (use future timestamp)
+    const futureTime = Math.floor(Date.now() / 1000) + 60; // 1 minute in future
+    await network.provider.send("evm_setNextBlockTimestamp", [futureTime]);
+    await network.provider.send("evm_mine");
+
+    const settleTx = await engine.settleSwap(swapId, {
+      fairSpreadBps: f.fairSpreadBps,
+      correlationBps: f.correlationBps,
+      asOf: f.asOf,
+      riskScore: f.riskScore,
+      modelIdHash: f.modelIdHash,
+      featuresHash: f.featuresHash,
+      digest: f.digest,
+      signature: f.signature
+    });
+    await settleTx.wait();
+
+    const meta = await engine.swaps(swapId);
+   expect(meta.status).to.equal(2); // Settled
+  });
+});

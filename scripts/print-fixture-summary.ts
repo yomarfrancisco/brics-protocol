@@ -15,17 +15,13 @@ try {
   console.log(`  SHA256: ${sha256}`);
   console.log(`  File: ${fixturePath}`);
   
-  // Emit key=value lines for GitHub Actions if GITHUB_OUTPUT is set
-  if (process.env.GITHUB_OUTPUT) {
-    const output = [
-      `signer=${fixture.signer}`,
-      `digest=${fixture.digest}`,
-      `sha256=${sha256}`,
-      `asOf=${fixture.asOf}`
-    ].join('\n');
-    
-    const fs = require('fs');
-    fs.appendFileSync(process.env.GITHUB_OUTPUT, output + '\n');
+  // Emit key=value lines for GitHub Actions if --gha flag is used
+  const gha = process.argv.includes("--gha");
+  if (gha) {
+    console.log(`signer=${fixture.signer}`);
+    console.log(`digest=${fixture.digest}`);
+    console.log(`asof=${fixture.asOf}`);
+    console.log(`path=${fixturePath}`);
   }
 } catch (error) {
   console.error('Error reading fixture:', error);

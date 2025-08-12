@@ -466,16 +466,19 @@ jobs:
       - run: yarn install --frozen-lockfile
       - run: make bootstrap
       - name: Generate replay fixture
-        run: yarn fixtures:gen
+        run: |
+          echo "Pricing provider: replay, Bank mode: off"
+          PRICING_PROVIDER=replay BANK_DATA_MODE=off yarn fixtures:gen
       - name: Print fixture summary
-        run: yarn ts-node scripts/print-fixture-summary.ts
+        run: |
+          node -e "process.env.GITHUB_OUTPUT && console.log('FIXTURE_SUMMARY_OUT='+process.env.GITHUB_OUTPUT)"
+          yarn fixtures:summary --gha
       - name: Run replay E2E (no HTTP, no bank)
         env:
           PRICING_PROVIDER: replay
           BANK_DATA_MODE: off
         run: |
-          echo "Pricing provider: replay, Bank mode: off"
-          yarn test:replay
+          PRICING_PROVIDER=replay BANK_DATA_MODE=off yarn test:replay
 
   swap-e2e-replay:
     name: Swap E2E (Replay)
@@ -490,9 +493,13 @@ jobs:
       - run: corepack enable
       - run: yarn install --immutable
       - name: Generate replay fixture
-        run: yarn fixtures:gen
+        run: |
+          echo "Pricing provider: replay, Bank mode: off"
+          PRICING_PROVIDER=replay BANK_DATA_MODE=off yarn fixtures:gen
       - name: Print fixture summary
-        run: yarn ts-node scripts/print-fixture-summary.ts
+        run: |
+          node -e "process.env.GITHUB_OUTPUT && console.log('FIXTURE_SUMMARY_OUT='+process.env.GITHUB_OUTPUT)"
+          yarn fixtures:summary --gha
       - name: Check fixture drift
         run: yarn ts-node scripts/check-fixture-drift.ts pricing-fixtures/ACME-LLC-30-latest.json pricing-fixtures/ACME-LLC-30-latest.sha256
       - name: Check fixture signer parity
@@ -526,8 +533,7 @@ jobs:
           PRICING_PROVIDER: replay
           BANK_DATA_MODE: off
         run: |
-          echo "Pricing provider: replay, Bank mode: off"
-          yarn test:replay
+          PRICING_PROVIDER=replay BANK_DATA_MODE=off yarn test:replay
       - name: Generate SBOM
         run: |
           yarn ts-node scripts/sbom.ts

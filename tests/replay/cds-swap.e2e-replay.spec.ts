@@ -2,14 +2,13 @@ import { expect } from "chai";
 import { ethers, network } from "hardhat";
 import { time } from "@nomicfoundation/hardhat-network-helpers";
 import { keccak256, toUtf8Bytes } from "ethers";
-import { readFileSync } from "fs";
+import fs from "fs";
 
-const FIX = "pricing-fixtures/ACME-LLC-30-latest.json";
+const FIXTURE = JSON.parse(fs.readFileSync("pricing-fixtures/ACME-LLC-30-latest.json","utf8"));
 
 describe("CDS Swap – E2E (replay)", () => {
   it("settles with replayed signed quote", async () => {
-    const f = JSON.parse(readFileSync(FIX, "utf8"));
-    const portfolioId = keccak256(toUtf8Bytes(f.obligorId));
+    const portfolioId = keccak256(toUtf8Bytes(FIXTURE.obligorId));
 
     const [gov, buyer, seller] = await ethers.getSigners();
     const Engine = await ethers.getContractFactory("CdsSwapEngine");
@@ -17,14 +16,14 @@ describe("CDS Swap – E2E (replay)", () => {
 
     // Deploy MockPriceOracleAdapter with the fixture signer
     const MockPriceOracle = await ethers.getContractFactory("MockPriceOracleAdapter");
-    const mockOracle = await MockPriceOracle.deploy(f.signer);
+    const mockOracle = await MockPriceOracle.deploy(FIXTURE.signer);
     await mockOracle.waitForDeployment();
     
     // set oracle adapter
     await engine.connect(gov).setPriceOracle(await mockOracle.getAddress());
     
-    // Quick guardrails: assert signer parity
-    expect(f.signer.toLowerCase()).to.equal((await mockOracle.riskOracle()).toLowerCase());
+    // 1) Ensure oracle == fixture.signer
+    expect((await mockOracle.riskOracle()).toLowerCase()).to.equal(FIXTURE.signer.toLowerCase());
     
     // Grant BROKER_ROLE to gov for testing
     const BROKER_ROLE = await engine.BROKER_ROLE();
@@ -39,7 +38,7 @@ describe("CDS Swap – E2E (replay)", () => {
       portfolioId,
       protectionBuyer:  { counterparty: buyer.address,  notional, spreadBps: 80, start: BigInt(START), maturity: BigInt(MATURITY) },
       protectionSeller: { counterparty: seller.address, notional, spreadBps: 80, start: BigInt(START), maturity: BigInt(MATURITY) },
-      correlationBps: f.correlationBps
+      correlationBps: FIXTURE.correlationBps
     });
     const receipt = await proposeTx.wait();
     const swapId = receipt.logs.find((log: any) => 
@@ -47,24 +46,38 @@ describe("CDS Swap – E2E (replay)", () => {
     ).args.swapId;
     await engine.activateSwap(swapId);
 
-    // Freshness: use Hardhat time helpers to ensure quote is fresh
+    // 2) Ensure chain time is inside freshness window
     const now = await time.latest();
-    const QUOTE_STALE_SECONDS = 300; // 5 minutes
-    
-    // If fixture.asOf is stale, advance block time to fixture.asOf + 60
-    if (Number(f.asOf) < Number(now) - QUOTE_STALE_SECONDS) {
-      await time.increaseTo(Number(f.asOf) + 60);
+    const target = Number(FIXTURE.asOf) + 60;              // a little after asOf
+    if (now < BigInt(target)) {
+      await time.increaseTo(target);
     }
+    
+    // 3) (Optional but helpful) sanity: engine.verifyQuote must pass
+    const ok = await engine.verifyQuote(
+      {
+        portfolioId: FIXTURE.portfolioId,
+        asOf: FIXTURE.asOf,
+        riskScore: FIXTURE.riskScore,
+        correlationBps: FIXTURE.correlationBps,
+        spreadBps: FIXTURE.spreadBps,
+        modelIdHash: FIXTURE.modelIdHash,
+        featuresHash: FIXTURE.featuresHash,
+        signature: FIXTURE.signature
+      },
+      FIXTURE.portfolioId
+    );
+    expect(ok).to.equal(true);
 
     const settleTx = await engine.settleSwap(swapId, {
-      fairSpreadBps: f.fairSpreadBps,
-      correlationBps: f.correlationBps,
-      asOf: f.asOf,
-      riskScore: f.riskScore,
-      modelIdHash: f.modelIdHash,
-      featuresHash: f.featuresHash,
-      digest: f.digest,
-      signature: f.signature
+      fairSpreadBps: FIXTURE.fairSpreadBps,
+      correlationBps: FIXTURE.correlationBps,
+      asOf: FIXTURE.asOf,
+      riskScore: FIXTURE.riskScore,
+      modelIdHash: FIXTURE.modelIdHash,
+      featuresHash: FIXTURE.featuresHash,
+      digest: FIXTURE.digest,
+      signature: FIXTURE.signature
     });
     await settleTx.wait();
 

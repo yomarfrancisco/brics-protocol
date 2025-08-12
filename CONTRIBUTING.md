@@ -98,6 +98,13 @@ The Replay E2E tests use deterministic fixtures and signers for consistent resul
 - **Replay tests must pass locally** before submitting PRs
 - **CI signer is pinned** for deterministic results
 
+#### Updating Replay Fixture
+To update the Replay fixture:
+1. Set `export CI_SIGNER_PRIVKEY=<your-fixed-key>`
+2. Run `yarn fixtures:freeze`
+3. Commit BOTH: `pricing-fixtures/ACME-LLC-30-frozen.json` and `.sha256`
+4. **Do NOT modify frozen fixture in PRs** unless intentionally regenerating
+
 ## Code Standards
 
 ### Solidity

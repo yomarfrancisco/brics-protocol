@@ -65,8 +65,7 @@ const config: HardhatUserConfig = {
   mocha: {
     reporter: process.env.CI ? "min" : "spec",
     timeout: COVERAGE ? 180000 : 60000,
-    bail: 1,
-    spec: ["test/**/*.spec.ts", "!test/replay/**/*.spec.ts"]
+    bail: true
   }
 };
 

@@ -471,14 +471,13 @@ jobs:
       - run: corepack enable
       - run: yarn install --frozen-lockfile
       - run: make bootstrap
-      - name: Generate replay fixture
+      - name: Freeze fixture with pinned signer
+        env:
+          CI_SIGNER_PRIVKEY: ${{ secrets.CI_SIGNER_PRIVKEY }}
         run: |
-          echo "Pricing provider: replay, Bank mode: off"
-          PRICING_PROVIDER=replay BANK_DATA_MODE=off yarn fixtures:gen
-      - name: Print fixture summary
-        run: |
-          node -e "process.env.GITHUB_OUTPUT && console.log('FIXTURE_SUMMARY_OUT='+process.env.GITHUB_OUTPUT)"
-          yarn fixtures:summary --gha
+          yarn fixtures:freeze
+      - name: Verify frozen fixture hash
+        run: yarn fixtures:hashcheck
       - name: Run replay E2E (no HTTP, no bank)
         env:
           PRICING_PROVIDER: replay
@@ -500,16 +499,13 @@ jobs:
           node-version: '20.x'
       - run: corepack enable
       - run: yarn install --immutable
-      - name: Generate replay fixture
+      - name: Freeze fixture with pinned signer
+        env:
+          CI_SIGNER_PRIVKEY: ${{ secrets.CI_SIGNER_PRIVKEY }}
         run: |
-          echo "Pricing provider: replay, Bank mode: off"
-          PRICING_PROVIDER=replay BANK_DATA_MODE=off yarn fixtures:gen
-      - name: Print fixture summary
-        run: |
-          node -e "process.env.GITHUB_OUTPUT && console.log('FIXTURE_SUMMARY_OUT='+process.env.GITHUB_OUTPUT)"
-          yarn fixtures:summary --gha
-      - name: Check fixture drift
-        run: yarn ts-node scripts/check-fixture-drift.ts pricing-fixtures/ACME-LLC-30-latest.json pricing-fixtures/ACME-LLC-30-latest.sha256
+          yarn fixtures:freeze
+      - name: Verify frozen fixture hash
+        run: yarn fixtures:hashcheck
       - name: Check fixture signer parity
         run: |
           FIXTURE=$(cat pricing-fixtures/ACME-LLC-30-latest.json)

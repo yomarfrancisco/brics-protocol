@@ -1,4 +1,5 @@
 import { ethers } from "hardhat";
+import { HardhatRuntimeEnvironment } from "hardhat/types";
 
 /**
  * Get the CI signer for deterministic testing
@@ -6,9 +7,10 @@ import { ethers } from "hardhat";
  * In CI: uses CI_SIGNER_PRIVKEY from environment
  * In dev: uses a fixed test key for consistent local development
  * 
+ * @param hre Hardhat runtime environment (optional)
  * @returns Signer instance for deterministic signing
  */
-export function getCiSigner() {
+export function getCiSigner(hre?: HardhatRuntimeEnvironment) {
   // In CI, use the environment variable
   if (process.env.CI_SIGNER_PRIVKEY) {
     return new ethers.Wallet(process.env.CI_SIGNER_PRIVKEY);
@@ -22,8 +24,9 @@ export function getCiSigner() {
 
 /**
  * Get the CI signer address
+ * @param hre Hardhat runtime environment (optional)
  * @returns Address of the CI signer
  */
-export function getCiSignerAddress(): string {
-  return getCiSigner().address;
+export function getCiSignerAddress(hre?: HardhatRuntimeEnvironment): string {
+  return getCiSigner(hre).address;
 }

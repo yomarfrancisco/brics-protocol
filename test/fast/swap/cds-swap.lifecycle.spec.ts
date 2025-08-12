@@ -1,5 +1,6 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
+import { time } from "@nomicfoundation/hardhat-network-helpers";
 import { Contract } from "ethers";
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 
@@ -26,7 +27,7 @@ describe("CDS Swap Lifecycle", function () {
 
   describe("Complete Swap Lifecycle", function () {
     it("should complete full lifecycle: propose → activate → settle", async function () {
-      const swapParams = createValidSwapParams(user1.address, user2.address);
+      const swapParams = await createValidSwapParams(user1.address, user2.address);
       
       // Step 1: Propose swap
       const proposeTx = await cdsSwapEngine.connect(user3).proposeSwap(swapParams);
@@ -51,11 +52,19 @@ describe("CDS Swap Lifecycle", function () {
       expect(activateEvent.args.activator).to.equal(broker.address);
       expect(await cdsSwapEngine.getSwapStatus(swapId)).to.equal(1); // Active
       
+      // Advance time to be within quote validity window
+      const now = await time.latest();
+      const START = Number(now) + 60; // 1 minute in the future
+      await time.increaseTo(START + 24 * 60 * 60); // 1 day after start
+      
       // Step 3: Settle swap (with mock quote)
       const mockQuote = {
         fairSpreadBps: 600, // 6% (higher than original 5%)
         correlationBps: 7000, // 70%
-        asOf: Math.floor(Date.now() / 1000),
+        asOf: START - 30, // asOf within freshness window
+        riskScore: 54,
+        modelIdHash: ethers.ZeroHash,
+        featuresHash: ethers.ZeroHash,
         digest: ethers.ZeroHash,
         signature: "0x"
       };
@@ -67,7 +76,7 @@ describe("CDS Swap Lifecycle", function () {
     });
 
     it("should complete lifecycle with cancellation: propose → cancel", async function () {
-      const swapParams = createValidSwapParams(user1.address, user2.address);
+      const swapParams = await createValidSwapParams(user1.address, user2.address);
       
       // Step 1: Propose swap
       const proposeTx = await cdsSwapEngine.connect(user3).proposeSwap(swapParams);
@@ -94,7 +103,7 @@ describe("CDS Swap Lifecycle", function () {
     });
 
     it("should complete lifecycle with gov cancellation: propose → activate → cancel", async function () {
-      const swapParams = createValidSwapParams(user1.address, user2.address);
+      const swapParams = await createValidSwapParams(user1.address, user2.address);
       
       // Step 1: Propose swap
       const proposeTx = await cdsSwapEngine.connect(user3).proposeSwap(swapParams);
@@ -150,7 +159,7 @@ describe("CDS Swap Lifecycle", function () {
     });
 
     it("should update status correctly through lifecycle", async function () {
-      const swapParams = createValidSwapParams(user1.address, user2.address);
+      const swapParams = await createValidSwapParams(user1.address, user2.address);
       
       const proposeTx = await cdsSwapEngine.connect(user3).proposeSwap(swapParams);
       const proposeReceipt = await proposeTx.wait();
@@ -166,11 +175,19 @@ describe("CDS Swap Lifecycle", function () {
       await cdsSwapEngine.connect(broker).activateSwap(swapId);
       expect(await cdsSwapEngine.getSwapStatus(swapId)).to.equal(1); // Active
       
+      // Advance time to be within quote validity window
+      const now = await time.latest();
+      const START = Number(now) + 60; // 1 minute in the future
+      await time.increaseTo(START + 24 * 60 * 60); // 1 day after start
+      
       // Settle and check status (with mock quote)
       const mockQuote = {
         fairSpreadBps: 600,
         correlationBps: 7000,
-        asOf: Math.floor(Date.now() / 1000),
+        asOf: START - 30, // asOf within freshness window
+        riskScore: 54,
+        modelIdHash: ethers.ZeroHash,
+        featuresHash: ethers.ZeroHash,
         digest: ethers.ZeroHash,
         signature: "0x"
       };
@@ -184,8 +201,8 @@ describe("CDS Swap Lifecycle", function () {
 
   describe("Swap ID Generation", function () {
     it("should generate unique swap IDs for different parameters", async function () {
-      const swapParams1 = createValidSwapParams(user1.address, user2.address);
-      const swapParams2 = createValidSwapParams(user2.address, user1.address);
+      const swapParams1 = await createValidSwapParams(user1.address, user2.address);
+      const swapParams2 = await createValidSwapParams(user2.address, user1.address);
       
       const tx1 = await cdsSwapEngine.connect(user3).proposeSwap(swapParams1);
       const receipt1 = await tx1.wait();
@@ -205,7 +222,7 @@ describe("CDS Swap Lifecycle", function () {
     });
 
     it("should generate different swap IDs due to timestamp", async function () {
-      const swapParams = createValidSwapParams(user1.address, user2.address);
+      const swapParams = await createValidSwapParams(user1.address, user2.address);
       
       // First proposal
       const tx1 = await cdsSwapEngine.connect(user3).proposeSwap(swapParams);
@@ -233,7 +250,7 @@ describe("CDS Swap Lifecycle", function () {
 
   describe("Event Emission", function () {
     it("should emit all expected events in correct order", async function () {
-      const swapParams = createValidSwapParams(user1.address, user2.address);
+      const swapParams = await createValidSwapParams(user1.address, user2.address);
       
       // Propose swap
       const proposeTx = await cdsSwapEngine.connect(user3).proposeSwap(swapParams);
@@ -265,11 +282,19 @@ describe("CDS Swap Lifecycle", function () {
       expect(activateEvent.args.swapId).to.equal(swapId);
       expect(activateEvent.args.activator).to.equal(broker.address);
       
+      // Advance time to be within quote validity window
+      const now = await time.latest();
+      const START = Number(now) + 60; // 1 minute in the future
+      await time.increaseTo(START + 24 * 60 * 60); // 1 day after start
+      
       // Settle swap (with mock quote)
       const mockQuote = {
         fairSpreadBps: 600,
         correlationBps: 7000,
-        asOf: Math.floor(Date.now() / 1000),
+        asOf: START - 30, // asOf within freshness window
+        riskScore: 54,
+        modelIdHash: ethers.ZeroHash,
+        featuresHash: ethers.ZeroHash,
         digest: ethers.ZeroHash,
         signature: "0x"
       };
@@ -283,7 +308,7 @@ describe("CDS Swap Lifecycle", function () {
 
   describe("Parameter Validation", function () {
     it("should reject invalid portfolio ID", async function () {
-      const swapParams = createValidSwapParams(user1.address, user2.address);
+      const swapParams = await createValidSwapParams(user1.address, user2.address);
       swapParams.portfolioId = ZERO_BYTES32;
       
       await expect(
@@ -292,7 +317,7 @@ describe("CDS Swap Lifecycle", function () {
     });
 
     it("should reject invalid protection buyer", async function () {
-      const swapParams = createValidSwapParams(user1.address, user2.address);
+      const swapParams = await createValidSwapParams(user1.address, user2.address);
       swapParams.protectionBuyer.counterparty = ZERO_ADDRESS;
       
       await expect(
@@ -301,7 +326,7 @@ describe("CDS Swap Lifecycle", function () {
     });
 
     it("should reject invalid protection seller", async function () {
-      const swapParams = createValidSwapParams(user1.address, user2.address);
+      const swapParams = await createValidSwapParams(user1.address, user2.address);
       swapParams.protectionSeller.counterparty = ZERO_ADDRESS;
       
       await expect(
@@ -310,7 +335,7 @@ describe("CDS Swap Lifecycle", function () {
     });
 
     it("should reject zero notional", async function () {
-      const swapParams = createValidSwapParams(user1.address, user2.address);
+      const swapParams = await createValidSwapParams(user1.address, user2.address);
       swapParams.protectionBuyer.notional = 0n;
       
       await expect(
@@ -319,7 +344,7 @@ describe("CDS Swap Lifecycle", function () {
     });
 
     it("should reject invalid start/maturity dates", async function () {
-      const swapParams = createValidSwapParams(user1.address, user2.address);
+      const swapParams = await createValidSwapParams(user1.address, user2.address);
       swapParams.protectionBuyer.start = swapParams.protectionBuyer.maturity;
       
       await expect(
@@ -328,7 +353,7 @@ describe("CDS Swap Lifecycle", function () {
     });
 
     it("should reject start time in the past", async function () {
-      const swapParams = createValidSwapParams(user1.address, user2.address);
+      const swapParams = await createValidSwapParams(user1.address, user2.address);
       swapParams.protectionBuyer.start = Math.floor(Date.now() / 1000) - 3600; // 1 hour ago
       
       await expect(
@@ -337,22 +362,27 @@ describe("CDS Swap Lifecycle", function () {
     });
   });
 
-  function createValidSwapParams(buyer: string, seller: string) {
+  async function createValidSwapParams(buyer: string, seller: string) {
+    // Dynamic timestamps - ensure we're in the future
+    const now = await time.latest();
+    const START = Number(now) + 60; // 1 minute in the future
+    const MATURITY = START + 86400 * 365; // 1 year from start
+    
     return {
       portfolioId: ethers.keccak256(ethers.toUtf8Bytes("test-portfolio")),
       protectionBuyer: {
         counterparty: buyer,
         notional: ethers.parseEther("1000000"), // 1M USDC
         spreadBps: 500, // 5%
-        start: Math.floor(Date.now() / 1000) + 3600, // 1 hour from now
-        maturity: Math.floor(Date.now() / 1000) + 86400 * 365, // 1 year from now
+        start: START,
+        maturity: MATURITY,
       },
       protectionSeller: {
         counterparty: seller,
         notional: ethers.parseEther("1000000"), // 1M USDC
         spreadBps: 500, // 5%
-        start: Math.floor(Date.now() / 1000) + 3600, // 1 hour from now
-        maturity: Math.floor(Date.now() / 1000) + 86400 * 365, // 1 year from now
+        start: START,
+        maturity: MATURITY,
       },
       correlationBps: 7000, // 70%
     };

@@ -1,5 +1,6 @@
 import { expect } from "chai";
 import { ethers, network } from "hardhat";
+import { time } from "@nomicfoundation/hardhat-network-helpers";
 import { keccak256, toUtf8Bytes } from "ethers";
 import { readFileSync } from "fs";
 
@@ -26,12 +27,15 @@ describe("CDS Swap – E2E (replay)", () => {
     const BROKER_ROLE = await engine.BROKER_ROLE();
     await engine.connect(gov).grantRole(BROKER_ROLE, gov.address);
 
-    const now = Math.floor(Date.now() / 1000) + 60; // 1 minute in the future
+    // Dynamic timestamps - ensure we're in the future
+    const now = await time.latest();
+    const START = Number(now) + 60; // 1 minute in the future
+    const MATURITY = START + 30 * 24 * 60 * 60; // 30 days
     const notional = 1_000_000n;
     const proposeTx = await engine.proposeSwap({
       portfolioId,
-      protectionBuyer:  { counterparty: buyer.address,  notional, spreadBps: 80, start: BigInt(now), maturity: BigInt(now + 30*86400) },
-      protectionSeller: { counterparty: seller.address, notional, spreadBps: 80, start: BigInt(now), maturity: BigInt(now + 30*86400) },
+      protectionBuyer:  { counterparty: buyer.address,  notional, spreadBps: 80, start: BigInt(START), maturity: BigInt(MATURITY) },
+      protectionSeller: { counterparty: seller.address, notional, spreadBps: 80, start: BigInt(START), maturity: BigInt(MATURITY) },
       correlationBps: f.correlationBps
     });
     const receipt = await proposeTx.wait();
@@ -40,10 +44,8 @@ describe("CDS Swap – E2E (replay)", () => {
     ).args.swapId;
     await engine.activateSwap(swapId);
 
-    // Advance time to be within quote validity window (use future timestamp)
-    const futureTime = Math.floor(Date.now() / 1000) + 60; // 1 minute in future
-    await network.provider.send("evm_setNextBlockTimestamp", [futureTime]);
-    await network.provider.send("evm_mine");
+    // Advance time to be within quote validity window
+    await time.increaseTo(START + 24 * 60 * 60); // 1 day after start
 
     const settleTx = await engine.settleSwap(swapId, {
       fairSpreadBps: f.fairSpreadBps,

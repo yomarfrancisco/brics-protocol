@@ -1,0 +1,14 @@
+# Global owners
+* @yomarfrancisco
+
+# Smart contracts
+/contracts/ @yomarfrancisco
+
+# Pricing service
+/services/pricing/ @yomarfrancisco
+
+# Compliance service
+/services/compliance/ @yomarfrancisco
+
+# GitHub workflows and configuration
+/.github/ @yomarfrancisco

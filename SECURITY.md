@@ -4,49 +4,84 @@
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 4.0.x   | :white_check_mark: |
-| < 4.0   | :x:                |
+| 0.1.x   | :white_check_mark: |
+| < 0.1.0 | :x:                |
 
 ## Reporting a Vulnerability
 
-We take the security of BRICS Protocol seriously. If you believe you have found a security vulnerability, please report it to us as described below.
+We take security vulnerabilities seriously. If you discover a security issue, please follow these steps:
 
-**Please do not report security vulnerabilities through public GitHub issues.**
+### 1. **DO NOT** create a public GitHub issue
+Security vulnerabilities should be reported privately to prevent exploitation.
 
-Instead, please report them via email to security@bricsprotocol.com (if available) or create a private security advisory on GitHub.
+### 2. **Email us directly**
+Send details to: security@brics-protocol.com
 
-### What to include in your report
+### 3. **Include the following information**
+- Description of the vulnerability
+- Steps to reproduce
+- Potential impact assessment
+- Suggested fix (if any)
+- Your contact information
 
-- Type of issue (buffer overflow, SQL injection, cross-site scripting, etc.)
-- Full paths of source file(s) related to the vulnerability
-- The location of the affected source code (tag/branch/commit or direct URL)
-- Any special configuration required to reproduce the issue
-- Step-by-step instructions to reproduce the issue
-- Proof-of-concept or exploit code (if possible)
-- Impact of the issue, including how an attacker might exploit it
+### 4. **Response timeline**
+- **Initial response**: Within 48 hours
+- **Status update**: Within 7 days
+- **Resolution**: As quickly as possible
 
-### What to expect
+## Security Features
 
-- You will receive acknowledgment of your report within 48 hours
-- We will investigate and provide updates on our findings
-- We will work with you to coordinate disclosure of the vulnerability
+### Bank Data Protection
+- **BANK_DATA_MODE=off by default**: No bank data access unless explicitly enabled
+- **Explicit opt-in required**: Must set `BANK_DATA_MODE=live` for production bank integrations
+- **Provider fencing**: Bank provider throws error unless explicitly enabled
+- **CI safety**: All CI jobs run with bank data disabled
+
+### Smart Contract Security
+- **SafeERC20**: All token transfers use OpenZeppelin's SafeERC20
+- **Reentrancy guards**: Critical paths protected against reentrancy attacks
+- **Role-based access control**: Fine-grained permissions with OpenZeppelin AccessControl
+- **Custom errors**: Gas-optimized error handling
+- **Static analysis**: Slither integration in CI
+
+### Signature Verification
+- **EIP-191 compliance**: All signatures follow Ethereum standard
+- **Oracle verification**: On-chain verification of off-chain signatures
+- **Parity testing**: Off-chain vs on-chain digest verification
+- **Deterministic signing**: Reproducible signatures for testing
 
 ## Security Best Practices
 
-When using BRICS Protocol:
+### For Developers
+1. **Never commit private keys** or sensitive data
+2. **Use environment variables** for configuration
+3. **Test with mock data** in development
+4. **Enable bank data only** when absolutely necessary
+5. **Review all external calls** for security implications
 
-1. **Always verify contract addresses** before interacting with them
-2. **Use the latest version** of the protocol
-3. **Review all transactions** before signing
-4. **Never share private keys** or seed phrases
-5. **Use hardware wallets** for large amounts
-6. **Monitor emergency levels** and protocol status
+### For Users
+1. **Verify contract addresses** before interactions
+2. **Use hardware wallets** for large transactions
+3. **Review transaction data** before signing
+4. **Report suspicious activity** immediately
+
+## Audit Status
+
+- **v0.1.0-rc1**: Internal security review completed
+- **v0.1.0**: External audit planned
 
 ## Responsible Disclosure
 
-We follow responsible disclosure practices and will:
+We follow responsible disclosure practices:
+- Vulnerabilities are fixed before public disclosure
+- Credit is given to reporters in security advisories
+- Coordinated disclosure with affected parties
 
-- Acknowledge receipt of vulnerability reports
-- Provide regular updates on the status of fixes
-- Credit security researchers in our security advisories
-- Coordinate disclosure timing with researchers
+## Security Contacts
+
+- **Security Team**: security@brics-protocol.com
+- **Emergency**: For critical issues, include "URGENT" in subject line
+
+## Bug Bounty
+
+We do not currently offer a formal bug bounty program, but we appreciate security researchers who follow responsible disclosure practices.

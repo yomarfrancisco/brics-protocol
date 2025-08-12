@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.0] - 2025-08-12
+
+### Changed
+- **Promoted rc1 → v0.1.0**: Stabilized release with enhanced security and observability
+- **Added smoke CI**: Fresh-clone validation for reproducible builds
+- **Added SBOM**: Software Bill of Materials for dependency tracking
+- **Enhanced provider fence**: Explicit bank provider guard with logging
+- **Added observability hooks**: Verbose demo output for development debugging
+- **Improved documentation**: CODEOWNERS, CONTRIBUTING, SECURITY guidelines
+
+### Security
+- **Bank provider fencing**: Explicit guard prevents accidental bank data access
+- **License header validation**: Automated checks for SPDX headers
+- **Enhanced security docs**: Clear reporting guidelines and best practices
+
+### CI
+- **Smoke test job**: Fresh-clone validation on PR and main
+- **Release artifacts**: SBOM and demo output generation
+- **License compliance**: Non-blocking header validation
+
 ## [0.1.0-rc1] - 2025-08-12
 
 ### Added

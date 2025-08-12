@@ -127,6 +127,7 @@ export class PricingProviderRecordReplay implements PricingProvider {
 export class PricingProviderBank implements PricingProvider {
   async price(): Promise<QuoteOut> {
     if (BANK_MODE !== "live") {
+      console.log(`Bank provider blocked: BANK_DATA_MODE=${BANK_MODE} (requires BANK_DATA_MODE=live)`);
       throw new Error(`Bank provider disabled (BANK_DATA_MODE=${BANK_MODE}). Set BANK_DATA_MODE=live to enable.`);
     }
     // TODO: real impl later

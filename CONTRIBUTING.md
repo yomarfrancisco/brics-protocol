@@ -1,92 +1,108 @@
 # Contributing to BRICS Protocol
 
-Thank you for your interest in contributing to BRICS Protocol! This document provides guidelines for contributing to the project.
-
-## Getting Started
-
-1. **Fork the repository** on GitHub
-2. **Clone your fork** locally
-3. **Create a feature branch** for your changes
-4. **Make your changes** following the guidelines below
-5. **Test your changes** thoroughly
-6. **Submit a pull request**
+Thank you for your interest in contributing to BRICS Protocol! This document outlines the development process and standards.
 
 ## Development Setup
 
 ```bash
-# Clone your fork
-git clone https://github.com/YOUR_USERNAME/brics-protocol.git
-cd brics-protocol
-
-# Install dependencies
-npm ci
-
-# Build contracts
-npm run build
-
-# Run tests
-npm test
+make bootstrap
 ```
 
-## Code Style Guidelines
+This sets up the complete development environment including Node.js, Python services, and pre-commit hooks.
+
+## Commit Style
+
+We follow [Conventional Commits](https://www.conventionalcommits.org/) format:
+
+```
+<type>[optional scope]: <description>
+
+[optional body]
+
+[optional footer(s)]
+```
+
+### Types
+- `feat`: New feature
+- `fix`: Bug fix
+- `docs`: Documentation changes
+- `style`: Code style changes (formatting, etc.)
+- `refactor`: Code refactoring
+- `test`: Adding or updating tests
+- `chore`: Maintenance tasks
+- `ci`: CI/CD changes
+- `build`: Build system changes
+
+### Examples
+```
+feat(swap): add CDS swap lifecycle management
+fix(pricing): correct signature verification
+docs: update quickstart guide
+ci: add smoke test job
+```
+
+## Pull Request Guidelines
+
+### Size
+- Keep PRs small and focused on a single feature/fix
+- Aim for <500 lines of changes
+- Break large features into multiple PRs
+
+### Requirements
+- All tests must pass: `make test`
+- E2E replay must work: `make e2e-replay`
+- No linting errors
+- Documentation updated if needed
+
+### Process
+1. Create a feature branch from `main`
+2. Make your changes with small, focused commits
+3. Ensure all tests pass locally
+4. Update documentation if needed
+5. Create a PR with clear description
+6. Wait for CI checks to pass
+7. Request review if needed
+
+## Testing Requirements
+
+### Required Tests
+- Unit tests for all new functionality
+- Integration tests for contract interactions
+- E2E tests for complete workflows
+- Parity tests for off-chain/on-chain consistency
+
+### Test Commands
+```bash
+make test              # Run all tests
+make e2e-replay        # Run E2E replay demo
+yarn test --grep "CDS" # Run specific test suite
+```
+
+## Code Standards
 
 ### Solidity
-- Follow the [Solidity Style Guide](https://docs.soliditylang.org/en/v0.8.24/style-guide.html)
-- Use 4 spaces for indentation
-- Maximum line length of 120 characters
-- Use descriptive variable and function names
-- Add comprehensive NatSpec comments for public functions
+- Use OpenZeppelin contracts where possible
+- Follow Solidity style guide
+- Add NatSpec comments for public functions
+- Use custom errors for gas optimization
 
 ### TypeScript/JavaScript
-- Use 2 spaces for indentation
-- Maximum line length of 100 characters
 - Use TypeScript for all new code
 - Follow ESLint configuration
-- Use descriptive variable and function names
+- Add JSDoc comments for public APIs
 
-### General
-- Write clear, descriptive commit messages
-- Keep commits focused and atomic
-- Add tests for new functionality
-- Update documentation as needed
-
-## Testing
-
-- Write unit tests for all new functionality
-- Ensure all existing tests pass
-- Test on multiple networks (localhost, sepolia)
-- Test emergency scenarios and edge cases
-
-## Pull Request Process
-
-1. **Update documentation** if needed
-2. **Add tests** for new functionality
-3. **Ensure all tests pass** locally
-4. **Update the CHANGELOG.md** with your changes
-5. **Submit the PR** with a clear description
-
-## Issue Reporting
-
-When reporting issues, please include:
-
-- **Environment details** (OS, Node.js version, etc.)
-- **Steps to reproduce** the issue
-- **Expected vs actual behavior**
-- **Screenshots or logs** if applicable
-- **Code examples** if relevant
+### Python
+- Follow PEP 8 style guide
+- Add type hints
+- Include docstrings for functions
 
 ## Security
 
-- **Never commit private keys** or sensitive data
-- **Report security vulnerabilities** privately (see SECURITY.md)
-- **Follow security best practices** in your code
+- No bank data integrations by default
+- All external calls use SafeERC20
+- Reentrancy guards on critical paths
+- Role-based access control
 
 ## Questions?
 
-If you have questions about contributing, please:
-
-1. Check the existing documentation
-2. Search existing issues and discussions
-3. Create a new issue with the "question" label
-
-Thank you for contributing to BRICS Protocol!
+Feel free to open an issue for questions about contributing or development setup.

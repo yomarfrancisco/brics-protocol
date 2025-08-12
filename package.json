@@ -1,6 +1,6 @@
 {
   "name": "brics-protocol",
-  "version": "0.1.0-rc1",
+  "version": "0.1.0",
   "private": true,
   "license": "MIT",
   "packageManager": "yarn@4.9.2",

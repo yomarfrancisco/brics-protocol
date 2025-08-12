@@ -1,5 +1,5 @@
 import { getCiSignerWallet, getCiSignerAddress } from "../../utils/signers";
-import { AbiCoder, getBytes } from "ethers";
+import { AbiCoder, keccak256, toUtf8Bytes, getBytes } from "ethers";
 
 // Optional helper: if the frozen fixture looks stale locally, guide the developer.
 // (We don't auto-mutate files in tests; keep mutation in scripts/fixtures/generate.ts only.)
@@ -22,7 +22,6 @@ try {
 import { expect } from "chai";
 import { ethers, network } from "hardhat";
 import { time } from "@nomicfoundation/hardhat-network-helpers";
-import { keccak256, toUtf8Bytes } from "ethers";
 import { readFileSync } from "fs";
 
 const FIX = "pricing-fixtures/ACME-LLC-30-latest.json";
@@ -73,25 +72,28 @@ describe("CDS Swap – E2E (replay)", () => {
     // Advance time to be within quote validity window
     await time.increaseTo(START + 24 * 60 * 60); // 1 day after start
 
-    // IMPORTANT: portfolioId must match fixture generation ("ACME-LLC")
+    // Use *exactly* the same portfolio id as fixture generator uses
     const portfolioId = keccak256(toUtf8Bytes("ACME-LLC"));
 
-    // Use fresh timestamp to avoid QUOTE_STALE_SECONDS rejection
-    const asOf = await time.latest();
+    // Normalize possibly-missing fields from fixture
+    const modelIdHash =
+      f.modelIdHash && /^0x[0-9a-fA-F]{64}$/.test(f.modelIdHash)
+        ? f.modelIdHash
+        : keccak256(toUtf8Bytes(String(f.modelId ?? "MODEL-V1")));
 
-    // Build digest exactly like RiskSignalLib.digest(...)
+    const featuresHash =
+      f.featuresHash && /^0x[0-9a-fA-F]{64}$/.test(f.featuresHash)
+        ? f.featuresHash
+        : keccak256(toUtf8Bytes(JSON.stringify(f.features ?? {})));
+
+    const corr = Number(f.correlationBps ?? 0);
+    const fair = Number(f.fairSpreadBps ?? 0);
+    const asOf = await time.latest(); // avoid QUOTE_STALE_SECONDS
+
     const coder = new AbiCoder();
     const packed = coder.encode(
-      ["bytes32", "uint64", "uint256", "uint16", "uint16", "bytes32", "bytes32"],
-      [
-        portfolioId,
-        asOf,
-        f.riskScore,
-        f.correlationBps,
-        f.fairSpreadBps,
-        f.modelIdHash,
-        f.featuresHash,
-      ]
+      ["bytes32","uint64","uint256","uint16","uint16","bytes32","bytes32"],
+      [portfolioId, asOf, f.riskScore, corr, fair, modelIdHash, featuresHash]
     );
     const digest = keccak256(packed);
 

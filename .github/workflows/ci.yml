@@ -645,7 +645,6 @@ jobs:
         env:
           PRICING_PROVIDER: replay
           BANK_DATA_MODE: off
-          CI_SIGNER_PRIVKEY: ${{ secrets.CI_SIGNER_PRIVKEY }}
         run: |
           PRICING_PROVIDER=replay BANK_DATA_MODE=off yarn test:replay
       - name: Generate SBOM

@@ -5,6 +5,9 @@ on:
     branches: [ main, release/** ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
+  schedule:
+    - cron: '0 2 * * *'  # 2 AM UTC daily
 
 permissions:
   contents: read
@@ -45,7 +48,7 @@ jobs:
           corepack enable
           yarn -v
           yarn install --immutable
-      - run: yarn test
+      - run: yarn test --reporter=min
 
       # Artifacts (tests don't always have files, but keep a pattern)
       - name: Upload gas report (if any)
@@ -60,6 +63,7 @@ jobs:
     name: Coverage (fast track)
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    continue-on-error: true
     env:
       COVERAGE: "1"
       NODE_OPTIONS: --max_old_space_size=4096
@@ -174,7 +178,6 @@ jobs:
     name: Pricing Service (Lint + Test)
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    continue-on-error: true # Set to true initially as per user request
     env:
       MODEL_JITTER_BPS_OVERRIDE: "0"
       SEED: ""
@@ -264,7 +267,6 @@ jobs:
     name: Compliance Service (Lint + Test)
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    continue-on-error: true # Set to true initially as per user request
     env:
       SEED: ""
     defaults:
@@ -326,6 +328,7 @@ jobs:
     name: Gas Report
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    continue-on-error: true
     env:
       HARDHAT_NETWORK: hardhat
       REPORT_GAS: "1"

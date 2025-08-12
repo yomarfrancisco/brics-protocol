@@ -450,6 +450,19 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+  smoke:
+    name: Smoke (Fresh Clone)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+      - run: corepack enable
+      - run: yarn install --frozen-lockfile
+      - run: make bootstrap
+      - run: make e2e-replay
+
   swap-e2e-replay:
     name: Swap E2E (Replay)
     runs-on: ubuntu-latest

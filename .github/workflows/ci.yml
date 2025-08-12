@@ -70,6 +70,28 @@ jobs:
               exit 1
             fi
           fi
+      - name: Check fixture staleness
+        run: |
+          FIXTURE_PATH="pricing-fixtures/ACME-LLC-30-frozen.json"
+          if [ -f "$FIXTURE_PATH" ]; then
+            FIXTURE_ASOF=$(jq -r '.asOf' "$FIXTURE_PATH")
+            CURRENT_TIME=$(date +%s)
+            DAYS_OLD=$(( (CURRENT_TIME - FIXTURE_ASOF) / 86400 ))
+            
+            if [ "$DAYS_OLD" -gt 30 ]; then
+              echo "ERROR: Fixture stale (>30d old, $DAYS_OLD days)"
+              echo "Fixture asOf: $FIXTURE_ASOF"
+              echo "Current time: $CURRENT_TIME"
+              echo "Days old: $DAYS_OLD"
+              echo "Please run: yarn fixtures:freeze && yarn fixtures:hashcheck and commit both files."
+              exit 1
+            else
+              echo "Fixture is fresh ($DAYS_OLD days old)"
+            fi
+          else
+            echo "ERROR: Frozen fixture not found at $FIXTURE_PATH"
+            exit 1
+          fi
       - run: PRICING_PROVIDER=stub BANK_DATA_MODE=off yarn test:unit
 
       # Artifacts (tests don't always have files, but keep a pattern)
@@ -484,6 +506,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20.x'
+          cache: 'yarn'
       - run: corepack enable
       - run: yarn install --frozen-lockfile
       - run: make bootstrap
@@ -501,6 +524,7 @@ jobs:
           CI_SIGNER_PRIVKEY: ${{ secrets.CI_SIGNER_PRIVKEY }}
         run: |
           PRICING_PROVIDER=replay BANK_DATA_MODE=off yarn test:replay
+        continue-on-error: false
 
   swap-e2e-replay:
     name: Swap E2E (Replay)
@@ -512,6 +536,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20.x'
+          cache: 'yarn'
       - run: corepack enable
       - run: yarn install --immutable
       - name: Freeze fixture with pinned signer
@@ -561,6 +586,16 @@ jobs:
       - name: Generate demo output
         run: |
           make e2e-replay > demo_output.sample.json 2>&1 || true
+      - name: Upload frozen fixtures for debugging
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frozen-fixtures-debug
+          path: |
+            pricing-fixtures/*-frozen.json
+            pricing-fixtures/*-frozen.sha256
+          retention-days: 7
+      
       - name: Upload artifacts
         id: upload
         uses: actions/upload-artifact@v4

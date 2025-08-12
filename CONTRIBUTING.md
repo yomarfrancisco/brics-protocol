@@ -106,6 +106,17 @@ To update the Replay fixture:
 4. **Include rationale** in PR description for why fixture was updated
 5. **Do NOT modify frozen fixture in PRs** unless intentionally regenerating
 
+#### Fixture Staleness
+- **30-day guard**: CI fails if frozen fixture is older than 30 days
+- **Weekly auto-rotation**: Automated PRs created every Monday at 02:00 UTC
+- **Manual refresh**: Use the following commands:
+  ```bash
+  export CI_SIGNER_PRIVKEY=<fixed key>
+  yarn hardhat run scripts/fixtures/generate.ts
+  yarn ts-node scripts/freeze-fixture.ts
+  yarn fixtures:hashcheck
+  ```
+
 ## Code Standards
 
 ### Solidity

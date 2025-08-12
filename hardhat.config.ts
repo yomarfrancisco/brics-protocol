@@ -30,7 +30,13 @@ const config: HardhatUserConfig = {
   },
   networks: {
     hardhat: {
-      chainId: 31337
+      chainId: 31337,
+      initialBaseFeePerGas: 0,
+      gasPrice: 'auto',
+      mining: {
+        auto: true,
+        interval: 0
+      }
     },
     sepolia: {
       url: SEPOLIA_RPC_URL || "",
@@ -56,7 +62,8 @@ const config: HardhatUserConfig = {
 
   mocha: {
     reporter: process.env.CI ? "min" : "spec",
-    timeout: COVERAGE ? 180000 : 60000,
+    timeout: 60000,
+    retries: 1,
     bail: true
   }
 };

@@ -1,0 +1,29 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "🔍 Running pre-commit checks..."
+
+# Check for disallowed Hardhat flags
+if git grep -nE -- '--tests|--grep-v' -- package.json; then
+  echo "❌ ERROR: Disallowed Hardhat flags found in package.json"
+  echo "Please remove --tests or --grep-v flags"
+  exit 1
+fi
+
+# Check frozen fixture integrity
+if git diff --cached --name-only | grep -q "pricing-fixtures/ACME-LLC-30-frozen.json"; then
+  if ! git diff --cached --name-only | grep -q "pricing-fixtures/ACME-LLC-30-frozen.sha256"; then
+    echo "❌ ERROR: Frozen fixture modified without hash update"
+    echo "Please run: yarn fixtures:freeze && yarn fixtures:hashcheck"
+    exit 1
+  fi
+  
+  # Verify hash integrity
+  if ! yarn fixtures:hashcheck; then
+    echo "❌ ERROR: Frozen fixture hash mismatch"
+    echo "Please run: yarn fixtures:freeze && yarn fixtures:hashcheck"
+    exit 1
+  fi
+fi
+
+echo "✅ Pre-commit checks passed"

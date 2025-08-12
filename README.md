@@ -4,6 +4,8 @@
 
 [![Replay E2E](https://img.shields.io/badge/Replay%20E2E-✅%20passing%20(required)-brightgreen)](https://github.com/yomarfrancisco/brics-protocol/actions)
 
+Frozen pricing fixture auto-rotates weekly; PRs fail if fixture older than 30 days.
+
 [![Coverage](https://img.shields.io/badge/Coverage-71.68%25%20statements-brightgreen)](https://github.com/yomarfrancisco/brics-protocol/actions)
 
 [![Security](https://img.shields.io/badge/Security-0%20high%20findings-brightgreen)](https://github.com/yomarfrancisco/brics-protocol/security/code-scanning)

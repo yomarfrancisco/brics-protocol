@@ -50,6 +50,7 @@ const RAW_RUNTIME_STATE =
           ["ethers", "npm:6.15.0"],\
           ["hardhat", "virtual:dca5f38531778ef931375af86faa4f41a85908fd15b85ad051bb3ccda0dffa97293dcd9f4ade8e504aa4ee46d3eb8821bb74ff436601f5c472109b368bc9001e#npm:2.26.2"],\
           ["hardhat-gas-reporter", "virtual:dca5f38531778ef931375af86faa4f41a85908fd15b85ad051bb3ccda0dffa97293dcd9f4ade8e504aa4ee46d3eb8821bb74ff436601f5c472109b368bc9001e#npm:1.0.10"],\
+          ["husky", "npm:8.0.3"],\
           ["mocha-junit-reporter", "virtual:dca5f38531778ef931375af86faa4f41a85908fd15b85ad051bb3ccda0dffa97293dcd9f4ade8e504aa4ee46d3eb8821bb74ff436601f5c472109b368bc9001e#npm:2.2.1"],\
           ["prettier", "npm:3.6.2"],\
           ["rimraf", "npm:5.0.10"],\
@@ -2672,6 +2673,7 @@ const RAW_RUNTIME_STATE =
           ["ethers", "npm:6.15.0"],\
           ["hardhat", "virtual:dca5f38531778ef931375af86faa4f41a85908fd15b85ad051bb3ccda0dffa97293dcd9f4ade8e504aa4ee46d3eb8821bb74ff436601f5c472109b368bc9001e#npm:2.26.2"],\
           ["hardhat-gas-reporter", "virtual:dca5f38531778ef931375af86faa4f41a85908fd15b85ad051bb3ccda0dffa97293dcd9f4ade8e504aa4ee46d3eb8821bb74ff436601f5c472109b368bc9001e#npm:1.0.10"],\
+          ["husky", "npm:8.0.3"],\
           ["mocha-junit-reporter", "virtual:dca5f38531778ef931375af86faa4f41a85908fd15b85ad051bb3ccda0dffa97293dcd9f4ade8e504aa4ee46d3eb8821bb74ff436601f5c472109b368bc9001e#npm:2.2.1"],\
           ["prettier", "npm:3.6.2"],\
           ["rimraf", "npm:5.0.10"],\
@@ -4970,6 +4972,15 @@ const RAW_RUNTIME_STATE =
           ["agent-base", "npm:7.1.4"],\
           ["debug", "virtual:420c20cc1d50f04bb302b5bb35e84aba898ad85d3efebcdd482afc6596da5ac8eebcc18c5f27523cc04c159369c52048fdceaf09c39f1cc4ac642010d0c67621#npm:4.4.1"],\
           ["https-proxy-agent", "npm:7.0.6"]\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
+    ["husky", [\
+      ["npm:8.0.3", {\
+        "packageLocation": "../.yarn/berry/cache/husky-npm-8.0.3-b0b59c5127-10c0.zip/node_modules/husky/",\
+        "packageDependencies": [\
+          ["husky", "npm:8.0.3"]\
         ],\
         "linkType": "HARD"\
       }]\

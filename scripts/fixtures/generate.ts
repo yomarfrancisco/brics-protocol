@@ -12,7 +12,10 @@ async function main() {
 
   // Pin all non-deterministic inputs
   const FIXTURE_NAME = "ACME-LLC-30";
-  const asOf = Math.floor(Date.now() / 1000) + 60; // 1 minute in the future
+  
+  // Use seed for deterministic timestamps, fallback to current time
+  const seed = process.env.FIXTURE_SEED ? parseInt(process.env.FIXTURE_SEED) : Date.now();
+  const asOf = Math.floor(seed / 1000) + 60; // 1 minute in the future
   const modelIdHash = ethers.keccak256(ethers.toUtf8Bytes("MODEL_V1"));
   const featuresHash = ethers.keccak256(ethers.toUtf8Bytes("FEATURES_V1"));
   const correlationBps = 3200;

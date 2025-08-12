@@ -78,6 +78,9 @@ describe("CDS Swap E2E Demo", function () {
         fairSpreadBps: fairSpreadBps,
         correlationBps: correlationBps,
         asOf: Math.floor(Date.now() / 1000) - 60, // 1 minute ago (fresh but not future)
+        riskScore: 54,
+        modelIdHash: ethers.ZeroHash,
+        featuresHash: ethers.ZeroHash,
         digest: ethers.ZeroHash, // Simplified for demo
         signature: "0x" // Simplified for demo
       };

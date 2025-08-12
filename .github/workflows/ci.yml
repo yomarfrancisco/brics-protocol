@@ -502,5 +502,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: swap-replay-fixtures
-          path: pricing-fixtures/*.json
+          name: replay-fixture-v0.1.0-rc1
+          path: |
+            pricing-fixtures/ACME-LLC-30-latest.json
+            pricing-fixtures/ACME-LLC-30-latest.sha256

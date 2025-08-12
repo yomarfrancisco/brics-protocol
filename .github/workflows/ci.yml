@@ -48,7 +48,7 @@ jobs:
           corepack enable
           yarn -v
           yarn install --immutable
-      - run: yarn test --reporter=min
+      - run: yarn test
 
       # Artifacts (tests don't always have files, but keep a pattern)
       - name: Upload gas report (if any)
@@ -64,6 +64,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     continue-on-error: true
+    if: github.event_name != 'pull_request'
     env:
       COVERAGE: "1"
       NODE_OPTIONS: --max_old_space_size=4096
@@ -329,6 +330,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     continue-on-error: true
+    if: github.event_name != 'pull_request'
     env:
       HARDHAT_NETWORK: hardhat
       REPORT_GAS: "1"
@@ -355,7 +357,9 @@ jobs:
           corepack enable
           yarn -v
           yarn install --immutable
-      - run: yarn gas
+      - run: REPORT_GAS=true yarn test
+        env:
+          REPORT_GAS: "true"
 
       - name: Upload gas report
         if: always()

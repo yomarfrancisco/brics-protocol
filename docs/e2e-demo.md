@@ -241,6 +241,35 @@ Add `--verbose` flag for detailed logging:
 yarn hardhat swap:demo --obligor ACME-LLC --tenor 30 --asof 1600000000 --notional 1000000 --fixed-spread 80 --verbose
 ```
 
+## Replay Harness
+
+The replay harness provides deterministic end-to-end testing without external dependencies:
+
+### Fixture Generation
+```bash
+# Generate a fresh signed fixture with freshness window
+yarn hardhat pricing:fixture --obligor ACME-LLC --tenor 30
+
+# Output: pricing-fixtures/ACME-LLC-30-latest.json + .sha256
+```
+
+### Checksum Validation
+```bash
+# Verify fixture hasn't drifted
+yarn ts-node scripts/check-fixture-drift.ts pricing-fixtures/ACME-LLC-30-latest.json pricing-fixtures/ACME-LLC-30-latest.sha256
+```
+
+### CI Enforcement
+The CI job enforces:
+- **Signer Parity**: Fixture signer == adapter.riskOracle() (deployed MockPriceOracleAdapter)
+- **Freshness Window**: asOf = NOW - 120s (tolerance for CI time skew)
+- **Checksum Drift**: SHA-256 validation prevents accidental changes
+
+### Determinism Guarantees
+- **TS vs Solidity**: Digest computation matches exactly
+- **Signature Recovery**: ethers.verifyMessage() recovers correct signer
+- **No External Dependencies**: Pure replay from fixtures
+
 ## Next Steps
 
 - Integrate with live Pricing Service

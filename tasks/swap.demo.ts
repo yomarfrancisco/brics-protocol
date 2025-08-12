@@ -85,10 +85,17 @@ task("swap:demo", "End-to-end CDS swap demo with deterministic pricing")
     });
     
     console.log(`✅ Quote generated: ${quote.fairSpreadBps}bps fair, ${quote.correlationBps}bps correlation`);
-    console.log(`📝 Quote details: digest=${quote.digest.slice(0, 10)}..., signer=${quote.signer.slice(0, 10)}...`);
-    console.log(`🔍 Portfolio ID: ${portfolioId}`);
-    console.log(`🔍 Quote digest: ${quote.digest}`);
-    console.log(`🔍 Quote signature: ${quote.signature.slice(0, 20)}...`);
+    
+    // Verbose observability fields (dev-only)
+    if (process.env.DEMO_VERBOSE === "1") {
+      console.log(`🔍 Portfolio ID: ${portfolioId}`);
+      console.log(`🔍 Quote digest: ${quote.digest}`);
+      console.log(`🔍 Quote signer: ${quote.signer}`);
+      console.log(`🔍 Settlement token: USDC`);
+      console.log(`🔍 Settlement mode: SafeERC20`);
+    } else {
+      console.log(`📝 Quote details: digest=${quote.digest.slice(0, 10)}..., signer=${quote.signer.slice(0, 10)}...`);
+    }
 
     // Step 4: Propose swap
     console.log("\n📝 Proposing swap...");
@@ -148,7 +155,15 @@ task("swap:demo", "End-to-end CDS swap demo with deterministic pricing")
       recoveredSigner: deployer.address,
       expectedSigner: deployer.address,
       signatureMatch: deployer.address === deployer.address,
-      status: "Settled"
+      status: "Settled",
+      // Verbose observability fields (dev-only)
+      ...(process.env.DEMO_VERBOSE === "1" && {
+        portfolioId,
+        digest: quote.digest,
+        signer: quote.signer,
+        settlementToken: "USDC",
+        settlementMode: "SafeERC20"
+      })
     };
 
     await hre.fs.writeFile("demo_output.json", JSON.stringify(demoOutput, null, 2));

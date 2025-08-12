@@ -465,6 +465,8 @@ jobs:
       - run: corepack enable
       - run: yarn install --frozen-lockfile
       - run: make bootstrap
+      - name: Generate replay fixture
+        run: yarn fixtures:gen
       - run: make e2e-replay
 
   swap-e2e-replay:

@@ -446,3 +446,24 @@ jobs:
             slither.filtered.sarif
           if-no-files-found: warn
           retention-days: 14
+
+  swap-e2e-replay:
+    name: Swap E2E (Replay)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - run: yarn install --frozen-lockfile
+      - name: Generate replay fixture
+        run: yarn fixtures:gen
+      - name: Run replay E2E (no HTTP, no bank)
+        env:
+          PRICING_PROVIDER: replay
+          PRICING_FIXTURES_DIR: pricing-fixtures
+        run: yarn test --grep "E2E \\(replay\\)"
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: swap-replay-fixtures
+          path: pricing-fixtures/*.json

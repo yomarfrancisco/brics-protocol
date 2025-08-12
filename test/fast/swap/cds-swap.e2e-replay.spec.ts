@@ -4,19 +4,14 @@ import { AbiCoder, keccak256, toUtf8Bytes, getBytes } from "ethers";
 // add near top (after imports)
 const HEX32 = /^0x[0-9a-fA-F]{64}$/;
 
-function asHex32(v: unknown, fallback: string): string {
-  return typeof v === "string" && HEX32.test(v) ? v : fallback;
-}
+const asHex32 = (maybeHex: unknown, fallback: string) =>
+  (typeof maybeHex === "string" && HEX32.test(maybeHex)) ? maybeHex : fallback;
 
-function hashUtf8(input: unknown, fallbackText: string): string {
-  const txt =
-    input === null || input === undefined
-      ? fallbackText
-      : typeof input === "string"
-      ? input
-      : JSON.stringify(input);
-  return keccak256(toUtf8Bytes(txt));
-}
+const hashUtf8 = (val: unknown, def: string) =>
+  keccak256(toUtf8Bytes(String(val ?? def)));
+
+const hashJson = (val: unknown, defObj: object) =>
+  keccak256(toUtf8Bytes(JSON.stringify(val ?? defObj)));
 
 // Optional helper: if the frozen fixture looks stale locally, guide the developer.
 // (We don't auto-mutate files in tests; keep mutation in scripts/fixtures/generate.ts only.)
@@ -89,33 +84,29 @@ describe("CDS Swap – E2E (replay)", () => {
     // Advance time to be within quote validity window
     await time.increaseTo(START + 24 * 60 * 60); // 1 day after start
 
-    // Use *exactly* the same portfolio id as fixture generator uses
+    // Use exactly the same portfolio id as fixture generator
     const portfolioId = keccak256(toUtf8Bytes("ACME-LLC"));
 
-    // Normalise possibly-missing fields from the fixture
-    const risk = BigInt(f?.riskScore ?? 0);               // uint256
-    const corr = Number(f?.correlationBps ?? 0);          // uint16
-    const fair = Number(f?.fairSpreadBps ?? 0);           // uint16
-    const asOf = Number(await time.latest());             // uint64
+    // Normalize every field coming from JSON (types can be string/null)
+    const risk = BigInt(f?.riskScore ?? 0);
+    const corr = Math.max(0, Math.min(65535, Number(f?.correlationBps ?? 0)));
+    const fair = Math.max(0, Math.min(65535, Number(f?.fairSpreadBps ?? 0)));
+    const asOf  = Number(await time.latest()); // avoid QUOTE_STALE_SECONDS
 
-    const modelIdHashNorm = asHex32(
-      f?.modelIdHash,
-      hashUtf8(f?.modelId ?? "MODEL-V1", "MODEL-V1")
-    );
-    const featuresHashNorm = asHex32(
-      f?.featuresHash,
-      hashUtf8(f?.features ?? {}, "{}")
-    );
+    // bytes32 fields: accept valid 0x…64, else derive stable fallbacks
+    const modelIdHashNorm   = asHex32(f?.modelIdHash,   hashUtf8(f?.modelId ?? "MODEL-V1", "MODEL-V1"));
+    const featuresHashNorm  = asHex32(f?.featuresHash,  hashJson(f?.features ?? {}, {}));
 
-    const coder = new AbiCoder();
+    // Build digest exactly like the contract expects
+    const coder  = new AbiCoder();
     const packed = coder.encode(
-      ["bytes32", "uint64", "uint256", "uint16", "uint16", "bytes32", "bytes32"],
+      ["bytes32","uint64","uint256","uint16","uint16","bytes32","bytes32"],
       [portfolioId, asOf, risk, corr, fair, modelIdHashNorm, featuresHashNorm]
     );
     const digest = keccak256(packed);
 
-    // Sign the digest with the same signer address we wired into the oracle
-    const wallet = getCiSignerWallet();
+    // Sign the digest with the CI/dev signer (same address you passed to the oracle)
+    const wallet    = getCiSignerWallet();
     const signature = await wallet.signMessage(getBytes(digest));
 
 
@@ -123,16 +114,17 @@ describe("CDS Swap – E2E (replay)", () => {
 
 
 
+    // Submit to engine using the *same normalized values*
     await expect(
       engine.settleSwap(swapId, {
-        fairSpreadBps: fair,
+        fairSpreadBps:  fair,
         correlationBps: corr,
         asOf,
-        riskScore: risk,
-        modelIdHash: modelIdHashNorm,
-        featuresHash: featuresHashNorm,
+        riskScore:      risk,
+        modelIdHash:    modelIdHashNorm,
+        featuresHash:   featuresHashNorm,
         digest,
-        signature,
+        signature
       })
     ).to.emit(engine, "SwapSettled");
   });

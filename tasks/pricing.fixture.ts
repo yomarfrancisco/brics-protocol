@@ -1,59 +1,75 @@
 import { task } from "hardhat/config";
-import { keccak256, toUtf8Bytes, AbiCoder, getBytes, Wallet, hexlify } from "ethers";
+import { AbiCoder, keccak256, toUtf8Bytes, getBytes } from "ethers";
 import { mkdirSync, writeFileSync } from "fs";
 import { join } from "path";
 
-task("pricing:fixture", "Generate a signed pricing quote fixture")
-  .addParam("obligor", "Obligor ID (e.g. ACME-LLC)")
-  .addParam("tenor", "Tenor days", undefined, undefined, true)
-  .addParam("asof", "Unix seconds asOf", undefined, undefined, true)
-  .addParam("out", "Output directory (default: pricing-fixtures)", "pricing-fixtures")
-  .setAction(async (args, hre) => {
-    const obligorId: string = args.obligor;
-    const tenorDays: number = Number(args.tenor ?? 30);
-    const asOf: number = Number(args.asof ?? 1700000000);
-    const outDir: string = args.out || "pricing-fixtures";
+const coder = new AbiCoder();
 
-    const modelId = "baseline-v0";
-    const modelIdHash = keccak256(toUtf8Bytes(modelId));
-    const features = { size: 1.2, leverage: 0.5 }; // deterministic minimal set
-    const featuresJson = `{${Object.keys(features).sort().map(k=>`"${k}":${Number((features as any)[k])}`).join(",")}}`;
-    const featuresHash = keccak256(toUtf8Bytes(featuresJson));
+function abiDigest(p: any) {
+  const encoded = coder.encode(
+    ["bytes32","uint64","uint256","uint16","uint16","bytes32","bytes32"],
+    [p.portfolioId, p.asOf, p.riskScore, p.correlationBps, p.spreadBps, p.modelIdHash, p.featuresHash]
+  );
+  return keccak256(encoded);
+}
 
-    const portfolioId = keccak256(toUtf8Bytes(obligorId));
-    const riskScore = 54n;
-    const fairSpreadBps = 71;
-    const correlationBps = 1103;
+task("pricing:fixture", "Generate replay fixture with real signature")
+  .addParam("obligor")
+  .addParam("tenor")
+  .addParam("asof")
+  .setAction(async ({ obligor, tenor, asof }, hre) => {
+    const [signer] = await hre.ethers.getSigners(); // must be the oracle signer
+    const portfolioId = keccak256(toUtf8Bytes(obligor));
+    // Build your modelIdHash, featuresHash exactly like service does:
+    const modelIdHash = keccak256(toUtf8Bytes("baseline-v0"));
+    const featuresCanonical = `{"countryRisk":0.2,"dataQuality":0.8,"fxExposure":0.1,"industryStress":0.4,"leverage":0.5,"modelShift":0.1,"size":1.2,"volatility":0.3,"collateralQuality":0.7}`;
+    const featuresHash = keccak256(toUtf8Bytes(featuresCanonical));
 
-    // Digest = keccak256(abi.encode(bytes32,uint64,uint256,uint16,uint16,bytes32,bytes32))
-    const coder = new AbiCoder();
-    const enc = coder.encode(
-      ["bytes32","uint64","uint256","uint16","uint16","bytes32","bytes32"],
-      [portfolioId, BigInt(asOf), riskScore, correlationBps, fairSpreadBps, modelIdHash, featuresHash]
-    );
-    const digest = keccak256(getBytes(enc));
-
-    // Use deterministic oracle key (same as parity tests)
-   const oracleKey = new Wallet("0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d");
-    const signer = oracleKey.address;
-
-    // SIGN RAW DIGEST (Solidity adds EIP-191 prefix when recovering)
-    const sig = await oracleKey.signingKey.sign(digest);
-    const v = sig.v >= 27 ? sig.v : sig.v + 27;
-    const r = hexlify(sig.r);
-    const s = hexlify(sig.s);
-    const signature = r + s.slice(2) + (v === 27 ? "1b" : "1c");
-
-    const payload = {
-      obligorId, tenorDays, asOf,
-      fairSpreadBps, correlationBps,
-      riskScore: Number(riskScore),
-      modelIdHash, featuresHash,
-      digest, signature, signer
+    const quote = {
+      portfolioId,
+      asOf: Number(asof),
+      riskScore: 54n,                // or your chosen EL_bps integer
+      correlationBps: 1103,
+      spreadBps: 71,
+      modelIdHash,
+      featuresHash,
     };
 
+    const digest = abiDigest(quote);
+    const signature = await signer.signMessage(hre.ethers.getBytes(digest));
+
+    console.log("FIXTURE_DEBUG", JSON.stringify({
+      portfolioId,
+      asOf: quote.asOf,
+      riskScore: quote.riskScore.toString(),
+      correlationBps: quote.correlationBps,
+      spreadBps: quote.spreadBps,
+      modelIdHash,
+      featuresHash,
+      digest,
+      signer: await signer.getAddress(),
+      sigLen: signature.length,
+      signature
+    }, null, 2));
+
+    // write JSON fixture exactly as your replay provider expects
+    const payload = {
+      obligorId: obligor,
+      tenorDays: Number(tenor),
+      asOf: quote.asOf,
+      fairSpreadBps: quote.spreadBps,
+      correlationBps: quote.correlationBps,
+      riskScore: Number(quote.riskScore),
+      modelIdHash,
+      featuresHash,
+      digest,
+      signature,
+      signer: await signer.getAddress()
+    };
+
+    const outDir = "pricing-fixtures";
     mkdirSync(outDir, { recursive: true });
-    const file = join(outDir, `${obligorId}-${tenorDays}-${asOf}.json`);
+    const file = join(outDir, `${obligor}-${tenor}-${asof}.json`);
     writeFileSync(file, JSON.stringify(payload, null, 2));
     console.log("Fixture written:", file);
   });

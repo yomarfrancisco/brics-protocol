@@ -26,6 +26,7 @@
     "fixtures:gen": "ts-node scripts/fixtures/generate.ts",
     "fixtures:ci": "FIXTURE_SEED=42 yarn fixtures:freeze",
     "fixtures:freeze": "hardhat run scripts/fixtures/generate.ts && ts-node scripts/freeze-fixture.ts && yarn fixtures:hashcheck",
+    "validate:env": "ts-node scripts/validate-ci-env.ts",
     "fixtures:hashcheck": "ts-node scripts/verify-fixture-hash.ts",
     "fixtures:summary": "ts-node scripts/print-fixture-summary.ts",
     "lint:sol": "solhint 'contracts/**/*.sol'",

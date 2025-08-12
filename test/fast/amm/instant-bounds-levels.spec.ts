@@ -1,6 +1,7 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import { Contract, Signer } from "ethers";
+import { fundUSDC } from "../../utils/fundUSDC";
 
 describe("InstantLane - Level-Aware Price Bounds", () => {
   let usdc: Contract;
@@ -58,9 +59,10 @@ describe("InstantLane - Level-Aware Price Bounds", () => {
     // Deploy InstantLane with PMM
     laneWithPmm = await InstantLane.deploy(brics, usdc, oracle, members, amm, config, pmm);
 
-    // Setup: Fund lane with USDC buffer, mint BRICS to member
-    await usdc.mint(lane, USDC_6 * 100n); // 100k USDC buffer (enough for max price)
-    await usdc.mint(laneWithPmm, USDC_6 * 100n); // 100k USDC buffer (enough for max price)
+    // Setup: Fund all participants with sufficient USDC using the helper
+    await fundUSDC(usdc, [lane, laneWithPmm, memberAddr, amm, pmm], { amount: 2_000_000 }); // 2M USDC each to cover max price scenarios
+    
+    // Mint BRICS to member
     await brics.mint(memberAddr, TOKENS_18 * 10n); // 10k BRICS tokens
 
     // Approve lane to spend member's BRICS
@@ -71,6 +73,8 @@ describe("InstantLane - Level-Aware Price Bounds", () => {
   describe("Emergency Level 0 (Normal)", () => {
     beforeEach(async () => {
       await config.setUint(ethers.keccak256(ethers.toUtf8Bytes("emergency.level")), 0);
+      // Re-fund the lane for each test to ensure sufficient USDC
+      await fundUSDC(usdc, [lane, laneWithPmm], { amount: 1_000_000 }); // 1M USDC each
     });
 
     it("should allow swaps within L0 bounds [9800..10200]", async () => {
@@ -122,6 +126,8 @@ describe("InstantLane - Level-Aware Price Bounds", () => {
   describe("Emergency Level 1 (Amber)", () => {
     beforeEach(async () => {
       await config.setUint(ethers.keccak256(ethers.toUtf8Bytes("emergency.level")), 1);
+      // Re-fund the lane for each test to ensure sufficient USDC
+      await fundUSDC(usdc, [lane, laneWithPmm], { amount: 1_000_000 }); // 1M USDC each
     });
 
     it("should allow swaps within L1 bounds [9900..10100]", async () => {
@@ -172,6 +178,8 @@ describe("InstantLane - Level-Aware Price Bounds", () => {
   describe("Emergency Level 2 (Red)", () => {
     beforeEach(async () => {
       await config.setUint(ethers.keccak256(ethers.toUtf8Bytes("emergency.level")), 2);
+      // Re-fund the lane for each test to ensure sufficient USDC
+      await fundUSDC(usdc, [lane, laneWithPmm], { amount: 1_000_000 }); // 1M USDC each
     });
 
     it("should allow swaps within L2 bounds [9975..10025]", async () => {
@@ -223,6 +231,8 @@ describe("InstantLane - Level-Aware Price Bounds", () => {
     beforeEach(async () => {
       await config.setUint(ethers.keccak256(ethers.toUtf8Bytes("emergency.level")), 3);
       await config.setUint(ethers.keccak256(ethers.toUtf8Bytes("instant.price.disable.at.level")), 3);
+      // Re-fund the lane for each test to ensure sufficient USDC
+      await fundUSDC(usdc, [lane, laneWithPmm], { amount: 1_000_000 }); // 1M USDC each
     });
 
     it("should revert IL_LEVEL when emergency level >= disable level", async () => {
@@ -285,6 +295,8 @@ describe("InstantLane - Level-Aware Price Bounds", () => {
   describe("PMM Routing", () => {
     beforeEach(async () => {
       await config.setUint(ethers.keccak256(ethers.toUtf8Bytes("emergency.level")), 0);
+      // Re-fund the lane for each test to ensure sufficient USDC
+      await fundUSDC(usdc, [lane, laneWithPmm], { amount: 1_000_000 }); // 1M USDC each
     });
 
     it("should use PMM when available and price within bounds", async () => {

@@ -46,26 +46,29 @@ describe("CDS Swap – E2E (replay)", () => {
     ).args.swapId;
     await engine.activateSwap(swapId);
 
-    // 2) Ensure chain time is inside freshness window
-    const now = await time.latest();
-    const target = Number(FIXTURE.asOf) + 60;              // a little after asOf
-    if (now < BigInt(target)) {
+    // 2) Ensure chain time is inside freshness window and after swap start
+    const currentTime = await time.latest();
+    const quoteTarget = Number(FIXTURE.asOf) + 60;              // a little after asOf
+    const swapTarget = START + 24 * 60 * 60;                    // 1 day after swap start
+    const target = Math.max(quoteTarget, swapTarget);           // whichever is later
+    
+    if (currentTime < BigInt(target)) {
       await time.increaseTo(target);
     }
     
     // 3) (Optional but helpful) sanity: engine.verifyQuote must pass
     const ok = await engine.verifyQuote(
       {
-        portfolioId: FIXTURE.portfolioId,
+        fairSpreadBps: FIXTURE.fairSpreadBps,
+        correlationBps: FIXTURE.correlationBps,
         asOf: FIXTURE.asOf,
         riskScore: FIXTURE.riskScore,
-        correlationBps: FIXTURE.correlationBps,
-        spreadBps: FIXTURE.spreadBps,
         modelIdHash: FIXTURE.modelIdHash,
         featuresHash: FIXTURE.featuresHash,
+        digest: FIXTURE.digest,
         signature: FIXTURE.signature
       },
-      FIXTURE.portfolioId
+      portfolioId
     );
     expect(ok).to.equal(true);
 

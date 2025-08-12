@@ -98,6 +98,34 @@ The Replay E2E tests use deterministic fixtures and signers for consistent resul
 - **Replay tests must pass locally** before submitting PRs
 - **CI signer is pinned** for deterministic results
 
+## Reproducing a Replay Locally
+
+```bash
+corepack enable
+corepack prepare yarn@4.9.2 --activate
+yarn install --immutable
+
+Set signer (optional; helpers will safely fallback if unset):
+
+export CI_SIGNER_PRIVKEY=0x...   # never commit or echo this
+
+Verify fixtures:
+
+yarn fixtures:hashcheck
+
+Run replay:
+
+PRICING_PROVIDER=replay BANK_DATA_MODE=off yarn test -g "replay"
+# or:
+scripts/repro/replay.sh
+
+Deterministic fixtures (CI):
+
+FIXTURE_SEED=42 yarn fixtures:freeze
+
+Artifacts from CI (replay-artifacts-<run_id>) include fixtures, build artifacts, and REPRO.md.
+We never log private keys; helpers validate env and fall back safely.
+
 #### Updating Replay Fixture
 To update the Replay fixture:
 1. Set `export CI_SIGNER_PRIVKEY=<your-fixed-key>`

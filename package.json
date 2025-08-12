@@ -11,6 +11,8 @@
     "test:unit": "hardhat test --grep '(unit|fast|invariants|integration)'",
     "test:replay": "hardhat test --grep 'replay'",
     "test:replay:local": "CI_SIGNER_PRIVKEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 hardhat test --grep 'replay'",
+    "test:prop": "PRICING_PROVIDER=replay BANK_DATA_MODE=off hardhat test --grep 'property'",
+    "test:invariants": "PRICING_PROVIDER=replay BANK_DATA_MODE=off hardhat test --grep 'invariant'",
     "gas": "REPORT_GAS=1 hardhat test",
     "coverage": "COVERAGE=1 hardhat coverage --solcoverjs ./.solcover.js",
     "coverage:heavy": "COVERAGE=1 COVERAGE_HEAVY=1 hardhat coverage --solcoverjs ./.solcover.js",

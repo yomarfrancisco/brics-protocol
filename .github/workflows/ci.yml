@@ -564,8 +564,6 @@ jobs:
           yarn install --immutable
       - run: make bootstrap
       - name: Freeze fixture with pinned signer
-        env:
-          CI_SIGNER_PRIVKEY: ${{ secrets.CI_SIGNER_PRIVKEY }}
         run: |
           yarn fixtures:freeze
       - name: Verify frozen fixture hash
@@ -574,7 +572,6 @@ jobs:
         env:
           PRICING_PROVIDER: replay
           BANK_DATA_MODE: off
-          CI_SIGNER_PRIVKEY: ${{ secrets.CI_SIGNER_PRIVKEY }}
         run: |
           PRICING_PROVIDER=replay BANK_DATA_MODE=off yarn test:replay
         continue-on-error: false
@@ -614,8 +611,6 @@ jobs:
         run: |
           yarn install --immutable
       - name: Freeze fixture with pinned signer
-        env:
-          CI_SIGNER_PRIVKEY: ${{ secrets.CI_SIGNER_PRIVKEY }}
         run: |
           yarn fixtures:freeze
       - name: Verify frozen fixture hash

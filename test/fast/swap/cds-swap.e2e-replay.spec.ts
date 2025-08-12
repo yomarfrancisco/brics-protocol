@@ -1,5 +1,5 @@
 // Use the shared helper which already handles CI secret or dev fallback
-import { getCiSigner } from "../../utils/signers";
+import { getCiSigner, getCiSignerAddress } from "../../utils/signers";
 
 // Optional helper: if the frozen fixture looks stale locally, guide the developer.
 // (We don't auto-mutate files in tests; keep mutation in scripts/fixtures/generate.ts only.)
@@ -28,6 +28,13 @@ import { readFileSync } from "fs";
 const FIX = "pricing-fixtures/ACME-LLC-30-latest.json";
 
 describe("CDS Swap – E2E (replay)", () => {
+  let signer: string;
+
+  before(async () => {
+    // This reads CI_SIGNER_PRIVKEY if present, otherwise falls back to the dev key.
+    signer = getCiSignerAddress();
+  });
+
   it("settles with replayed signed quote", async () => {
     const f = JSON.parse(readFileSync(FIX, "utf8"));
     // Use fixture name as obligorId if not present
@@ -38,9 +45,9 @@ describe("CDS Swap – E2E (replay)", () => {
     const Engine = await ethers.getContractFactory("CdsSwapEngine");
     const engine = await Engine.deploy(gov.address); await engine.waitForDeployment();
 
-    // Deploy MockPriceOracleAdapter with the fixture signer
+    // Deploy MockPriceOracleAdapter with the signer from helper
     const MockPriceOracle = await ethers.getContractFactory("MockPriceOracleAdapter");
-    const mockOracle = await MockPriceOracle.deploy(f.signer);
+    const mockOracle = await MockPriceOracle.deploy(signer);
     await mockOracle.waitForDeployment();
     
     // set oracle adapter

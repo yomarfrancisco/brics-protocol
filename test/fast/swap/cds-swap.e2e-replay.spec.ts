@@ -1,3 +1,30 @@
+// Preflight for CI clarity: if we are in CI and no signer is present, fail early with a helpful message.
+// Locally, prefer `yarn test:replay:local` which injects a deterministic key.
+const inCI = !!process.env.GITHUB_ACTIONS;
+if (inCI && !process.env.CI_SIGNER_PRIVKEY) {
+  // eslint-disable-next-line no-throw-literal
+  throw new Error(
+    "Replay preflight: CI_SIGNER_PRIVKEY is not set. Configure the GitHub secret or run locally via `yarn test:replay:local`."
+  );
+}
+
+// Optional helper: if the frozen fixture looks stale locally, guide the developer.
+// (We don't auto-mutate files in tests; keep mutation in scripts/fixtures/generate.ts only.)
+import fs from "node:fs";
+const FIXTURE_PATH = "pricing-fixtures/ACME-LLC-30-frozen.json";
+try {
+  const s = JSON.parse(fs.readFileSync(FIXTURE_PATH, "utf8"));
+  const now = Math.floor(Date.now() / 1000);
+  if (!inCI && typeof s.asOf === "number" && now - s.asOf > 60 * 60 * 24 * 5) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      "[replay] Frozen fixture may be stale locally (>5 days old). If tests fail on staleness, run `yarn fixtures:freeze`."
+    );
+  }
+} catch {
+  // ignore if fixture path changed; core tests will surface a clear error
+}
+
 import { expect } from "chai";
 import { ethers, network } from "hardhat";
 import { time } from "@nomicfoundation/hardhat-network-helpers";
@@ -9,7 +36,9 @@ const FIX = "pricing-fixtures/ACME-LLC-30-latest.json";
 describe("CDS Swap – E2E (replay)", () => {
   it("settles with replayed signed quote", async () => {
     const f = JSON.parse(readFileSync(FIX, "utf8"));
-    const portfolioId = keccak256(toUtf8Bytes(f.obligorId));
+    // Use fixture name as obligorId if not present
+    const obligorId = f.obligorId || f.name || "ACME-LLC-30";
+    const portfolioId = keccak256(toUtf8Bytes(obligorId));
 
     const [gov, buyer, seller] = await ethers.getSigners();
     const Engine = await ethers.getContractFactory("CdsSwapEngine");

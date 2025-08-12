@@ -1,0 +1,89 @@
+# Dual-Lane Redemptions Sequence Diagram
+
+## Instant Lane Flow
+```
+Member → NASASAGateway.redeem(amount, INSTANT)
+    ↓
+Check member gating & daily cap
+    ↓
+PreTrancheBuffer.availableInstantCapacity()
+    ↓
+if (capacity >= amount)
+    PreTrancheBuffer.instantRedeem(member, amount)
+    source = "BUFFER"
+else
+    AMM/PMM swap with slippage bounds
+    source = "AMM"
+    ↓
+Emit InstantRedeemed(member, amount, usdcPaid, source)
+```
+
+## Primary Lane Flow
+```
+Member → NASASAGateway.redeem(amount, PRIMARY)
+    ↓
+Check member gating & freeze window
+    ↓
+Burn BRICS tokens from member
+    ↓
+RedemptionClaim.mint(member, amount, strikeTs, PRIMARY)
+    ↓
+RedemptionQueue.enqueue(claimId, member, amount, strikeTs)
+    ↓
+Emit PrimaryQueued(member, claimId, amount, strikeTs)
+    ↓
+[Wait for month-end strike]
+    ↓
+OPS → NASASAGateway.processMonthEndStrike()
+    ↓
+Get NAV from NAVOracleV3
+    ↓
+Calculate pro-rata if over redeemCapBps
+    ↓
+For each claim:
+    RedemptionClaim.markSettled(claimId, usdcOwed, timestamp)
+    ↓
+Emit StrikeProcessed(timestamp, navRay, queuedCount, proRataBps)
+    ↓
+[Wait for T+5 settlement window]
+    ↓
+Member → NASASAGateway.settleClaim(claimId)
+    ↓
+Check settlement window & claim ownership
+    ↓
+RedemptionClaim.settleAndBurn(claimId)
+    ↓
+Treasury.pay(member, usdcOwed)
+    ↓
+Emit ClaimSettled(member, claimId, usdcOwed)
+```
+
+## Emergency State Integration
+```
+ConfigRegistry.emergencyLevel()
+    ↓
+NORMAL/YELLOW: 24h freeze window
+ORANGE: 48h freeze window
+RED: 72h freeze window
+    ↓
+AMM slippage bounds scale with emergency level
+    ↓
+Issuance halted in RED state
+    ↓
+Sovereign claim triggers if junior layers exhausted
+```
+
+## Key Events
+- `Minted(to, usdcIn, tokensOut, navRay, timestamp)`
+- `InstantRedeemed(member, tokenAmount, usdcPaid, source, timestamp)`
+- `PrimaryQueued(member, claimId, tokenAmount, strikeTs)`
+- `StrikeProcessed(timestamp, navRay, queuedCount, proRataBps)`
+- `ClaimSettled(member, claimId, usdcPaid)`
+- `NextStrikeSet(timestamp)`
+
+## Emergency State Parameters
+- AMM Slippage: NORMAL ±0.5%, YELLOW ±1.5%, ORANGE ±2.5%, RED ±5%
+- IRB Targets: NORMAL 3%, YELLOW 5%, ORANGE 8%, RED 12%
+- Freeze Windows: NORMAL/YELLOW 24h, ORANGE 48h, RED 72h
+- Daily Instant Cap: $50K per member (UTC reset)
+- Redeem Cap: 25% of total supply (pro-rata threshold)

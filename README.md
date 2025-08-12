@@ -74,6 +74,19 @@ Bank Equity (0-5% first loss)
 - **OperationalAgreement**: Membership management
 - **MezzanineVault**: ERC-4626 vault for mezzanine tranche
 
+## 📚 **Where to Start**
+
+### 🎯 **Essential Documentation**
+- **[AI Context](docs/AI_CONTEXT.md)** - Complete system overview and developer context
+- **[Core Specification](docs/BRICS_SPEC_CORE.md)** - Detailed protocol specification and architecture
+- **[Mission Tracker](docs/MISSION_TRACKER.md)** - Implementation progress and objectives
+- **[APIs](docs/APIs.md)** - API documentation and integration guides
+
+### 🔧 **Operational Documentation**
+- **[Admin Scripts](docs/ADMIN-SCRIPTS.md)** - Operational runbooks and CLI scripts
+- **[Sovereign Operations](docs/SOVEREIGN_OPS.md)** - Sovereign claim management and legal procedures
+- **[NASASA Gateway](docs/NASASA_GATEWAY.md)** - Gateway contract documentation and flows
+
 ## 🚀 **Quick Start**
 
 ### Prerequisites

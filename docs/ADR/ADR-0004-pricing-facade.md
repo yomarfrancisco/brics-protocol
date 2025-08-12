@@ -27,7 +27,7 @@ interface PricingProvider {
 |----------|----------|---------------|-----------|
 | `stub` | CI, testing | ❌ | ❌ |
 | `fastapi` | Local dev, staging | ✅ (local) | ❌ |
-| `replay` | Dev parity, debugging | ❌ | ❌ |
+| `replay` | Dev parity, debugging, CI E2E | ❌ | ❌ |
 | `bank` | Production | ✅ | ✅ (when enabled) |
 
 ### Environment Flags
@@ -97,6 +97,7 @@ const corr = 1000 + (h[1] % 8000);       // 10%..90%
 - **CI Guards**: Required jobs use stub provider
 - **Signature Parity**: Same verification logic across providers
 - **Clear Documentation**: Provider matrix and usage examples
+- **Replay E2E**: Deterministic CI job uses replay provider with fixture checksums
 
 ## Migration
 1. **Phase 1**: Implement facade with stub provider

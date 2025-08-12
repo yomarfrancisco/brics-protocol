@@ -15,6 +15,12 @@ On-chain synthetic securitization system. BRICS ERC-20 = super-senior tranche (1
 - **NAVOracleV3.sol** — Quorum-signed NAV; degradation mode; emergency signers (NASASA, Old Mutual).
 - **TrancheManagerV2.sol** — Maintains detachment band; guarded raises; RED state soft-cap to 105% with sovereign confirmation.
 
+### NASASA Gateway & Dual-Lane Redemptions (v4.0)
+- **NASASAGateway.sol** — Single entry point for mint/redeem; enforces member gating, daily caps, emergency rules.
+- **RedemptionQueue.sol** — FIFO queue for primary lane claims; pure accounting, no funds movement.
+- **InstantLane.sol** — Pre-Tranche Buffer → AMM/PMM routing with slippage bounds.
+- **PrimaryLane.sol** — Monthly NAV strike with ERC-1155 RedemptionClaim, T+5 settlement.
+
 ### Liquidity & Risk Management
 - **PreTrancheBuffer.sol** — USDC buffer for instant redeems; $10M target; $50K/member/day cap.
 - **IssuanceControllerV3.sol** — canIssue() checks tail corr, sov util, IRB, caps; mints at NAV; redemption queue + instant via Pre-Tranche Buffer.
@@ -30,6 +36,7 @@ On-chain synthetic securitization system. BRICS ERC-20 = super-senior tranche (1
 - **Emergency assessment engine** — returns NORMAL/YELLOW/ORANGE/RED.
 - **Buffer calculator** — IRB target by state; sovereign bridge sizing.
 - **Degraded NAV logic** — last-known NAV + growth cap + stress multiplier.
+- **Risk FastAPI** — aggregate-only feeds: /nav/latest, /emergency/level, /emergency/buffers, /risk/aggregate.
 
 ## Emergency State Logic
 - **NORMAL**: IRB 3%, AMM ±0.5%, issuance 100%.
@@ -37,12 +44,52 @@ On-chain synthetic securitization system. BRICS ERC-20 = super-senior tranche (1
 - **ORANGE**: IRB 8%, AMM ±2.5%, issuance 50%.
 - **RED**: IRB 12%, AMM ±5%, issuance halt, detachment up to 105% (requires sovereign confirmation).
 
+## Dual-Lane Redemption System (v4.0)
+
+### Instant Lane
+- **Source Priority**: Pre-Tranche Buffer → AMM/PMM (if buffer insufficient)
+- **Daily Cap**: $50K per member (UTC reset)
+- **AMM Bounds**: ConfigRegistry.getCurrentParams().ammMaxSlippageBps
+- **Emergency Rules**: Slippage bounds scale with emergency level
+
+### Primary Lane
+- **Process**: Monthly NAV strike with ERC-1155 RedemptionClaim
+- **Freeze Windows**: NORMAL/YELLOW 24h, ORANGE 48h, RED 72h pre-strike
+- **Settlement**: T+5 window after strike processing
+- **Pro-rata**: Applied if total exceeds ConfigRegistry.redeemCapBps (default 25%)
+
+## AMM/PMM Price Bounds (v4.0)
+- **Member-only**: All swaps require MemberRegistry.isMember()
+- **Bounds by Emergency Level**:
+  - NORMAL: ±0.5% (500 bps)
+  - YELLOW: ±1.5% (1500 bps)
+  - ORANGE: ±2.5% (2500 bps)
+  - RED: ±5% (5000 bps)
+- **Enforcement**: ConfigRegistry.getCurrentParams().ammMaxSlippageBps
+- **Pause Paths**: Emergency pause disables AMM routing
+
+## Oracle Operations & Degradation (v4.0)
+- **Multi-sig Signers**: Quorum rotation with NASASA + Old Mutual
+- **Model Hash Versioning**: NAVOracleV3.modelHash for version tracking
+- **Degradation Triggers**:
+  - Stale > threshold (2h/6h/24h)
+  - Quorum unavailable
+  - Model mismatch
+- **Degraded NAV**: lastKnownNAV + growthCap + stressMultiplier
+- **Emergency NAV Path**: Conservative failover with static detachment
+
+## Adaptive Issuance Controls (v4.0)
+- **Detachment Monotonicity**: +100 bps / 24h minimum, no tier-skipping
+- **RED Issuance Halt**: ConfigRegistry.emergencyLevel() == 3
+- **Ratification Deadlines**: Auto-revert + conditional extension rules
+- **Invariants**: No issuance during RED, detachment monotonicity enforced
+
 ## Sovereign Claim Flow
 - **Trigger**: junior layers (0–10%) exhausted OR systemic liquidity failure in RED after buffers.
 - **Coverage**: losses >10% up to 90% of pool notional (multi-sovereign capable).
 - **Timeline**: unlock (T0) → notice ≤7d → execution ≤90d; optional 50–80% advance with assignment of proceeds.
 
-## Liquidity Waterfall
+## Liquidity Waterfall (v4.0)
 1. **Pre-Tranche Buffer** (instant, daily cap)
 2. **IRB/AMM** (instant, slippage-bounded)
 3. **Monthly NAV claim** (ERC-1155, T+5)
@@ -52,6 +99,8 @@ On-chain synthetic securitization system. BRICS ERC-20 = super-senior tranche (1
 - **Halt issuance** if RED, IRB < target, tail corr > cap, sov util > cap, or super-senior cap exceeded.
 - **Detachment raises** in +100 bps steps, ≥24h apart, unless RED soft-cap rule applies.
 - **Auto-revert** to ratified detachment if governance misses deadlines.
+- **Member gating** on all mint/redeem operations via NASASAGateway.
+- **Daily instant caps** enforced with UTC reset.
 
 ## Key APIs (FastAPI endpoints)
 - `/nav/latest` → {nav, ts, model_hash}
@@ -60,12 +109,15 @@ On-chain synthetic securitization system. BRICS ERC-20 = super-senior tranche (1
 - `/gateway/mint` (member-gated)
 - `/gateway/redeem` → {claim_id, amount, strike_ts}
 - `/claim/:id` → {owner, amount, strike_ts, settled}
+- `/risk/aggregate` → {tail_corr, sov_util, buffer_health}
 
 ## Development Priorities
 - **Maintain invariants** for issuance, redemption, emergency states.
 - **Ensure sovereign utilisation** and tail correlation checks gate minting.
 - **Preserve member-gating** on all token transfers and redemptions.
 - **Integrate off-chain emergency level updates** into ConfigRegistry on-chain params.
+- **Enforce dual-lane redemption** with proper source routing and bounds.
+- **Implement adaptive issuance controls** with detachment monotonicity.
 
 ## Institutional Requirements
 - **Legal Framework**: PFMA authority, ISDA-style terms, enforceable sovereign guarantees
@@ -95,15 +147,14 @@ Bank Equity (0-5% first loss)
 - Dynamic detachment expansion (105-108%) with sovereign confirmation
 - Multi-sovereign coordination across BRICS nations
 - Legal framework integration (PFMA/ISDA compliance)
+- Dual-lane redemption system with member-gated AMM bounds
+- Adaptive issuance controls with emergency state management
 
 ## Value Proposition
 - **For Banks**: Unlock 20–30% capital efficiency without selling assets
-- **For Investors**: Access emerging market credit with sovereign backing, crisis protection
-- **For Sovereigns**: Monetise credit capacity through structured risk transfer
-- **For the System**: Create liquid markets for previously illiquid emerging market assets
-
-## Result
-**BRICS runs like a stablecoin but survives like a AAA bond** — an adaptive sovereign credit infrastructure capable of scaling across multiple nations, dynamically hedging sovereign exposures, and enabling the largest capital efficiency transformation in emerging market banking history.
+- **For Sovereigns**: Diversified risk exposure with legal framework
+- **For Members**: Liquid access with emergency protection
+- **For System**: Crisis-resilient infrastructure with sovereign backing
 
 ---
 

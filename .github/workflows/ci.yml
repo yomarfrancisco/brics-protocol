@@ -466,6 +466,8 @@ jobs:
   swap-e2e-replay:
     name: Swap E2E (Replay)
     runs-on: ubuntu-latest
+    outputs:
+      artifacts: ${{ steps.upload.outputs.artifacts }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -512,10 +514,21 @@ jobs:
           export PRICING_PROVIDER=replay
           export BANK_DATA_MODE=off
           yarn test --grep "E2E \\(replay\\)"
+      - name: Generate SBOM
+        run: |
+          yarn ts-node scripts/sbom.ts
+          cd services/pricing && python scripts/freeze_deps.py
+      - name: Generate demo output
+        run: |
+          make e2e-replay > demo_output.sample.json 2>&1 || true
       - name: Upload artifacts
+        id: upload
         uses: actions/upload-artifact@v4
         with:
-          name: replay-fixture-v0.1.0-rc1
+          name: release-artifacts-v0.1.0
           path: |
             pricing-fixtures/ACME-LLC-30-latest.json
             pricing-fixtures/ACME-LLC-30-latest.sha256
+            sbom-node.json
+            services/pricing/sbom-python.txt
+            demo_output.sample.json

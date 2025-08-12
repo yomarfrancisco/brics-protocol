@@ -19,6 +19,11 @@ task("pricing:fixture", "Generate replay fixture with real signature")
   .addParam("asof")
   .setAction(async ({ obligor, tenor, asof }, hre) => {
     const [signer] = await hre.ethers.getSigners(); // must be the oracle signer
+    
+    // Freshness window: set asOf = NOW - 120s for CI time skew tolerance
+    const now = Math.floor(Date.now() / 1000);
+    const freshAsOf = now - 120;
+    
     const portfolioId = keccak256(toUtf8Bytes(obligor));
     // Build your modelIdHash, featuresHash exactly like service does:
     const modelIdHash = keccak256(toUtf8Bytes("baseline-v0"));
@@ -27,7 +32,7 @@ task("pricing:fixture", "Generate replay fixture with real signature")
 
     const quote = {
       portfolioId,
-      asOf: Number(asof),
+      asOf: freshAsOf,
       riskScore: 54n,                // or your chosen EL_bps integer
       correlationBps: 1103,
       spreadBps: 71,
@@ -69,7 +74,22 @@ task("pricing:fixture", "Generate replay fixture with real signature")
 
     const outDir = "pricing-fixtures";
     mkdirSync(outDir, { recursive: true });
-    const file = join(outDir, `${obligor}-${tenor}-${asof}.json`);
+    const file = join(outDir, `${obligor}-${tenor}-latest.json`);
     writeFileSync(file, JSON.stringify(payload, null, 2));
+    
+    // Compute SHA-256 checksum
+    const crypto = require('crypto');
+    const fileContent = JSON.stringify(payload, null, 2);
+    const sha256 = crypto.createHash('sha256').update(fileContent).digest('hex');
+    const checksumFile = file.replace('.json', '.sha256');
+    writeFileSync(checksumFile, sha256);
+    
+    console.log("FIXTURE_SUMMARY", JSON.stringify({
+      file: file,
+      digest: digest,
+      sha256: sha256,
+      signer: await signer.getAddress()
+    }, null, 2));
     console.log("Fixture written:", file);
+    console.log("Checksum written:", checksumFile);
   });

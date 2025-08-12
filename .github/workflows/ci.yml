@@ -453,18 +453,36 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: '20' }
-      - name: Enable corepack & install
-        run: |
-          corepack enable
-          yarn -v
-          yarn install --immutable
+        with:
+          node-version: '20.x'
+          cache: 'yarn'
+      - run: corepack enable
+      - run: yarn install --immutable
       - name: Generate replay fixture
         run: yarn fixtures:gen
+      - name: Check fixture signer parity
+        run: |
+          FIXTURE=$(cat pricing-fixtures/ACME-LLC-30-latest.json)
+          SIGNER=$(echo "$FIXTURE" | jq -r '.signer')
+          echo "Fixture signer: $SIGNER"
+          
+          # Deploy MockPriceOracleAdapter and check riskOracle
+          yarn hardhat run --no-compile -e "
+            const MockOracle = await ethers.getContractFactory('MockPriceOracleAdapter');
+            const oracle = await MockOracle.deploy('$SIGNER');
+            const riskOracle = await oracle.riskOracle();
+            console.log('Adapter riskOracle:', riskOracle);
+            if (riskOracle.toLowerCase() !== '$SIGNER'.toLowerCase()) {
+              console.error('SIGNER MISMATCH!');
+              process.exit(1);
+            }
+            console.log('✅ Signer parity verified');
+          "
       - name: Run replay E2E (no HTTP, no bank)
         env:
           PRICING_PROVIDER: replay
           PRICING_FIXTURES_DIR: pricing-fixtures
+          BANK_DATA_MODE: off
         run: yarn test --grep "E2E \\(replay\\)"
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

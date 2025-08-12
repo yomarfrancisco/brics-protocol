@@ -1,17 +1,11 @@
-// Preflight for CI clarity: if we are in CI and no signer is present, fail early with a helpful message.
-// Locally, prefer `yarn test:replay:local` which injects a deterministic key.
-const inCI = !!process.env.GITHUB_ACTIONS;
-if (inCI && !process.env.CI_SIGNER_PRIVKEY) {
-  // eslint-disable-next-line no-throw-literal
-  throw new Error(
-    "Replay preflight: CI_SIGNER_PRIVKEY is not set. Configure the GitHub secret or run locally via `yarn test:replay:local`."
-  );
-}
+// Use the shared helper which already handles CI secret or dev fallback
+import { getCiSigner } from "../../utils/signers";
 
 // Optional helper: if the frozen fixture looks stale locally, guide the developer.
 // (We don't auto-mutate files in tests; keep mutation in scripts/fixtures/generate.ts only.)
 import fs from "node:fs";
 const FIXTURE_PATH = "pricing-fixtures/ACME-LLC-30-frozen.json";
+const inCI = !!process.env.GITHUB_ACTIONS;
 try {
   const s = JSON.parse(fs.readFileSync(FIXTURE_PATH, "utf8"));
   const now = Math.floor(Date.now() / 1000);

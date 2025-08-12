@@ -1,6 +1,6 @@
 {
   "name": "ACME-LLC-30",
-  "asOf": 1755030287,
+  "asOf": 1755030853,
   "modelIdHash": "0x0a9c67fe280a0448a0818ba67b54a5be621aad5a84ebd76d03035461df0332cd",
   "featuresHash": "0x929540fdba1e372e4dcff0f89a66ebb3e6a5ec1f568459d38a36966270bceac6",
   "correlationBps": 3200,
@@ -8,6 +8,6 @@
   "riskScore": 6400,
   "chainId": 31337,
   "signer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-  "digest": "0x98ced6d89a8cddb4443018ea5a23c537d7b08a6a22cfda8ed944e8e7a72b3413",
-  "signature": "0x60963cbb7d8f37eac857b3a302df9d52c66014253094223205caa74f607992b21902a8b0a07db0e6e5b4f4ee3399522eef5bfd4e9493ff210b55459a1c4794f31c"
+  "digest": "0x3a3d895a65d795a18c12cead161bf12c5dfac1cc6ec8229c0f891334357df939",
+  "signature": "0x9aef051ed85199a5c021720aa8d7ce1e12f741533b3981891db35e973386e46700b5daeefc2c6cf33b55002b661c428f8e43afe075d615ce10d7f17ee5310bcc1c"
 }

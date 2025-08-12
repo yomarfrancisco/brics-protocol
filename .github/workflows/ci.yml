@@ -49,7 +49,7 @@ jobs:
             echo "Using CI_SIGNER_PRIVKEY from secrets"
           else
             echo "WARNING: CI_SIGNER_PRIVKEY not set; using dev fallback"
-            echo "CI_SIGNER_PRIVKEY=0x59c6995e998f97a5a0044976f8a5b0e4d27dae8f8" >> $GITHUB_ENV
+            echo "CI_SIGNER_PRIVKEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80" >> $GITHUB_ENV
           fi
 
       - name: Cache Hardhat & node_modules
@@ -206,7 +206,7 @@ jobs:
             echo "Using CI_SIGNER_PRIVKEY from secrets"
           else
             echo "WARNING: CI_SIGNER_PRIVKEY not set; using dev fallback"
-            echo "CI_SIGNER_PRIVKEY=0x59c6995e998f97a5a0044976f8a5b0e4d27dae8f8" >> $GITHUB_ENV
+            echo "CI_SIGNER_PRIVKEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80" >> $GITHUB_ENV
           fi
 
       - name: Cache Hardhat & node_modules
@@ -556,7 +556,7 @@ jobs:
             echo "Using CI_SIGNER_PRIVKEY from secrets"
           else
             echo "WARNING: CI_SIGNER_PRIVKEY not set; using dev fallback"
-            echo "CI_SIGNER_PRIVKEY=0x59c6995e998f97a5a0044976f8a5b0e4d27dae8f8" >> $GITHUB_ENV
+            echo "CI_SIGNER_PRIVKEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80" >> $GITHUB_ENV
           fi
 
       - name: Install dependencies
@@ -607,7 +607,7 @@ jobs:
             echo "Using CI_SIGNER_PRIVKEY from secrets"
           else
             echo "WARNING: CI_SIGNER_PRIVKEY not set; using dev fallback"
-            echo "CI_SIGNER_PRIVKEY=0x59c6995e998f97a5a0044976f8a5b0e4d27dae8f8" >> $GITHUB_ENV
+            echo "CI_SIGNER_PRIVKEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80" >> $GITHUB_ENV
           fi
 
       - name: Install dependencies

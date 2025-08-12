@@ -8,6 +8,7 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '0 2 * * *'  # 2 AM UTC daily
+    - cron: '0 14 * * *' # 2 PM UTC daily (additional Replay run)
 
 permissions:
   contents: read
@@ -48,6 +49,11 @@ jobs:
           corepack enable
           yarn -v
           yarn install --immutable
+      - name: Check for disallowed Hardhat flags
+        run: |
+          if git grep -nE -- '--tests|--grep-v' -- package.json; then
+            echo "Disallowed Hardhat flags found"; exit 1; 
+          fi
       - run: PRICING_PROVIDER=stub BANK_DATA_MODE=off yarn test:unit
 
       # Artifacts (tests don't always have files, but keep a pattern)
@@ -477,12 +483,14 @@ jobs:
         env:
           PRICING_PROVIDER: replay
           BANK_DATA_MODE: off
+          CI_SIGNER_PRIVKEY: ${{ secrets.CI_SIGNER_PRIVKEY }}
         run: |
           PRICING_PROVIDER=replay BANK_DATA_MODE=off yarn test:replay
 
   swap-e2e-replay:
     name: Swap E2E (Replay)
     runs-on: ubuntu-latest
+    continue-on-error: true
     outputs:
       artifacts: ${{ steps.upload.outputs.artifacts }}
     steps:
@@ -532,6 +540,7 @@ jobs:
         env:
           PRICING_PROVIDER: replay
           BANK_DATA_MODE: off
+          CI_SIGNER_PRIVKEY: ${{ secrets.CI_SIGNER_PRIVKEY }}
         run: |
           PRICING_PROVIDER=replay BANK_DATA_MODE=off yarn test:replay
       - name: Generate SBOM

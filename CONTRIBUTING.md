@@ -78,6 +78,26 @@ make e2e-replay        # Run E2E replay demo
 yarn test --grep "CDS" # Run specific test suite
 ```
 
+### Replay E2E Determinism
+
+The Replay E2E tests use deterministic fixtures and signers for consistent results:
+
+#### Local Development
+- Uses fixed test key from `test/utils/signers.ts`
+- Loads frozen fixture from `pricing-fixtures/ACME-LLC-30-frozen.json`
+- No runtime fixture regeneration
+
+#### CI Environment  
+- Uses `CI_SIGNER_PRIVKEY` from GitHub Secrets
+- Same frozen fixture for consistency
+- Non-blocking job with `continue-on-error: true`
+
+#### Important Notes
+- **Do not regenerate frozen fixtures** in PRs
+- **Do not modify the fixed test key** in `test/utils/signers.ts`
+- **Replay tests must pass locally** before submitting PRs
+- **CI signer is pinned** for deterministic results
+
 ## Code Standards
 
 ### Solidity

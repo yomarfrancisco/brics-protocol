@@ -1,6 +1,8 @@
 # BRICS Protocol v4.0.0-rc11
 
-[![Tests](https://img.shields.io/badge/Tests-128%2F128%20passing-brightgreen)](https://github.com/yomarfrancisco/brics-protocol/actions)
+[![Core CI](https://img.shields.io/badge/Core%20CI-✅%20green-brightgreen)](https://github.com/yomarfrancisco/brics-protocol/actions)
+
+[![Replay E2E](https://img.shields.io/badge/Replay%20E2E-⚠️%20Non--blocking%20(deterministic%20pin%20in%20progress)-orange)](https://github.com/yomarfrancisco/brics-protocol/actions)
 
 [![Coverage](https://img.shields.io/badge/Coverage-71.68%25%20statements-brightgreen)](https://github.com/yomarfrancisco/brics-protocol/actions)
 

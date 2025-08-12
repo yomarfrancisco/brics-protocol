@@ -3,8 +3,10 @@ import { ethers, network } from "hardhat";
 import { time } from "@nomicfoundation/hardhat-network-helpers";
 import { keccak256, toUtf8Bytes } from "ethers";
 import fs from "fs";
+import { getCiSignerAddress } from "../../test/utils/signers";
 
-const FIXTURE = JSON.parse(fs.readFileSync("pricing-fixtures/ACME-LLC-30-latest.json","utf8"));
+// Load frozen fixture - no runtime regeneration
+const FIXTURE = JSON.parse(fs.readFileSync("pricing-fixtures/ACME-LLC-30-frozen.json","utf8"));
 
 describe("CDS Swap – E2E (replay)", () => {
   it("settles with replayed signed quote", async () => {
@@ -14,16 +16,17 @@ describe("CDS Swap – E2E (replay)", () => {
     const Engine = await ethers.getContractFactory("CdsSwapEngine");
     const engine = await Engine.deploy(gov.address); await engine.waitForDeployment();
 
-    // Deploy MockPriceOracleAdapter with the fixture signer
+    // Deploy MockPriceOracleAdapter with the CI signer
     const MockPriceOracle = await ethers.getContractFactory("MockPriceOracleAdapter");
-    const mockOracle = await MockPriceOracle.deploy(FIXTURE.signer);
+    const ciSignerAddress = getCiSignerAddress();
+    const mockOracle = await MockPriceOracle.deploy(ciSignerAddress);
     await mockOracle.waitForDeployment();
     
     // set oracle adapter
     await engine.connect(gov).setPriceOracle(await mockOracle.getAddress());
     
-    // 1) Ensure oracle == fixture.signer
-    expect((await mockOracle.riskOracle()).toLowerCase()).to.equal(FIXTURE.signer.toLowerCase());
+    // 1) Ensure oracle == CI signer
+    expect((await mockOracle.riskOracle()).toLowerCase()).to.equal(ciSignerAddress.toLowerCase());
     
     // Grant BROKER_ROLE to gov for testing
     const BROKER_ROLE = await engine.BROKER_ROLE();

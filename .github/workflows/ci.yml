@@ -467,7 +467,7 @@ jobs:
       - run: make bootstrap
       - name: Generate replay fixture
         run: yarn fixtures:gen
-      - run: PRICING_PROVIDER=replay BANK_DATA_MODE=off yarn test test/replay/cds-swap.e2e-replay.spec.ts
+      - run: PRICING_PROVIDER=replay BANK_DATA_MODE=off yarn test tests/replay/cds-swap.e2e-replay.spec.ts
 
   swap-e2e-replay:
     name: Swap E2E (Replay)
@@ -519,7 +519,7 @@ jobs:
         run: |
           export PRICING_PROVIDER=replay
           export BANK_DATA_MODE=off
-          yarn test test/replay/cds-swap.e2e-replay.spec.ts
+          yarn test tests/replay/cds-swap.e2e-replay.spec.ts
       - name: Generate SBOM
         run: |
           yarn ts-node scripts/sbom.ts

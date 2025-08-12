@@ -12,7 +12,7 @@ bootstrap:
 	yarn build || true
 
 e2e-replay:
-	PRICING_PROVIDER=replay BANK_DATA_MODE=off yarn test test/replay/cds-swap.e2e-replay.spec.ts
+	PRICING_PROVIDER=replay BANK_DATA_MODE=off yarn test tests/replay/cds-swap.e2e-replay.spec.ts
 
 clean:
 	git clean -xfd

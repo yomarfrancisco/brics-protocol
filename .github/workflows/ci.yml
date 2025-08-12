@@ -460,6 +460,8 @@ jobs:
       - run: yarn install --immutable
       - name: Generate replay fixture
         run: yarn fixtures:gen
+      - name: Check fixture drift
+        run: yarn ts-node scripts/check-fixture-drift.ts pricing-fixtures/ACME-LLC-30-latest.json pricing-fixtures/ACME-LLC-30-latest.sha256
       - name: Check fixture signer parity
         run: |
           FIXTURE=$(cat pricing-fixtures/ACME-LLC-30-latest.json)

@@ -16,7 +16,7 @@ function abiDigest(p: any) {
 task("pricing:fixture", "Generate replay fixture with real signature")
   .addParam("obligor")
   .addParam("tenor")
-  .addParam("asof")
+  .addParam("asof", "Unix seconds asOf (optional, uses freshness window)", undefined, undefined, true)
   .setAction(async ({ obligor, tenor, asof }, hre) => {
     const [signer] = await hre.ethers.getSigners(); // must be the oracle signer
     

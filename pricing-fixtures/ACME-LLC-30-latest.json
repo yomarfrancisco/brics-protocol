@@ -1,0 +1,13 @@
+{
+  "obligorId": "ACME-LLC",
+  "tenorDays": 30,
+  "asOf": 1754989216,
+  "fairSpreadBps": 71,
+  "correlationBps": 1103,
+  "riskScore": 54,
+  "modelIdHash": "0x4f736dc19f2338e220b4d9f929680ac3076bf2229cc6fbebcd540d630b7d60aa",
+  "featuresHash": "0xb01330aae0b18a0351b5a4afc9637765d056e58ab286bef80d3ea966141641f8",
+  "digest": "0x26f7cbbe50a8be9f136dc6ab21a140908a205c1ccddcdeb59978b57a5069b0f6",
+  "signature": "0x8c021b6d605536e652477ca58f17ec21e022d647d01e3da88f3bdfd4107829f812bfa76ba881f9037b8bbd7f3ffda5d2a3caf0f5d8ebb213970404a091f093a81c",
+  "signer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+}

@@ -111,6 +111,7 @@ jobs:
         with:
           name: gas-report_${{ github.sha }}
           path: gas-report.txt
+          if-no-files-found: warn
           retention-days: 14
 
   coverage-fast:
@@ -169,6 +170,7 @@ jobs:
           path: |
             coverage/lcov.info
             coverage.json
+          if-no-files-found: warn
           retention-days: 14
 
       - name: Post PR Comment (coverage + gas)
@@ -338,6 +340,7 @@ jobs:
             services/pricing/tests/sample_request.json
             services/pricing/cli.py
             services/pricing/baseline_model.py
+          if-no-files-found: warn
           retention-days: 14
 
   compliance-lint-test:
@@ -399,6 +402,7 @@ jobs:
             services/compliance/aml_sample.json
             services/compliance/cli.py
             services/compliance/app.py
+          if-no-files-found: warn
           retention-days: 14
 
   gas-report:
@@ -443,6 +447,7 @@ jobs:
         with:
           name: gas-report_${{ github.event_name }}_${{ github.sha }}
           path: gas-report.txt
+          if-no-files-found: warn
           retention-days: 14
 
   slither-security:
@@ -618,8 +623,9 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: replay-artifacts-${{ github.run_id }}
-          path: ci-artifacts/replay
+          name: replay-${{ github.job }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ci-artifacts/replay/**
           if-no-files-found: warn
           retention-days: 14
 
@@ -737,8 +743,9 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: replay-artifacts-${{ github.run_id }}
-          path: ci-artifacts/replay
+          name: replay-${{ github.job }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ci-artifacts/replay/**
           if-no-files-found: warn
           retention-days: 14
 
@@ -753,20 +760,26 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: frozen-fixtures-debug
+          name: fixtures-${{ github.job }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
-            pricing-fixtures/*-frozen.json
-            pricing-fixtures/*-frozen.sha256
-          retention-days: 7
+            pricing-fixtures/**
+          if-no-files-found: warn
+          retention-days: 14
       
       - name: Upload artifacts
+        if: always()
         id: upload
         uses: actions/upload-artifact@v4
         with:
-          name: release-artifacts-v0.1.0
+          name: artifacts-${{ github.job }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
+            artifacts/**
+            gas-report.txt
+            coverage/**
             pricing-fixtures/ACME-LLC-30-latest.json
             pricing-fixtures/ACME-LLC-30-latest.sha256
             sbom-node.json
             services/pricing/sbom-python.txt
             demo_output.sample.json
+          if-no-files-found: warn
+          retention-days: 14

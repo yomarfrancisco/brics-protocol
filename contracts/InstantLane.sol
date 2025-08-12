@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IAMM} from "./interfaces/IAMM.sol";
+import {IPMM} from "./interfaces/IPMM.sol";
 
 interface IConfigRegistryLike {
     function getUint(bytes32 k) external view returns (uint256);
@@ -20,6 +21,7 @@ contract InstantLane {
     error IL_NOT_MEMBER();
     error IL_CAP_EXCEEDED();
     error IL_BOUNDS();
+    error IL_LEVEL();
     error IL_APPROVAL();
     error IL_TRANSFER_FAIL();
 
@@ -31,11 +33,22 @@ contract InstantLane {
     IMemberRegistryLike public immutable members;
     IAMM public immutable amm;
     IConfigRegistryLike public immutable cfg; // optional, can be address(0)
+    IPMM public immutable pmm; // optional, can be address(0)
 
     // Config keys
     bytes32 private constant K_DAILY_CAP_USDC = keccak256("instant.dailyCap.usdc");      // default 50_000e6
-    bytes32 private constant K_PRICE_MIN_BPS  = keccak256("instant.price.min.bps");      // default 9_800
-    bytes32 private constant K_PRICE_MAX_BPS  = keccak256("instant.price.max.bps");      // default 10_200
+    
+    // Emergency level-aware bounds
+    bytes32 private constant K_EMERGENCY_LEVEL = keccak256("emergency.level");           // default 0
+    bytes32 private constant K_DISABLE_LEVEL = keccak256("instant.price.disable.at.level"); // default 3
+    
+    // Level-specific bounds (L0, L1, L2)
+    bytes32 private constant K_PRICE_MIN_BPS_L0 = keccak256("instant.price.min.bps.L0"); // default 9_800
+    bytes32 private constant K_PRICE_MAX_BPS_L0 = keccak256("instant.price.max.bps.L0"); // default 10_200
+    bytes32 private constant K_PRICE_MIN_BPS_L1 = keccak256("instant.price.min.bps.L1"); // default 9_900
+    bytes32 private constant K_PRICE_MAX_BPS_L1 = keccak256("instant.price.max.bps.L1"); // default 10_100
+    bytes32 private constant K_PRICE_MIN_BPS_L2 = keccak256("instant.price.min.bps.L2"); // default 9_975
+    bytes32 private constant K_PRICE_MAX_BPS_L2 = keccak256("instant.price.max.bps.L2"); // default 10_025
 
     struct Daily {
         uint64 day;        // UTC day number
@@ -51,7 +64,8 @@ contract InstantLane {
         INAVOracleLike _oracle,
         IMemberRegistryLike _members,
         IAMM _amm,
-        IConfigRegistryLike _cfg
+        IConfigRegistryLike _cfg,
+        IPMM _pmm // optional, can be address(0)
     ) {
         brics = _brics;
         usdc = _usdc;
@@ -59,6 +73,7 @@ contract InstantLane {
         members = _members;
         amm = _amm;
         cfg = _cfg;
+        pmm = _pmm;
     }
 
     function _utcDay() internal view returns (uint64) {
@@ -72,6 +87,29 @@ contract InstantLane {
             v = got == 0 ? defVal : got;
         } catch {
             v = defVal;
+        }
+    }
+
+    function _emergencyLevel() internal view returns (uint256 lvl) {
+        if (address(cfg) == address(0)) return 0;
+        try cfg.getUint(K_EMERGENCY_LEVEL) returns (uint256 got) {
+            lvl = got;
+        } catch { 
+            lvl = 0; 
+        }
+    }
+
+    function _boundsForLevel(uint256 lvl) internal view returns (uint256 minBps, uint256 maxBps) {
+        if (lvl == 0) {
+            minBps = _getOrDefault(K_PRICE_MIN_BPS_L0, 9_800);
+            maxBps = _getOrDefault(K_PRICE_MAX_BPS_L0, 10_200);
+        } else if (lvl == 1) {
+            minBps = _getOrDefault(K_PRICE_MIN_BPS_L1, 9_900);
+            maxBps = _getOrDefault(K_PRICE_MAX_BPS_L1, 10_100);
+        } else {
+            // lvl >= 2 maps to L2 bounds; disabling handled separately
+            minBps = _getOrDefault(K_PRICE_MIN_BPS_L2, 9_975);
+            maxBps = _getOrDefault(K_PRICE_MAX_BPS_L2, 10_025);
         }
     }
 
@@ -111,28 +149,43 @@ contract InstantLane {
         (bool ok, uint256 capUSDC, uint256 used, uint256 need) = canInstantRedeem(member, tokens18);
         if (!ok) revert IL_CAP_EXCEEDED();
 
-        // Enforce AMM price bounds
-        uint256 p = IAMM(amm).priceBps(); // e.g., 9950, 10000, 10050
-        uint256 minBps = _getOrDefault(K_PRICE_MIN_BPS, 9_800);
-        uint256 maxBps = _getOrDefault(K_PRICE_MAX_BPS, 10_200);
-        if (p < minBps || p > maxBps) revert IL_BOUNDS();
+        // Check emergency level and enforce disable if needed
+        uint256 lvl = _emergencyLevel();
+        uint256 disableAt = _getOrDefault(K_DISABLE_LEVEL, 3);
+        if (lvl >= disableAt) revert IL_LEVEL();
+
+        // Get bounds for current emergency level
+        (uint256 minBps, uint256 maxBps) = _boundsForLevel(lvl);
 
         // Pull BRICS from member
         if (!brics.transferFrom(member, address(this), tokens18)) revert IL_APPROVAL();
 
-        // Convert tokens to USDC notionally (quote), then route to AMM (USDC in == notionally required)
+        // Convert tokens to USDC notionally (quote), then route to AMM/PMM
         uint256 usdcIn = need;
+        uint256 p;
 
-        // We need to fund AMM input from this contract: transfer USDC from member or use buffer.
-        // For this minimal lane, we assume the lane contract already holds operational USDC "buffer".
-        // So only perform the AMM call spending this contract's USDC (no extra transferFrom).
-        // Approvals are not needed with simple ERC20 if AMM pulls; our mock AMM pulls via transferFrom,
-        // so approve beforehand:
-        (bool okApprove) = usdc.approve(address(amm), usdcIn);
-        require(okApprove, "IL/APPROVE_USDC");
+        // Choose routing: PMM if available, otherwise AMM
+        if (address(pmm) != address(0)) {
+            // PMM route
+            p = pmm.quoteBps();
+            if (p < minBps || p > maxBps) revert IL_BOUNDS();
 
-        // Execute swap and pay proceeds to the member
-        usdcOut = IAMM(amm).swap(usdcIn, member);
+            // Approve PMM to pull USDC
+            (bool okApprove) = usdc.approve(address(pmm), usdcIn);
+            require(okApprove, "IL/APPROVE_USDC_PMM");
+
+            usdcOut = pmm.swapAtBps(usdcIn, p, member);
+        } else {
+            // AMM route
+            p = IAMM(amm).priceBps();
+            if (p < minBps || p > maxBps) revert IL_BOUNDS();
+
+            // Approve AMM to pull USDC
+            (bool okApprove) = usdc.approve(address(amm), usdcIn);
+            require(okApprove, "IL/APPROVE_USDC");
+
+            usdcOut = IAMM(amm).swap(usdcIn, member);
+        }
 
         // Update daily used
         uint64 today = _utcDay();

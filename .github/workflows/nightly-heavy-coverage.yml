@@ -25,10 +25,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Use Node ${{ env.NODE_VERSION }}
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+          # IMPORTANT: do not use yarn cache here, it triggers yarn 1.x before corepack
+          cache: 'npm'
+
+      - name: Enable Corepack & pin Yarn 4
+        run: |
+          corepack enable
+          corepack prepare yarn@4.9.2 --activate
+          yarn --version
 
       - name: Cache Hardhat & node_modules
         uses: actions/cache@v4
@@ -38,10 +46,12 @@ jobs:
             node_modules
             artifacts
             cache
-          key: ${{ runner.os }}-node${{ env.NODE_VERSION }}-${{ hashFiles('package-lock.json') }}-heavy-${{ matrix.shard }}
+          key: ${{ runner.os }}-node${{ env.NODE_VERSION }}-${{ hashFiles('yarn.lock') }}-heavy-${{ matrix.shard }}
 
-      - run: npm ci
-      - run: npm run coverage:heavy
+      - name: Install dependencies
+        run: |
+          yarn install --immutable
+      - run: yarn coverage:heavy
 
       - name: Enforce nightly coverage floor
         run: |

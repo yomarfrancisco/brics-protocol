@@ -33,7 +33,7 @@ This document provides operational procedures for managing sovereign claims thro
 
 #### Filing Process
 1. **Document Preparation**:
-   ```bash
+```bash
    # Generate hashes for off-chain documents
    isda_hash=$(sha256sum isda_annex.pdf | cut -d' ' -f1)
    docs_hash=$(sha256sum evidence_pack.zip | cut -d' ' -f1)

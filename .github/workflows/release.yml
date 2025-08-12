@@ -24,6 +24,14 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          # IMPORTANT: do not use yarn cache here, it triggers yarn 1.x before corepack
+          cache: 'npm'
+      
+      - name: Enable Corepack & pin Yarn 4
+        run: |
+          corepack enable
+          corepack prepare yarn@4.9.2 --activate
+          yarn --version
       
       - name: Cache Hardhat artifacts
         uses: actions/cache@v4
@@ -33,18 +41,19 @@ jobs:
             node_modules
             artifacts/
             cache/
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}-solc-0.8.24-${{ hashFiles('hardhat.config.ts') }}
+          key: ${{ runner.os }}-node-${{ hashFiles('yarn.lock') }}-solc-0.8.24-${{ hashFiles('hardhat.config.ts') }}
       
       - name: Install dependencies
-        run: npm ci
+        run: |
+          yarn install --immutable
       
       - name: Run tests
-        run: npm test
+        run: yarn test
       
       - name: Run fast coverage
         env:
           COVERAGE: "1"
-        run: npm run coverage
+        run: yarn coverage
       
       - name: Enforce coverage floor
         run: |
@@ -52,7 +61,7 @@ jobs:
           bash scripts/check-coverage.sh "$FAST_FLOOR"
       
       - name: Generate gas report
-        run: npm run gas
+        run: yarn gas
       
       - name: Setup Python 3.11
         uses: actions/setup-python@v5
@@ -67,8 +76,8 @@ jobs:
 
       - name: Compile with Hardhat
         run: |
-          npm ci
-          npx hardhat compile
+          yarn install --immutable
+          yarn hardhat compile
 
       - name: Run Slither (SARIF + md + json)
         run: |

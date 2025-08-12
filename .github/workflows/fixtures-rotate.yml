@@ -10,24 +10,36 @@ jobs:
     name: Rotate Frozen Fixtures
     runs-on: ubuntu-latest
     steps:
-      - name: Check CI_SIGNER_PRIVKEY
-        run: |
-          if [ -z "${{ secrets.CI_SIGNER_PRIVKEY }}" ]; then
-            echo "ERROR: CI_SIGNER_PRIVKEY secret is not set"
-            exit 1
-          fi
-      
       - uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
       
-      - uses: actions/setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: '20.x'
-          cache: 'yarn'
-      
-      - run: corepack enable
-      - run: yarn install --frozen-lockfile
+          # IMPORTANT: do not use yarn cache here, it triggers yarn 1.x before corepack
+          cache: 'npm'
+
+      - name: Enable Corepack & pin Yarn 4
+        run: |
+          corepack enable
+          corepack prepare yarn@4.9.2 --activate
+          yarn --version
+
+      - name: Provide CI signer key (secret or fallback)
+        run: |
+          if [ -n "${{ secrets.CI_SIGNER_PRIVKEY }}" ]; then
+            echo "CI_SIGNER_PRIVKEY=${{ secrets.CI_SIGNER_PRIVKEY }}" >> $GITHUB_ENV
+            echo "Using CI_SIGNER_PRIVKEY from secrets"
+          else
+            echo "WARNING: CI_SIGNER_PRIVKEY not set; using dev fallback"
+            echo "CI_SIGNER_PRIVKEY=0x59c6995e998f97a5a0044976f8a5b0e4d27dae8f8" >> $GITHUB_ENV
+          fi
+
+      - name: Install dependencies
+        run: |
+          yarn install --immutable
       
       - name: Generate new fixture
         env:

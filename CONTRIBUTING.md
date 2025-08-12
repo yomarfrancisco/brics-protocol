@@ -126,6 +126,34 @@ FIXTURE_SEED=42 yarn fixtures:freeze
 Artifacts from CI (replay-artifacts-<run_id>) include fixtures, build artifacts, and REPRO.md.
 We never log private keys; helpers validate env and fall back safely.
 
+## USDC Funding in Tests
+
+Our test suite uses **MockUSDC** (mintable) in local/CI runs and optionally a **whale** address on mainnet forks.
+
+- The helper `test/utils/fundUSDC.ts` exposes:
+  - `fundUSDC(usdc, [recipients], { amount? })` → unified entry point.
+  - On local/mock it calls `mint(address,uint256)` directly (fast & deterministic).
+  - On a fork, set `USDC_WHALE=0x...` to fund via whale transfers.
+  - You can force the mint path with `{ forceMint: true }`.
+
+**Who needs USDC?**
+- **Lane** contracts need USDC to pass to AMM/PMM.
+- **AMM/PMM mocks** need USDC reserves to pay out to the member.
+- Some specs additionally fund the **member** for balance assertions.
+
+**Example usage in a spec:**
+```ts
+import { fundUSDC } from "../utils/fundUSDC";
+await fundUSDC(usdc, [lane, amm, member], { amount: 2_000_000n * 10n**6n });
+```
+
+On forks, export a whale address:
+```bash
+export USDC_WHALE=0xYourRichUSDCAccount
+```
+
+To keep tests isolated and fast, many specs use Hardhat snapshots to revert after each test.
+
 #### Updating Replay Fixture
 To update the Replay fixture:
 1. Set `export CI_SIGNER_PRIVKEY=<your-fixed-key>`

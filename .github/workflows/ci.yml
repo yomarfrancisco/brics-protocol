@@ -467,8 +467,11 @@ jobs:
           SIGNER=$(echo "$FIXTURE" | jq -r '.signer')
           echo "Fixture signer: $SIGNER"
           
-          # Deploy MockPriceOracleAdapter and check riskOracle
-          yarn hardhat run --no-compile -e "
+          # Create a temporary script to check signer parity
+          cat > check_signer.js << 'EOF'
+          const { ethers } = require("hardhat");
+          
+          async function main() {
             const MockOracle = await ethers.getContractFactory('MockPriceOracleAdapter');
             const oracle = await MockOracle.deploy('$SIGNER');
             const riskOracle = await oracle.riskOracle();
@@ -478,7 +481,12 @@ jobs:
               process.exit(1);
             }
             console.log('✅ Signer parity verified');
-          "
+          }
+          
+          main().catch(console.error);
+          EOF
+          
+          yarn hardhat run check_signer.js
       - name: Run replay E2E (no HTTP, no bank)
         env:
           PRICING_PROVIDER: replay

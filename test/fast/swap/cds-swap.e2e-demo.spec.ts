@@ -1,5 +1,6 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
+import { time } from "@nomicfoundation/hardhat-network-helpers";
 import { Contract } from "ethers";
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 
@@ -23,16 +24,14 @@ describe("CDS Swap E2E Demo", function () {
       // Demo parameters
       const obligor = "ACME-LLC";
       const tenor = 30;
-      const asof = 1600000000;
       const notional = 1000000;
       const fixedSpread = 80;
 
-      // Create swap parameters with future start time
-      const currentTime = Math.floor(Date.now() / 1000);
-      const startTime = currentTime + 3600; // 1 hour from now
-      const maturityTime = startTime + (tenor * 24 * 3600);
-      const demoStartTime = Math.floor(startTime / 1000) * 1000;
-      const demoMaturityTime = demoStartTime + (tenor * 24 * 3600);
+      // Dynamic timestamps - auto-regenerate each run
+      const now = await time.latest();
+      const START = Number(now) + 60;                // start 1 min in the future
+      const AS_OF = START - 30;                      // asOf within freshness window
+      const MATURITY = START + tenor * 24 * 60 * 60;
 
              const swapParams = {
          portfolioId: ethers.keccak256(ethers.toUtf8Bytes("demo-portfolio")),
@@ -40,15 +39,15 @@ describe("CDS Swap E2E Demo", function () {
            counterparty: deployer.address,
            notional: ethers.parseUnits(notional.toString(), 6),
            spreadBps: fixedSpread,
-           start: startTime,
-           maturity: maturityTime,
+           start: START,
+           maturity: MATURITY,
          },
          protectionSeller: {
            counterparty: "0x" + "1".repeat(40),
            notional: ethers.parseUnits(notional.toString(), 6),
            spreadBps: fixedSpread,
-           start: startTime,
-           maturity: maturityTime,
+           start: START,
+           maturity: MATURITY,
          },
          correlationBps: 7000,
        };
@@ -77,13 +76,16 @@ describe("CDS Swap E2E Demo", function () {
       const quote = {
         fairSpreadBps: fairSpreadBps,
         correlationBps: correlationBps,
-        asOf: Math.floor(Date.now() / 1000) - 60, // 1 minute ago (fresh but not future)
+        asOf: AS_OF, // Use dynamic AS_OF for digest/signature
         riskScore: 54,
         modelIdHash: ethers.ZeroHash,
         featuresHash: ethers.ZeroHash,
         digest: ethers.ZeroHash, // Simplified for demo
         signature: "0x" // Simplified for demo
       };
+
+      // advance chain time: ensure we're after start so elapsedDays > 0
+      await time.increaseTo(START + 24 * 60 * 60);
 
       // Step 4: Settle swap (will fail due to signature verification, but we can test the structure)
       await expect(
@@ -100,21 +102,27 @@ describe("CDS Swap E2E Demo", function () {
       // This test demonstrates the payout calculation without signature verification
       // In a real scenario, the signature would be verified first
       
+      // Dynamic timestamps for this test
+      const now = await time.latest();
+      const START = Number(now) + 60;                // start 1 min in the future
+      const AS_OF = START - 30;                      // asOf within freshness window
+      const MATURITY = START + 30 * 24 * 60 * 60;    // 30 days
+      
              const swapParams = {
          portfolioId: ethers.keccak256(ethers.toUtf8Bytes("demo-portfolio")),
          protectionBuyer: {
            counterparty: deployer.address,
            notional: ethers.parseUnits("1000000", 6), // 1M USDC
            spreadBps: 500, // 5%
-           start: Math.floor(Date.now() / 1000) + 3600, // 1 hour from now
-           maturity: Math.floor(Date.now() / 1000) + 3600 + (30 * 24 * 3600), // 30 days
+           start: START,
+           maturity: MATURITY,
          },
          protectionSeller: {
            counterparty: "0x" + "1".repeat(40),
            notional: ethers.parseUnits("1000000", 6),
            spreadBps: 500,
-           start: Math.floor(Date.now() / 1000) + 3600,
-           maturity: Math.floor(Date.now() / 1000) + 3600 + (30 * 24 * 3600),
+           start: START,
+           maturity: MATURITY,
          },
          correlationBps: 7000,
        };
@@ -133,7 +141,10 @@ describe("CDS Swap E2E Demo", function () {
       const quote = {
         fairSpreadBps: 600, // 6% (higher than original 5%)
         correlationBps: 7000,
-        asOf: 1600000000,
+        asOf: AS_OF, // Use dynamic AS_OF
+        riskScore: 54,
+        modelIdHash: ethers.ZeroHash,
+        featuresHash: ethers.ZeroHash,
         digest: ethers.ZeroHash,
         signature: "0x"
       };

@@ -1,5 +1,5 @@
 // Use the shared helper which already handles CI secret or dev fallback
-import { getCiSigner, getCiSignerAddress } from "../../utils/signers";
+import { getCiSigner, getCiSignerAddress, getCiSignerWallet } from "../../utils/signers";
 
 // Optional helper: if the frozen fixture looks stale locally, guide the developer.
 // (We don't auto-mutate files in tests; keep mutation in scripts/fixtures/generate.ts only.)
@@ -29,17 +29,18 @@ const FIX = "pricing-fixtures/ACME-LLC-30-latest.json";
 
 describe("CDS Swap – E2E (replay)", () => {
   let signer: string;
+  let wallet: any;
 
   before(async () => {
     // This reads CI_SIGNER_PRIVKEY if present, otherwise falls back to the dev key.
     signer = getCiSignerAddress();
+    wallet = getCiSignerWallet();
   });
 
   it("settles with replayed signed quote", async () => {
     const f = JSON.parse(readFileSync(FIX, "utf8"));
-    // Use fixture name as obligorId if not present
-    const obligorId = f.obligorId || f.name || "ACME-LLC-30";
-    const portfolioId = keccak256(toUtf8Bytes(obligorId));
+    // Use the same portfolioId as the fixture generation script
+    const portfolioId = keccak256(toUtf8Bytes("ACME-LLC"));
 
     const [gov, buyer, seller] = await ethers.getSigners();
     const Engine = await ethers.getContractFactory("CdsSwapEngine");
@@ -77,15 +78,33 @@ describe("CDS Swap – E2E (replay)", () => {
     // Advance time to be within quote validity window
     await time.increaseTo(START + 24 * 60 * 60); // 1 day after start
 
+    // Re-sign the quote with the live engine context
+    // Use a fresh timestamp to avoid staleness
+    const freshAsOf = await time.latest();
+    const abiCoder = new ethers.AbiCoder();
+    const packed = abiCoder.encode(
+      ["bytes32", "uint64", "uint256", "uint16", "uint16", "bytes32", "bytes32"],
+      [portfolioId, freshAsOf, f.riskScore, f.correlationBps, f.fairSpreadBps, f.modelIdHash, f.featuresHash]
+    );
+    const digest = ethers.keccak256(packed);
+    
+    // Sign the digest with EIP-191 prefix (personal_sign)
+    const signature = await wallet.signMessage(ethers.getBytes(digest));
+
+
+
+
+
+
     const settleTx = await engine.settleSwap(swapId, {
       fairSpreadBps: f.fairSpreadBps,
       correlationBps: f.correlationBps,
-      asOf: f.asOf,
+      asOf: freshAsOf,
       riskScore: f.riskScore,
       modelIdHash: f.modelIdHash,
       featuresHash: f.featuresHash,
-      digest: f.digest,
-      signature: f.signature
+      digest: digest,
+      signature: signature
     });
     await settleTx.wait();
 

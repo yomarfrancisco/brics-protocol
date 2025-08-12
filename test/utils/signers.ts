@@ -1,5 +1,6 @@
 import { ethers } from "hardhat";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
+import { Wallet } from "ethers";
 
 /**
  * Get the CI signer for deterministic testing
@@ -29,4 +30,16 @@ export function getCiSigner(hre?: HardhatRuntimeEnvironment) {
  */
 export function getCiSignerAddress(hre?: HardhatRuntimeEnvironment): string {
   return getCiSigner(hre).address;
+}
+
+/**
+ * Get the CI signer wallet with provider
+ * @returns Wallet instance with provider for EIP-712 signing
+ */
+export function getCiSignerWallet(): Wallet {
+  const pk =
+    process.env.CI_SIGNER_PRIVKEY ??
+    // fall back to the canonical Anvil/Hardhat dev key (addr 0xf39F…)
+    "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
+  return new Wallet(pk, ethers.provider);
 }

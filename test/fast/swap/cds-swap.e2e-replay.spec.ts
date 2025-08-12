@@ -1,5 +1,5 @@
-// Use the shared helper which already handles CI secret or dev fallback
-import { getCiSigner, getCiSignerAddress, getCiSignerWallet } from "../../utils/signers";
+import { getCiSignerWallet, getCiSignerAddress } from "../../utils/signers";
+import { AbiCoder, getBytes } from "ethers";
 
 // Optional helper: if the frozen fixture looks stale locally, guide the developer.
 // (We don't auto-mutate files in tests; keep mutation in scripts/fixtures/generate.ts only.)
@@ -28,19 +28,14 @@ import { readFileSync } from "fs";
 const FIX = "pricing-fixtures/ACME-LLC-30-latest.json";
 
 describe("CDS Swap – E2E (replay)", () => {
-  let signer: string;
-  let wallet: any;
+  let walletAddr: string;
 
   before(async () => {
-    // This reads CI_SIGNER_PRIVKEY if present, otherwise falls back to the dev key.
-    signer = getCiSignerAddress();
-    wallet = getCiSignerWallet();
+    walletAddr = getCiSignerAddress();
   });
 
   it("settles with replayed signed quote", async () => {
     const f = JSON.parse(readFileSync(FIX, "utf8"));
-    // Use the same portfolioId as the fixture generation script
-    const portfolioId = keccak256(toUtf8Bytes("ACME-LLC"));
 
     const [gov, buyer, seller] = await ethers.getSigners();
     const Engine = await ethers.getContractFactory("CdsSwapEngine");
@@ -48,7 +43,7 @@ describe("CDS Swap – E2E (replay)", () => {
 
     // Deploy MockPriceOracleAdapter with the signer from helper
     const MockPriceOracle = await ethers.getContractFactory("MockPriceOracleAdapter");
-    const mockOracle = await MockPriceOracle.deploy(signer);
+    const mockOracle = await MockPriceOracle.deploy(walletAddr);
     await mockOracle.waitForDeployment();
     
     // set oracle adapter
@@ -64,7 +59,7 @@ describe("CDS Swap – E2E (replay)", () => {
     const MATURITY = START + 30 * 24 * 60 * 60; // 30 days
     const notional = 1_000_000n;
     const proposeTx = await engine.proposeSwap({
-      portfolioId,
+      portfolioId: keccak256(toUtf8Bytes("ACME-LLC")),
       protectionBuyer:  { counterparty: buyer.address,  notional, spreadBps: 80, start: BigInt(START), maturity: BigInt(MATURITY) },
       protectionSeller: { counterparty: seller.address, notional, spreadBps: 80, start: BigInt(START), maturity: BigInt(MATURITY) },
       correlationBps: f.correlationBps
@@ -78,37 +73,47 @@ describe("CDS Swap – E2E (replay)", () => {
     // Advance time to be within quote validity window
     await time.increaseTo(START + 24 * 60 * 60); // 1 day after start
 
-    // Re-sign the quote with the live engine context
-    // Use a fresh timestamp to avoid staleness
-    const freshAsOf = await time.latest();
-    const abiCoder = new ethers.AbiCoder();
-    const packed = abiCoder.encode(
+    // IMPORTANT: portfolioId must match fixture generation ("ACME-LLC")
+    const portfolioId = keccak256(toUtf8Bytes("ACME-LLC"));
+
+    // Use fresh timestamp to avoid QUOTE_STALE_SECONDS rejection
+    const asOf = await time.latest();
+
+    // Build digest exactly like RiskSignalLib.digest(...)
+    const coder = new AbiCoder();
+    const packed = coder.encode(
       ["bytes32", "uint64", "uint256", "uint16", "uint16", "bytes32", "bytes32"],
-      [portfolioId, freshAsOf, f.riskScore, f.correlationBps, f.fairSpreadBps, f.modelIdHash, f.featuresHash]
+      [
+        portfolioId,
+        asOf,
+        f.riskScore,
+        f.correlationBps,
+        f.fairSpreadBps,
+        f.modelIdHash,
+        f.featuresHash,
+      ]
     );
-    const digest = ethers.keccak256(packed);
-    
-    // Sign the digest with EIP-191 prefix (personal_sign)
-    const signature = await wallet.signMessage(ethers.getBytes(digest));
+    const digest = keccak256(packed);
+
+    // Sign digest with same signer the engine will recover
+    const wallet = getCiSignerWallet();
+    const signature = await wallet.signMessage(getBytes(digest));
 
 
 
 
 
 
-    const settleTx = await engine.settleSwap(swapId, {
+    // Submit to engine
+    await expect(engine.settleSwap(swapId, {
       fairSpreadBps: f.fairSpreadBps,
       correlationBps: f.correlationBps,
-      asOf: freshAsOf,
+      asOf: asOf,
       riskScore: f.riskScore,
       modelIdHash: f.modelIdHash,
       featuresHash: f.featuresHash,
       digest: digest,
       signature: signature
-    });
-    await settleTx.wait();
-
-    const meta = await engine.swaps(swapId);
-   expect(meta.status).to.equal(2); // Settled
+    })).to.emit(engine, "SwapSettled");
   });
 });

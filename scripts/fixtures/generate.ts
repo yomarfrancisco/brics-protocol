@@ -1,14 +1,14 @@
 // scripts/fixtures/generate.ts
 import hre from "hardhat";
-import { getCiSigner, getCiSignerAddress } from "../../test/utils/signers";
+import { getCiSignerWallet, getCiSignerAddress } from "../../test/utils/signers";
 import { writeFileSync } from "fs";
 import { join } from "path";
 import crypto from "crypto";
 import { ethers } from "ethers";
 
 async function main() {
-  const signer = await getCiSigner(hre);
-  const signerAddr = await getCiSignerAddress(hre);
+  const signerAddr = getCiSignerAddress();
+  const signer = getCiSignerWallet();
 
   // Pin all non-deterministic inputs
   const FIXTURE_NAME = "ACME-LLC-30";

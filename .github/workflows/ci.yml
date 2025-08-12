@@ -454,7 +454,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: '20' }
-      - run: yarn install --frozen-lockfile
+      - name: Enable corepack & install
+        run: |
+          corepack enable
+          yarn -v
+          yarn install --immutable
       - name: Generate replay fixture
         run: yarn fixtures:gen
       - name: Run replay E2E (no HTTP, no bank)

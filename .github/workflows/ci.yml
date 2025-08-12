@@ -485,7 +485,10 @@ jobs:
           PRICING_PROVIDER: replay
           PRICING_FIXTURES_DIR: pricing-fixtures
           BANK_DATA_MODE: off
-        run: yarn test --grep "E2E \\(replay\\)"
+        run: |
+          export PRICING_PROVIDER=replay
+          export BANK_DATA_MODE=off
+          yarn test --grep "E2E \\(replay\\)"
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:

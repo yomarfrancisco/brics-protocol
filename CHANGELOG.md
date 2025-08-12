@@ -1,62 +1,84 @@
 # Changelog
 
-All notable changes to BRICS Protocol will be documented in this file.
+All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.1.0-rc1] - 2025-08-12
 
 ### Added
-- GitHub repository setup with CI/CD workflows
-- Issue and PR templates
-- Security policy and contributing guidelines
-- Comprehensive documentation structure
-
-## [4.0.0] - 2024-01-XX
-
-### Added
-- **IssuanceControllerV3**: Core mint/redeem logic with anti-reentrancy protection
-- **TrancheManagerV2**: Detachment band management with emergency soft-cap expansion
-- **NAVOracleV3**: On-chain NAV with quorum and degradation modes
-- **PreTrancheBuffer**: Instant redemption liquidity buffer
-- **ConfigRegistry**: Global risk parameters and emergency level system
-- **Emergency System**: 4-tier emergency levels with escalating restrictions
-- **Sovereign Backstop**: 105% soft-cap expansion capability
-- **Frontend UI**: React/Next.js components for protocol status display
-- **Deployment Scripts**: Comprehensive deployment pipeline
-- **Operational Tasks**: Hardhat tasks for governance and emergency actions
-- **Test Suite**: Unit tests for all core functionality
+- **Pricing Service**: Deterministic pricing service with FastAPI backend
+  - Baseline risk model with configurable features
+  - EIP-191 signature verification
+  - CLI interface for testing and development
+  - Golden vector generation for deterministic testing
+- **Compliance Service**: KYC/AML mock service
+  - Mock KYC verification with configurable risk levels
+  - Mock AML screening with customizable flags
+  - CLI interface for testing
+  - JSON output for integration testing
+- **CDS Swap Module**: Complete credit default swap implementation (P1.4–P1.7)
+  - `CdsSwapEngine`: Core swap lifecycle management
+  - `CdsSwapRegistry`: Swap metadata storage
+  - `ICdsSwap` & `ICdsSwapEvents`: Interface definitions
+  - RBAC with `GOV_ROLE` and `BROKER_ROLE`
+  - Token settlement with SafeERC20
+  - Payout calculation based on spread difference
+- **Replay Harness**: Deterministic end-to-end testing (P1.8)
+  - Replay pricing provider for fixture-based testing
+  - Deterministic fixture generation with checksums
+  - Signer parity verification
+  - Drift detection and prevention
+  - CI integration with artifact uploads
 
 ### Security
-- ReentrancyGuard on critical paths
-- Custom errors for gas optimization
-- Burn-before-external-call patterns
-- Role-based access control throughout
-- Anti-sybil measures with daily issuance caps
+- **BANK_DATA_MODE guard**: Explicit opt-in required for bank data access
+  - Bank provider disabled by default
+  - Must set `BANK_DATA_MODE=live` to enable
+  - Prevents accidental bank data exposure
+- **SafeERC20 in settlement**: Secure token transfers
+  - Uses OpenZeppelin's SafeERC20 for all token operations
+  - Prevents reentrancy and approval issues
+  - Validates token contract addresses
 
-### Technical
-- Solidity 0.8.24 with latest OpenZeppelin contracts
-- TypeScript/JavaScript tooling with Hardhat
-- Comprehensive linting and formatting
-- Multi-network deployment support
-- Oracle quorum system with emergency override
+### CI
+- **Replay determinism**: Fully deterministic CI testing
+  - No external network calls in CI
+  - Deterministic fixture generation
+  - Checksum validation prevents drift
+- **Signer parity**: Oracle verification
+  - Fixture signer == adapter.riskOracle() enforced
+  - Signature recovery verification
+  - EIP-191 compliance checks
+- **Checksum drift guard**: Prevents accidental changes
+  - SHA-256 checksums for all fixtures
+  - Automated drift detection
+  - CI failure on checksum mismatch
 
-## [3.0.0] - Previous Version
+### Changed
+- **Pricing facade**: Provider abstraction layer
+  - Support for stub, fastapi, replay, and bank providers
+  - Environment-based provider selection
+  - Deterministic stub provider for testing
+- **CI workflow**: Streamlined and hardened
+  - Required jobs: replay E2E, pricing service, compliance service
+  - Optional jobs: coverage and gas reporting (nightly)
+  - Corepack and Node.js version pinning
 
-### Added
-- Initial protocol implementation
-- Basic tranche management
-- Simple NAV oracle
+### Fixed
+- **Signature verification**: On-chain vs off-chain parity
+  - Fixed digest computation mismatch
+  - Corrected EIP-191 prefixing
+  - Aligned payload structure between providers
+- **Timestamp handling**: Freshness window management
+  - Proper asOf timestamp calculation
+  - CI time skew tolerance
+  - Future timestamp validation
 
-## [2.0.0] - Previous Version
-
-### Added
-- Enhanced security features
-- Improved governance system
-
-## [1.0.0] - Previous Version
-
-### Added
-- Initial release
-- Basic smart contract functionality
+### Infrastructure
+- **Development tooling**: One-command setup and testing
+  - `make bootstrap`: Complete environment setup
+  - `make e2e-replay`: Deterministic demo
+  - `make pricing:serve`: Local service startup
+  - `make test`: Full test suite execution

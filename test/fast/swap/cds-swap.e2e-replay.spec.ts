@@ -40,8 +40,9 @@ describe("CDS Swap – E2E (replay)", () => {
     ).args.swapId;
     await engine.activateSwap(swapId);
 
-    // Advance time to be within quote validity window
-    await network.provider.send("evm_setNextBlockTimestamp", [f.asOf + 120]);
+    // Advance time to be within quote validity window (use future timestamp)
+    const futureTime = Math.floor(Date.now() / 1000) + 60; // 1 minute in future
+    await network.provider.send("evm_setNextBlockTimestamp", [futureTime]);
     await network.provider.send("evm_mine");
 
     const settleTx = await engine.settleSwap(swapId, {

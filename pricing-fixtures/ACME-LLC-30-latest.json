@@ -1,13 +1,13 @@
 {
   "obligorId": "ACME-LLC",
   "tenorDays": 30,
-  "asOf": 1754989216,
+  "asOf": 1754989577,
   "fairSpreadBps": 71,
   "correlationBps": 1103,
   "riskScore": 54,
   "modelIdHash": "0x4f736dc19f2338e220b4d9f929680ac3076bf2229cc6fbebcd540d630b7d60aa",
   "featuresHash": "0xb01330aae0b18a0351b5a4afc9637765d056e58ab286bef80d3ea966141641f8",
-  "digest": "0x26f7cbbe50a8be9f136dc6ab21a140908a205c1ccddcdeb59978b57a5069b0f6",
-  "signature": "0x8c021b6d605536e652477ca58f17ec21e022d647d01e3da88f3bdfd4107829f812bfa76ba881f9037b8bbd7f3ffda5d2a3caf0f5d8ebb213970404a091f093a81c",
+  "digest": "0xc2a642bf3117e1cc0481cee2d2a5126642dadeea99029d1cc4d09d33c5982d93",
+  "signature": "0x79fee100a248571a598b75fa1394ac667e640475650dfbcb84d621cadbe863c83e917df58c67e469695758cf388d98234b222b9c9acb717649a09a3845f40faf1c",
   "signer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
 }

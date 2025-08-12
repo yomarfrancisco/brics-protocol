@@ -35,15 +35,25 @@ task("swap:demo", "End-to-end CDS swap demo with deterministic pricing")
     await cdsSwapEngine.waitForDeployment();
     console.log(`✅ CdsSwapEngine deployed: ${await cdsSwapEngine.getAddress()}`);
 
-    // Step 2: Set up price oracle (mock for demo)
-    console.log("\n🔗 Setting up price oracle...");
-    const MockPriceOracle = await hre.ethers.getContractFactory("MockPriceOracleAdapter");
-    const mockOracle = await MockPriceOracle.deploy(deployer.address);
-    await mockOracle.waitForDeployment();
-    console.log(`✅ Mock oracle deployed: ${await mockOracle.getAddress()}`);
+                // Step 2: Set up price oracle (mock for demo)
+            console.log("\n🔗 Setting up price oracle...");
+            const MockPriceOracle = await hre.ethers.getContractFactory("MockPriceOracleAdapter");
+            
+            // Use the same private key for the risk oracle if STUB_SIGN is enabled
+            let riskOracleAddress = deployer.address;
+            if (process.env.STUB_SIGN === "1") {
+                const riskOracleKey = process.env.RISK_ORACLE_PRIVATE_KEY || "0x000000000000000000000000000000000000000000000000000000000000002a";
+                const riskOracleWallet = new hre.ethers.Wallet(riskOracleKey);
+                riskOracleAddress = riskOracleWallet.address;
+                console.log(`🔑 Using risk oracle address: ${riskOracleAddress} (from private key)`);
+            }
+            
+            const mockOracle = await MockPriceOracle.deploy(riskOracleAddress);
+            await mockOracle.waitForDeployment();
+            console.log(`✅ Mock oracle deployed: ${await mockOracle.getAddress()}`);
 
-    await cdsSwapEngine.setPriceOracle(await mockOracle.getAddress());
-    console.log("✅ Price oracle configured");
+            await cdsSwapEngine.setPriceOracle(await mockOracle.getAddress());
+            console.log("✅ Price oracle configured");
 
     // Grant broker role to deployer
     await cdsSwapEngine.grantRole(await cdsSwapEngine.BROKER_ROLE(), deployer.address);
@@ -56,7 +66,7 @@ task("swap:demo", "End-to-end CDS swap demo with deterministic pricing")
     const bankMode = process.env.BANK_DATA_MODE || "off";
     console.log(`🔧 Provider: ${providerType}, Bank Mode: ${bankMode}`);
     
-    const portfolioId = "0x" + keccak256(toUtf8Bytes(taskArgs.obligor)).slice(2);
+    const portfolioId = keccak256(toUtf8Bytes(taskArgs.obligor));
     const features = {
       "industry": "technology",
       "region": "us",
@@ -76,6 +86,9 @@ task("swap:demo", "End-to-end CDS swap demo with deterministic pricing")
     
     console.log(`✅ Quote generated: ${quote.fairSpreadBps}bps fair, ${quote.correlationBps}bps correlation`);
     console.log(`📝 Quote details: digest=${quote.digest.slice(0, 10)}..., signer=${quote.signer.slice(0, 10)}...`);
+    console.log(`🔍 Portfolio ID: ${portfolioId}`);
+    console.log(`🔍 Quote digest: ${quote.digest}`);
+    console.log(`🔍 Quote signature: ${quote.signature.slice(0, 20)}...`);
 
     // Step 4: Propose swap
     console.log("\n📝 Proposing swap...");
@@ -156,7 +169,7 @@ function createSwapParams(params: DemoParams, proposer: string, ethers: any) {
   console.log(`⏰ Demo times: start=${demoStartTime}, maturity=${demoMaturityTime}`);
 
       return {
-      portfolioId: keccak256(toUtf8Bytes("demo-portfolio")),
+      portfolioId: keccak256(toUtf8Bytes(params.obligor)),
       protectionBuyer: {
         counterparty: proposer,
         notional: ethers.parseUnits(params.notional.toString(), 6), // USDC has 6 decimals

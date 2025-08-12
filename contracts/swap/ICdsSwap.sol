@@ -49,6 +49,9 @@ interface ICdsSwap {
         uint16 fairSpreadBps;
         uint16 correlationBps;
         uint64 asOf;
+        uint256 riskScore;
+        bytes32 modelIdHash;
+        bytes32 featuresHash;
         bytes32 digest;
         bytes signature;
     }

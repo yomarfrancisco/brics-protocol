@@ -355,7 +355,7 @@ contract CdsSwapEngine is ICdsSwap, ICdsSwapEvents, CdsSwapRegistry, AccessContr
      * @param portfolioId Portfolio identifier
      * @return isValid True if quote is valid
      */
-    function verifyQuote(PriceQuote calldata quote, bytes32 portfolioId) internal view returns (bool isValid) {
+    function verifyQuote(PriceQuote calldata quote, bytes32 portfolioId) public view returns (bool isValid) {
         // Check if price oracle is set
         if (address(priceOracle) == address(0)) {
             return false;
@@ -375,17 +375,16 @@ contract CdsSwapEngine is ICdsSwap, ICdsSwapEvents, CdsSwapRegistry, AccessContr
             return false;
         }
 
-        // Reconstruct the payload that was signed
-        // Note: For demo purposes, we use placeholder values for riskScore, modelIdHash, and featuresHash
-        // In production, these would be extracted from the quote or passed as additional parameters
+        // Reconstruct the payload that was signed using quote fields
+        // Order: (bytes32 portfolioId, uint64 asOf, uint256 riskScore, uint16 correlationBps, uint16 spreadBps, bytes32 modelIdHash, bytes32 featuresHash)
         RiskSignalLib.Payload memory payload = RiskSignalLib.Payload({
             portfolioId: portfolioId,
             asOf: quote.asOf,
-            riskScore: 0, // Placeholder - would be extracted from quote in production
+            riskScore: quote.riskScore,
             correlationBps: quote.correlationBps,
             spreadBps: quote.fairSpreadBps,
-            modelIdHash: bytes32(0), // Placeholder - would be extracted from quote in production
-            featuresHash: bytes32(0) // Placeholder - would be extracted from quote in production
+            modelIdHash: quote.modelIdHash,
+            featuresHash: quote.featuresHash
         });
 
         // Recover signer from signature

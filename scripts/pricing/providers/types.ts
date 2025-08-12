@@ -11,10 +11,13 @@ export type QuoteInput = {
 export type QuoteOut = {
   fairSpreadBps: number;
   correlationBps: number;
+  asOf: number;
+  riskScore: number;
+  modelIdHash: string; // 0x…32
+  featuresHash: string; // 0x…32
   digest: string;     // 0x…32
   signature: string;  // 0x…65
   signer: string;     // 0x…40
-  asOf: number;
 };
 
 export interface PricingProvider { 

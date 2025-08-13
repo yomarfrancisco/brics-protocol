@@ -978,6 +978,14 @@ Implement a comprehensive redemption queue prioritization system that calculates
 
 ---
 
+### 2025-08-14 21:30:00Z — v0.2.3+3 tagged ✅
+- Short SHA: `fa4b2c2`
+- Notes: Release Validation green; token MINTER_ROLE spec fixed; artifacts refreshed
+- Status: MINTER_ROLE test issue resolved, Release Validation shows all token role tests passing
+- Tests: 340 passing, 1 failing (unrelated CDS Swap E2E issue)
+
+---
+
 ### 2025-08-13 21:04:18Z — v0.2.3 tagged
 - Short SHA: `3553c36`
 - Notes: P2-4 Redemption Queue View (read-only); artifacts updated

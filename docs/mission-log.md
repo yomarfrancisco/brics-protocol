@@ -401,13 +401,10 @@ PR #17 is finalized with all critical CI jobs green. Follow-up issues created fo
 
 ---
 
-### 2025-08-13 — P1-5 Settlement Math Integration ✅
-- settleSwap now uses SettlementMath with round-half-up parity to golden vectors.
-- Mode-gated flows: ACCOUNTING (no ERC20 transfers) vs TRANSFERS (SafeERC20).
-- Guards: signer/staleness/bounds + pause + reentrancy + role.
-- Tests: parity + engine; settleSwap ~89,358 gas (≤150k budget).
+### 2025-08-13 — P1-5 Settlement Math Integration ✅ (E2E + Invariants + ABI/Storage Freeze)
+- Engine wired to SettlementMath (round-half-up parity), dual modes (ACCOUNTING/TRANSFERS).
+- E2E demo + invariants landed; ABI/storage freeze artifacts produced in CI.
 
 ### P2 Kickoff — Full Economic Integration (planning)
-- Price bounds & PMM config surfaced via ConfigRegistry with tests.
-- Dynamic issuance limits from sovereign capacity (oracle inputs).
-- Hedging hooks & redemption queue prioritization.
+- P2-1: Surface lane price bounds & PMM params in ConfigRegistry; integrate into InstantLane checks; tests + gas.
+- P2-2: Add sovereign capacity feed + issuance caps; enforce caps in issuance paths; tests + docs.

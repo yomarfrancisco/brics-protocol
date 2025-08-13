@@ -222,6 +222,23 @@ All observability tools are integrated into CI:
 - **GitHub Releases**: Artifact attachment and documentation
 - **GitHub PRs**: Audit bundle diff comments (planned)
 
+## Quick Commands
+
+```bash
+# Gas trend locally
+GAS_REPORT=true yarn hardhat test -g "bounds|economics"
+yarn gas:trend
+yarn gas:chart
+
+# Audit diff locally (example)
+yarn audit:bundle
+yarn audit:diff --base manifest-a.json --head manifest-b.json
+
+# Fixture management
+yarn fixtures:check
+yarn fixtures:freeze
+```
+
 ## Best Practices
 
 ### Gas Analysis

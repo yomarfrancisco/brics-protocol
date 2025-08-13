@@ -436,3 +436,10 @@ PR #17 is finalized with all critical CI jobs green. Follow-up issues created fo
 - **Notes**: CI should be green with refreshed fixtures; gas budget within limits; ABI/storage locks updated.
 
 **Next**: PR review → merge → continue P2-3 (Tranche APY & Risk) deeper integration.
+
+---
+
+### 2025-08-13 14:27:21Z — PR #37 merged (P2 Kickoff)
+- Branch merged: `chore/p2-kickoff`
+- Short SHA: `5938949`
+- Nightly gas baseline triggered

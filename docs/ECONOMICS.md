@@ -127,6 +127,35 @@ function latestTrancheRisk(uint256 trancheId) external view returns (
 );
 ```
 
+### Risk Oracle Adapter
+
+The `TrancheRiskOracleAdapter` provides staleness guards and governance controls:
+
+```solidity
+function latestRisk(uint256 trancheId) external view returns (uint16 riskAdjBps, uint64 ts);
+```
+
+**Staleness Protection**: The adapter enforces a maximum age for risk data:
+- Reverts with `StaleRiskData` error if `(block.timestamp - ts) > maxAge`
+- Configurable max age via `setMaxAge()` (governance only)
+- Default: 1 hour (3600 seconds)
+
+**Governance Controls**:
+- `setOracle(address)`: Update oracle address
+- `setMaxAge(uint64)`: Update maximum age for staleness checks
+- Both functions emit events for transparency
+
+### Adapter Integration Flow
+
+```
+TrancheReadFacade
+├── Base APY: from ITrancheRiskOracle
+├── Risk Adjustment: from TrancheRiskOracleAdapter (if enabled)
+│   ├── Staleness check: (block.timestamp - ts) ≤ maxAge
+│   └── Governance: oracle address + max age configurable
+└── Effective APY: TrancheMath.effectiveApyBps()
+```
+
 ## Setting Economic Parameters
 
 ### Governance Process

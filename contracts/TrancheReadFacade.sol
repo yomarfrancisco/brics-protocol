@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 
 import {TrancheMath} from "./libraries/TrancheMath.sol";
 import {ITrancheRiskOracle} from "./oracle/ITrancheRiskOracle.sol";
+import {TrancheRiskOracleAdapter} from "./oracle/TrancheRiskOracleAdapter.sol";
 
 /**
  * @title TrancheReadFacade
@@ -11,10 +12,19 @@ import {ITrancheRiskOracle} from "./oracle/ITrancheRiskOracle.sol";
 contract TrancheReadFacade {
     ITrancheRiskOracle public immutable oracle;
     address public immutable config;
+    TrancheRiskOracleAdapter public immutable riskAdapter;
+    bool public immutable enableTrancheRisk;
 
-    constructor(ITrancheRiskOracle _oracle, address _config) {
+    constructor(
+        ITrancheRiskOracle _oracle, 
+        address _config,
+        TrancheRiskOracleAdapter _riskAdapter,
+        bool _enableTrancheRisk
+    ) {
         oracle = _oracle;
         config = _config;
+        riskAdapter = _riskAdapter;
+        enableTrancheRisk = _enableTrancheRisk;
     }
 
     /**
@@ -25,6 +35,13 @@ contract TrancheReadFacade {
      */
     function viewEffectiveApy(uint256 trancheId) external view returns (uint16 apyBps, uint64 asOf) {
         (uint16 baseApyBps, uint16 riskAdjBps, uint64 oracleAsOf) = oracle.latestTrancheRisk(trancheId);
+        
+        // Use adapter for risk adjustment if enabled
+        if (enableTrancheRisk && address(riskAdapter) != address(0)) {
+            (uint16 adapterRiskAdj, uint64 adapterTs) = riskAdapter.latestRisk(trancheId);
+            riskAdjBps = adapterRiskAdj;
+            oracleAsOf = adapterTs;
+        }
         
         // Get max APY from config (reuse maxBoundBps for now)
         uint16 maxApyBps = _getMaxApyBps();
@@ -51,6 +68,14 @@ contract TrancheReadFacade {
         uint64 asOf
     ) {
         (baseApyBps, riskAdjBps, asOf) = oracle.latestTrancheRisk(trancheId);
+        
+        // Use adapter for risk adjustment if enabled
+        if (enableTrancheRisk && address(riskAdapter) != address(0)) {
+            (uint16 adapterRiskAdj, uint64 adapterTs) = riskAdapter.latestRisk(trancheId);
+            riskAdjBps = adapterRiskAdj;
+            asOf = adapterTs;
+        }
+        
         maxApyBps = _getMaxApyBps();
         effectiveApyBps = TrancheMath.effectiveApyBps(baseApyBps, riskAdjBps, maxApyBps);
     }

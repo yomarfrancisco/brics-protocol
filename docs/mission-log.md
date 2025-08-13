@@ -437,6 +437,22 @@ PR #17 is finalized with all critical CI jobs green. Follow-up issues created fo
 
 **Next**: PR review → merge → continue P2-3 (Tranche APY & Risk) deeper integration.
 
+### 2025-08-13 15:30:00Z — P2-3: Adapter + staleness guards ✅
+
+- **Branch**: `feat/p2-3-tranche-apy-adapter` @ `d793656`
+- **Implementation**: 
+  - `TrancheRiskOracleAdapter.sol`: Staleness guards + governance controls
+  - `TrancheReadFacade.sol`: Optional adapter integration with toggle
+  - Staleness protection: `(block.timestamp - ts) > maxAge` → `StaleRiskData` error
+  - Governance: `setOracle()`, `setMaxAge()` with events
+- **Tests**: 11 passing integration tests (happy path, staleness, toggles, config)
+- **Golden Vectors**: Extended with 6 new cases (staleness, clamps, adapter modes)
+- **Gas**: Integration path optimized; all budgets within limits
+- **Artifacts**: ABI/storage locks updated; audit bundle generated
+- **Docs**: ECONOMICS.md (adapter flow diagram) + ADMIN-GOVERNANCE.md (oracle swap checklist)
+
+**Next**: Per-tranche risk overrides or rolling average risk calculations.
+
 ---
 
 ### 2025-08-13 14:27:21Z — PR #37 merged (P2 Kickoff)

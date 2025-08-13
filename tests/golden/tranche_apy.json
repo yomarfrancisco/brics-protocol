@@ -54,5 +54,47 @@
     "riskAdjBps": 567,
     "maxApyBps": 2000,
     "expectedEffectiveApyBps": 667
+  },
+  {
+    "name": "staleness edge case - just within max age",
+    "baseApyBps": 800,
+    "riskAdjBps": 200,
+    "maxApyBps": 1000,
+    "expectedEffectiveApyBps": 600
+  },
+  {
+    "name": "staleness edge case - exactly at max age",
+    "baseApyBps": 900,
+    "riskAdjBps": 300,
+    "maxApyBps": 1000,
+    "expectedEffectiveApyBps": 600
+  },
+  {
+    "name": "adapter disabled - zero risk adjustment",
+    "baseApyBps": 800,
+    "riskAdjBps": 0,
+    "maxApyBps": 1000,
+    "expectedEffectiveApyBps": 800
+  },
+  {
+    "name": "adapter enabled - high risk adjustment",
+    "baseApyBps": 1200,
+    "riskAdjBps": 800,
+    "maxApyBps": 1000,
+    "expectedEffectiveApyBps": 400
+  },
+  {
+    "name": "clamp to zero - risk exceeds base",
+    "baseApyBps": 500,
+    "riskAdjBps": 700,
+    "maxApyBps": 1000,
+    "expectedEffectiveApyBps": 0
+  },
+  {
+    "name": "clamp to max - effective exceeds maximum",
+    "baseApyBps": 1500,
+    "riskAdjBps": 200,
+    "maxApyBps": 1000,
+    "expectedEffectiveApyBps": 1000
   }
 ]

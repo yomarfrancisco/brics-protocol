@@ -115,6 +115,47 @@ When swapping capacity oracles:
    - [ ] Check for any issuance failures
    - [ ] Update oracle documentation
 
+## Tranche Risk Oracle Management
+
+### Risk Oracle Adapter Configuration
+
+The `TrancheRiskOracleAdapter` provides additional safety controls:
+
+```solidity
+// Update oracle address
+await riskAdapter.setOracle(newOracleAddress);
+
+// Update staleness threshold
+await riskAdapter.setMaxAge(7200); // 2 hours
+```
+
+### Risk Oracle Swap Process
+
+When swapping tranche risk oracles:
+
+1. **Pre-swap Checklist**:
+   - [ ] Verify new oracle implements `ITrancheRiskOracle`
+   - [ ] Test adapter integration on staging
+   - [ ] Ensure oracle provides risk adjustments in basis points
+   - [ ] Verify oracle timestamp freshness
+   - [ ] Set appropriate max age for staleness checks
+
+2. **Oracle Swap Process**:
+   ```solidity
+   // Update oracle in adapter
+   await riskAdapter.setOracle(newOracleAddress);
+   
+   // Verify adapter is working
+   (uint16 riskAdj, uint64 ts) = await riskAdapter.latestRisk(trancheId);
+   require(ts > block.timestamp - 3600, "Stale data");
+   ```
+
+3. **Post-swap Verification**:
+   - [ ] Monitor staleness check enforcement
+   - [ ] Verify risk adjustments are reasonable
+   - [ ] Check for any `StaleRiskData` reverts
+   - [ ] Update adapter documentation
+
 ## Emergency Procedures
 
 ### Setting Emergency Levels

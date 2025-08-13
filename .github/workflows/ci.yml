@@ -1100,6 +1100,11 @@ jobs:
         run: |
           yarn hardhat compile
 
+      - name: Validate ABI/storage compatibility
+        run: |
+          yarn audit:abi
+          yarn audit:abi:check
+
       - name: Generate audit artifacts
         run: |
           yarn audit:manifest

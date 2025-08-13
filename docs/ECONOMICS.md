@@ -394,45 +394,55 @@ The `telemetryFlags` field uses bit flags to indicate which decision path was ta
 
 | Flag | Value | Description |
 |------|-------|-------------|
-| `FLAG_OVERRIDE_USED` | 0x01 | Per-tranche override was applied |
-| `FLAG_ADAPTER_USED` | 0x02 | Risk adapter was used (instead of oracle direct) |
-| `FLAG_ORACLE_DIRECT` | 0x04 | Oracle data used directly (no adapter) |
-| `FLAG_BANDS_ENABLED` | 0x08 | Risk confidence bands are enabled |
-| `FLAG_FLOOR_CLAMPED` | 0x10 | Risk was clamped to floor value |
-| `FLAG_CEIL_CLAMPED` | 0x20 | Risk was clamped to ceiling value |
-| `FLAG_ROLLING_AVG_ENABLED` | 0x40 | Rolling average is enabled for this tranche |
-| `FLAG_ROLLING_AVG_USED` | 0x80 | Rolling average was applied (different from raw value) |
+| `FLAG_BASE_APY_OVERRIDE_USED` | 0x01 | Base APY override was applied |
+| `FLAG_RISK_OVERRIDE_USED` | 0x02 | Risk override was applied |
+| `FLAG_ADAPTER_USED` | 0x04 | Risk adapter was used (instead of oracle direct) |
+| `FLAG_ORACLE_DIRECT` | 0x08 | Oracle data used directly (no adapter) |
+| `FLAG_ROLLING_AVG_ENABLED` | 0x10 | Rolling average is enabled for this tranche |
+| `FLAG_ROLLING_AVG_USED` | 0x20 | Rolling average was applied (different from raw value) |
+| `FLAG_BANDS_ENABLED` | 0x40 | Risk confidence bands are enabled |
+| `FLAG_FLOOR_CLAMPED` | 0x80 | Risk was clamped to floor value |
+| `FLAG_CEIL_CLAMPED` | 0x100 | Risk was clamped to ceiling value |
 
 ### Decision Path Precedence
 
-The risk calculation follows this precedence order:
+The APY calculation follows this precedence order:
 
-1. **Override Check**: If `overrideRiskAdjBps > 0`, use override value
-2. **Adapter Check**: If adapter enabled and available, use adapter value
-3. **Oracle Direct**: Otherwise, use oracle value directly
-4. **Rolling Average**: If enabled and no override, apply rolling average calculation
-5. **Bands Clamping**: Apply confidence band clamping if enabled
+1. **Base APY Override**: If `baseApyOverrideBps > 0`, use override value instead of oracle base APY
+2. **Risk Override Check**: If `overrideRiskAdjBps > 0`, use override value
+3. **Adapter Check**: If adapter enabled and available, use adapter value
+4. **Oracle Direct**: Otherwise, use oracle value directly
+5. **Rolling Average**: If enabled and no risk override, apply rolling average calculation
+6. **Bands Clamping**: Apply confidence band clamping if enabled
+7. **APY Clamp**: Apply maximum APY clamp if needed
 
 ### Example Usage
 
 ```solidity
 // Get comprehensive telemetry for tranche 1
-(uint16 base, uint16 oracleRisk, uint16 override, uint16 adapter, 
- uint16 final, uint16 effective, uint16 max, uint16 floor, 
- uint16 ceil, uint64 asOf, uint8 flags) = facade.viewTrancheTelemetry(1);
+(uint16 baseApyBps, uint16 oracleBaseApyBps, uint16 baseApyOverrideBps,
+ uint16 oracleRiskAdjBps, uint16 overrideRiskAdjBps, uint16 adapterRiskAdjBps,
+ uint16 finalRiskAdjBps, uint16 effectiveApyBps, uint16 maxApyBps,
+ uint16 floorBps, uint16 ceilBps, uint64 asOf, uint16 telemetryFlags,
+ uint16 rollingAverageBps, uint16 rollingWindowDays) = facade.viewTrancheTelemetry(1);
 
-// Check if override was used
-if (flags & 0x01 != 0) {
-    // Override was applied
+// Check if base APY override was used
+if (telemetryFlags & 0x01 != 0) {
+    // Base APY override was applied
+}
+
+// Check if risk override was used
+if (telemetryFlags & 0x02 != 0) {
+    // Risk override was applied
 }
 
 // Check if adapter was used
-if (flags & 0x02 != 0) {
+if (telemetryFlags & 0x04 != 0) {
     // Adapter was used
 }
 
 // Check if bands were applied
-if (flags & 0x08 != 0) {
+if (telemetryFlags & 0x40 != 0) {
     // Confidence bands were enabled
 }
 ```
@@ -543,6 +553,90 @@ configRegistry.recordTrancheRiskPoint(trancheId, riskAdjBps, timestamp);
 3. **Gas Costs**: Each data point recording costs ~50k gas
 4. **Storage Limits**: Maximum 30 data points per tranche
 5. **Governance**: Window size and enable/disable controls per tranche
+
+## Per-Tranche Base APY Override
+
+### Overview
+
+The per-tranche base APY override allows governance to directly override the base APY value for specific tranches, providing fine-grained control over tranche yields independent of oracle feeds.
+
+### Purpose
+
+- **Market Adjustments**: Adjust tranche yields to respond to market conditions
+- **Competitive Positioning**: Set specific yields for strategic tranches
+- **Emergency Controls**: Override oracle values during market stress
+- **Testing Support**: Enable controlled testing of different yield scenarios
+
+### Governance Parameters
+
+| Parameter | Range | Description |
+|-----------|-------|-------------|
+| `trancheBaseApyOverrideBps` | 0-50,000 bps | Base APY override value (0 = no override) |
+
+### Storage Structure
+
+- **Per-Tranche Mapping**: `mapping(uint256 => uint16)` for efficient storage
+- **Gas Efficiency**: ~20k gas for setter, ~2k gas for getter
+- **Default Value**: 0 (no override) for all tranches
+
+### Governance Controls
+
+```solidity
+// Set base APY override for tranche 1 to 12% (1200 bps)
+configRegistry.setTrancheBaseApyOverrideBps(1, 1200);
+
+// Disable override for tranche 2
+configRegistry.setTrancheBaseApyOverrideBps(2, 0);
+
+// Read current override value
+uint16 override = configRegistry.trancheBaseApyOverrideBps(trancheId);
+```
+
+### Integration with Existing Systems
+
+- **Precedence**: Base APY override takes precedence over oracle base APY
+- **Risk Adjustment**: Override affects base APY only, risk adjustments still apply
+- **Telemetry**: Full visibility into override usage via telemetry flags
+- **Bands Compatibility**: Works with all existing risk adjustment features
+
+### Example Scenarios
+
+#### Scenario 1: Basic Override
+- Oracle base APY: 8% (800 bps)
+- Override: 12% (1200 bps)
+- Result: Base APY = 12%, effective APY = 12% - risk adjustment
+
+#### Scenario 2: Override with Risk Adjustment
+- Oracle base APY: 8% (800 bps)
+- Override: 10% (1000 bps)
+- Risk adjustment: 2% (200 bps)
+- Result: Effective APY = 8% (1000 - 200 bps)
+
+#### Scenario 3: Override with Rolling Average
+- Base APY override: 15% (1500 bps)
+- Rolling average risk: 3% (300 bps)
+- Result: Effective APY = 12% (1500 - 300 bps)
+
+#### Scenario 4: Override with Bands
+- Base APY override: 20% (2000 bps)
+- Risk adjustment: 5% (500 bps)
+- Bands: floor 2% (200 bps), ceiling 4% (400 bps)
+- Result: Risk clamped to 4%, effective APY = 16% (2000 - 400 bps)
+
+### Operational Considerations
+
+1. **Parameter Bounds**: Maximum 500% (50,000 bps) to prevent extreme values
+2. **Governance Control**: Only `GOV_ROLE` can set overrides
+3. **Event Emission**: All changes emit `TrancheBaseApyOverrideSet` events
+4. **Telemetry Integration**: Override usage is tracked via `FLAG_BASE_APY_OVERRIDE_USED`
+5. **Gas Costs**: ~20k gas per setter call, minimal read costs
+
+### Monitoring and Alerts
+
+- **Override Usage**: Track which tranches have active overrides
+- **Yield Impact**: Monitor effective APY changes from overrides
+- **Governance Activity**: Alert on override changes
+- **Telemetry Analysis**: Use flags to understand decision paths
 
 ## Future Enhancements
 

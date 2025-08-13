@@ -638,6 +638,62 @@ uint16 override = configRegistry.trancheBaseApyOverrideBps(trancheId);
 - **Governance Activity**: Alert on override changes
 - **Telemetry Analysis**: Use flags to understand decision paths
 
+## Redemption Queue Prioritization
+
+### Overview
+
+The redemption queue prioritization system calculates deterministic priority scores based on risk, age, and size factors to enable fair and efficient redemption processing.
+
+### Redemption Queue (Integration)
+
+The redemption queue integration extends the read-only priority scoring into the processing path behind a governance flag.
+
+#### Gating Flag
+
+- `redemptionPriorityEnabled`: Boolean flag controlled by governance
+- When disabled: FIFO processing (identical to existing behavior)
+- When enabled: Priority-based processing using the scoring system
+
+#### Priority Formula Reuse
+
+The integration reuses the same priority formula from the read-only system:
+- Risk score: Based on tranche risk adjustment
+- Age score: Linear boost for requests older than minimum age
+- Size score: Logarithmic boost for amounts above threshold
+- Combined score: Weighted combination (0-10000 scale)
+
+#### Tie-Breaking
+
+When multiple claims have equal priority scores:
+- Earlier enqueue timestamp wins (FIFO within equal priority)
+- Ensures deterministic ordering
+
+#### Optional Per-Batch Cap
+
+- `redemptionMaxPerBatchBps`: Optional percentage limit per batch (0 = no limit)
+- When set: Limits processed amount to specified percentage of queue
+- Remaining claims stay queued for next batch
+
+### Governance Parameters
+
+| Parameter | Default | Range | Description |
+|-----------|---------|-------|-------------|
+| `redemptionPriorityEnabled` | false | boolean | Enable/disable priority processing |
+| `redemptionMaxPerBatchBps` | 0 | 0-10,000 bps | Max percentage per batch (0 = no limit) |
+
+### Storage Structure
+
+- **Additive Fields**: Priority score, reason bits, and enqueue timestamp stored with each claim
+- **No Migration**: Existing claims continue to work in both modes
+- **Gas Efficiency**: Minimal additional gas cost for priority calculation
+
+### Integration with Existing Systems
+
+- **FIFO Parity**: When disabled, behavior identical to existing FIFO system
+- **Priority Scoring**: Reuses existing RedemptionQueueView scoring logic
+- **Config Registry**: Leverages existing governance controls and events
+- **Telemetry**: Full visibility into priority decision paths
+
 ## Future Enhancements
 
 - **Dynamic Fees**: Automatic fee adjustment based on market conditions

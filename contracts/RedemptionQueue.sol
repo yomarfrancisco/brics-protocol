@@ -13,17 +13,29 @@ interface IAccessControllerLike {
 
 interface IConfigRegistryLike {
     function getUint(bytes32 key) external view returns (uint256);
+    function redemptionPriorityEnabled() external view returns (bool);
+}
+
+interface IRedemptionQueueViewLike {
+    function calculatePriorityScore(
+        address account,
+        uint256 amount,
+        uint64 asOf,
+        uint16 telemetryFlags
+    ) external view returns (uint256 priorityScore, uint16 reasonBits);
 }
 
 contract RedemptionQueue {
     // --- Roles/Config (optional hooks; no revert if unset) ---
     IAccessControllerLike public access;
     IConfigRegistryLike  public config;
+    IRedemptionQueueViewLike public queueView;
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
 
-    constructor(IAccessControllerLike _access, IConfigRegistryLike _config) {
+    constructor(IAccessControllerLike _access, IConfigRegistryLike _config, IRedemptionQueueViewLike _queueView) {
         access = _access;
         config = _config;
+        queueView = _queueView;
     }
 
     // --- Claim lifecycle ---
@@ -36,6 +48,10 @@ contract RedemptionQueue {
         uint64  struckAt;      // timestamp when struck (used for T+5)
         address owner;         // member who owns the claim
         uint8   lane;          // 0=Instant, 1=Primary (for analytics)
+        // Priority integration fields (additive)
+        uint256 priorityScore; // Priority score when enqueued (0 if not calculated)
+        uint16  reasonBits;    // Reason bits for priority calculation
+        uint64  enqueuedAt;    // Timestamp when enqueued (for tie-breaking)
     }
 
     event ClaimQueued(uint256 indexed claimId, address indexed owner, uint256 tokens, uint8 lane);
@@ -61,6 +77,22 @@ contract RedemptionQueue {
         require(amountTokens > 0, "RQ/AMOUNT_ZERO");
         // we allow any caller (gateway) to enqueue on user's behalf
 
+        uint64 enqueuedAt = uint64(block.timestamp);
+        uint256 priorityScore = 0;
+        uint16 reasonBits = 0;
+
+        // Calculate priority score if enabled
+        if (address(config) != address(0) && config.redemptionPriorityEnabled()) {
+            if (address(queueView) != address(0)) {
+                (priorityScore, reasonBits) = queueView.calculatePriorityScore(
+                    member,
+                    amountTokens,
+                    enqueuedAt,
+                    0 // telemetryFlags
+                );
+            }
+        }
+
         claimId = nextClaimId++;
         claims[claimId] = Claim({
             tokens: amountTokens,
@@ -68,7 +100,10 @@ contract RedemptionQueue {
             status: ClaimStatus.Queued,
             struckAt: 0,
             owner: member,
-            lane: lane
+            lane: lane,
+            priorityScore: priorityScore,
+            reasonBits: reasonBits,
+            enqueuedAt: enqueuedAt
         });
         emit ClaimQueued(claimId, member, amountTokens, lane);
     }
@@ -124,5 +159,75 @@ contract RedemptionQueue {
     {
         Claim storage c = claims[claimId];
         return (c.tokens, c.usdcOwed, c.status, c.struckAt, c.owner, c.lane);
+    }
+
+    /// @notice Get claim metadata including priority information
+    /// @param claimId claim to query
+    /// @return priorityScore priority score when enqueued
+    /// @return reasonBits reason bits for priority calculation
+    /// @return enqueuedAt timestamp when enqueued
+    function viewClaimMeta(uint256 claimId)
+        external
+        view
+        returns (
+            uint256 priorityScore,
+            uint16 reasonBits,
+            uint64 enqueuedAt
+        )
+    {
+        Claim storage c = claims[claimId];
+        return (c.priorityScore, c.reasonBits, c.enqueuedAt);
+    }
+
+    /// @notice Get next claim candidate for processing (priority-aware when enabled)
+    /// @return claimId candidate claim ID
+    /// @return priorityScore priority score of candidate
+    /// @return reasonBits reason bits of candidate
+    function viewNextClaim()
+        external
+        view
+        returns (
+            uint256 claimId,
+            uint256 priorityScore,
+            uint16 reasonBits
+        )
+    {
+        bool priorityEnabled = address(config) != address(0) && config.redemptionPriorityEnabled();
+        
+        if (!priorityEnabled) {
+            // FIFO mode: return first queued claim
+            for (uint256 i = 0; i < nextClaimId; i++) {
+                Claim storage c = claims[i];
+                if (c.status == ClaimStatus.Queued) {
+                    return (i, 0, 0);
+                }
+            }
+        } else {
+            // Priority mode: find highest priority queued claim
+            uint256 bestClaimId = 0;
+            uint256 bestScore = 0;
+            uint16 bestReasons = 0;
+            bool found = false;
+            
+            for (uint256 i = 0; i < nextClaimId; i++) {
+                Claim storage c = claims[i];
+                if (c.status == ClaimStatus.Queued) {
+                    if (!found || c.priorityScore > bestScore || 
+                        (c.priorityScore == bestScore && c.enqueuedAt < claims[bestClaimId].enqueuedAt)) {
+                        bestClaimId = i;
+                        bestScore = c.priorityScore;
+                        bestReasons = c.reasonBits;
+                        found = true;
+                    }
+                }
+            }
+            
+            if (found) {
+                return (bestClaimId, bestScore, bestReasons);
+            }
+        }
+        
+        // No queued claims found
+        return (0, 0, 0);
     }
 }

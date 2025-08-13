@@ -10,7 +10,8 @@ Frozen pricing fixture auto-rotates weekly; PRs fail if fixture older than 30 da
 
 [![Security](https://img.shields.io/badge/Security-0%20high%20findings-brightgreen)](https://github.com/yomarfrancisco/brics-protocol/security/code-scanning)
 
-[![Gas](https://img.shields.io/badge/Gas-Report%20generated-blue)](https://github.com/yomarfrancisco/brics-protocol/actions)
+[![Gas](https://img.shields.io/badge/Gas-Trend%20tracking-blue)](https://github.com/yomarfrancisco/brics-protocol/actions)
+[![Audit](https://img.shields.io/badge/Audit-Bundle%20generated-green)](https://github.com/yomarfrancisco/brics-protocol/actions)
 
 [![Version](https://img.shields.io/badge/Version-v0.2.0-blue)](https://github.com/yomarfrancisco/brics-protocol/releases)
 

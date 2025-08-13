@@ -1,8 +1,38 @@
-# Security and CI configuration files require security owner approval
-audit/slither-allowlist.json @yomarfrancisco
-.github/workflows/ @yomarfrancisco
-ci/coverage-baseline.json @yomarfrancisco
-scripts/slither-filter.js @yomarfrancisco
-
-# Default owners for everything in the repo
+# Global owners
 * @yomarfrancisco
+
+# Smart contracts
+/contracts/ @yomarfrancisco
+
+# Risk API
+/risk_api/ @yomarfrancisco
+
+# CI/CD and workflows
+/.github/workflows/ @yomarfrancisco
+
+# Audit and observability scripts
+/scripts/audit/ @yomarfrancisco
+/scripts/gas/ @yomarfrancisco
+
+# Fixture management
+/scripts/fixtures/ @yomarfrancisco
+/pricing-fixtures/ @yomarfrancisco
+
+# Release automation
+/scripts/release/ @yomarfrancisco
+
+# Documentation
+/docs/ @yomarfrancisco
+/README.md @yomarfrancisco
+/CONTRIBUTING.md @yomarfrancisco
+
+# Configuration files
+/hardhat.config.ts @yomarfrancisco
+/package.json @yomarfrancisco
+/yarn.lock @yomarfrancisco
+
+# Test files
+/test/ @yomarfrancisco
+
+# Deployment scripts
+/deploy/ @yomarfrancisco

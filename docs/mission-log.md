@@ -401,7 +401,13 @@ PR #17 is finalized with all critical CI jobs green. Follow-up issues created fo
 
 ---
 
-### 2025-08-13 — P1-5: Settlement wired into engine ✅
+### 2025-08-13 — P1-5 Settlement Math Integration ✅
 - settleSwap now uses SettlementMath with round-half-up parity to golden vectors.
-- Events + SafeERC20 transfers (mode-gated), guards for signer/staleness/bounds.
-- Unit + integration tests added; gas budgets tracked.
+- Mode-gated flows: ACCOUNTING (no ERC20 transfers) vs TRANSFERS (SafeERC20).
+- Guards: signer/staleness/bounds + pause + reentrancy + role.
+- Tests: parity + engine; settleSwap ~89,358 gas (≤150k budget).
+
+### P2 Kickoff — Full Economic Integration (planning)
+- Price bounds & PMM config surfaced via ConfigRegistry with tests.
+- Dynamic issuance limits from sovereign capacity (oracle inputs).
+- Hedging hooks & redemption queue prioritization.

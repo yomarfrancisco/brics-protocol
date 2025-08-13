@@ -343,3 +343,41 @@ PR #17 is finalized with all critical CI jobs green. Follow-up issues created fo
 - **Explicit Opt-in**: Bank data requires BANK_DATA_MODE=live
 
 **Status**: Ready for production deployment with bank data safety controls
+
+---
+
+### 2025-08-13 — Meta-Mission: v0.2.0+ Reliability & Observability ✅
+
+**Where We Are Now**
+- P0 Stabilization ✅
+- P1 Feature Expansion: substantially complete through P1-7 (CDS E2E demo, live-shaped integration)
+- Post-v0.2.0 focus: ops/CI/observability guardrails before P2 economics integration
+
+**What We Shipped Since v0.2.0**
+- Gas Reporter: fixed via `hardhat-gas-reporter` (env-gated, deterministic output)
+- Fixture Discipline: freshness guard (`yarn fixtures:check`), deterministic refresh
+- Nightly Gas Trend: CSV+SVG artifacts, 14-day retention
+- Audit Bundle Diff: PR job comments with manifest deltas (non-blocking)
+- Dev Bootstrap Smoke (≤60s): `yarn smoke:dev` mini-e2e
+- Property Tests: env-gated `PROP_TRIALS`, distribution checks, seeded determinism
+- Docs & DX: Observability guide, scripts reference
+- Repo Guardrails: PR template, CODEOWNERS, issue templates, semantic PR checks
+
+**Artifacts & Locations**
+- Gas report: `gas-report.txt`
+- Gas trends: `dist/gas/gas-trend.csv`, `dist/gas/gas-trend.svg`, `dist/gas/gas-summary.md`
+- Audit bundle: `dist/audit/audit-bundle-*.zip` + `dist/audit/audit-bundle.sha256`
+- Event docs: `docs/CONTRACT_EVENTS.md`
+
+**Percent Complete (Protocol Journey)**
+- Overall P0→P3 estimate: **~45–50% complete**
+  - P0 ✅
+  - P1 ≈ 75% through P1-7; remaining work ties to P2 economics & productionization
+  - P2, P3 still ahead
+
+**Next Milestone (v0.2.1) — Reliability & Observability + DX**
+- Fix flaky property test signatures; expand trial envelopes
+- Polish gas charts; embed summaries in releases
+- Keep nightly gas & audit diff running on PRs
+- Maintain ≤60s smoke test on PRs (non-blocking)
+- Prep P2 economics re-entry (price-bounds invariants + PMM config)

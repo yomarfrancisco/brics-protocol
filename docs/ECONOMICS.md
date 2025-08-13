@@ -127,6 +127,60 @@ function latestTrancheRisk(uint256 trancheId) external view returns (
 );
 ```
 
+### Risk Oracle Adapter
+
+The `TrancheRiskOracleAdapter` provides staleness guards and governance controls:
+
+```solidity
+function latestRisk(uint256 trancheId) external view returns (uint16 riskAdjBps, uint64 ts);
+```
+
+**Staleness Protection**: The adapter enforces a maximum age for risk data:
+- Reverts with `StaleRiskData` error if `(block.timestamp - ts) > maxAge`
+- Configurable max age via `setMaxAge()` (governance only)
+- Default: 1 hour (3600 seconds)
+
+**Governance Controls**:
+- `setOracle(address)`: Update oracle address
+- `setMaxAge(uint64)`: Update maximum age for staleness checks
+- Both functions emit events for transparency
+
+### Adapter Integration Flow
+
+```
+TrancheReadFacade
+├── Base APY: from ITrancheRiskOracle
+├── Risk Adjustment: from TrancheRiskOracleAdapter (if enabled)
+│   ├── Staleness check: (block.timestamp - ts) ≤ maxAge
+│   └── Governance: oracle address + max age configurable
+└── Effective APY: TrancheMath.effectiveApyBps()
+```
+
+### Per-Tranche Risk Override
+
+The `ConfigRegistry` provides per-tranche risk adjustment overrides that take precedence over oracle/adapter values:
+
+```solidity
+function trancheRiskAdjOverrideBps(uint256 trancheId) external view returns (uint16);
+function setTrancheRiskAdjOverrideBps(uint256 trancheId, uint16 newVal) external onlyRole(GOV_ROLE);
+```
+
+**Override Behavior**:
+- **Precedence**: Override > Adapter > Oracle (when override > 0)
+- **Bounds**: 0 ≤ override ≤ maxBoundBps (governance enforced)
+- **Staleness Bypass**: When override > 0, stale oracle data is ignored
+- **Governance**: Only `GOV_ROLE` can set overrides
+
+**Use Cases**:
+- **Emergency adjustments**: Override risk for specific tranches during market stress
+- **Manual corrections**: Override incorrect oracle data while fixing the source
+- **Tranche-specific policies**: Apply different risk adjustments per tranche
+
+**Examples**:
+- **Lower override**: Set override = 100 bps when oracle reports 200 bps → higher APY
+- **Higher override**: Set override = 400 bps when oracle reports 200 bps → lower APY
+- **Emergency zero**: Set override = 0 to disable risk adjustment entirely
+
 ## Setting Economic Parameters
 
 ### Governance Process

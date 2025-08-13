@@ -54,5 +54,75 @@
     "riskAdjBps": 567,
     "maxApyBps": 2000,
     "expectedEffectiveApyBps": 667
+  },
+  {
+    "name": "staleness edge case - just within max age",
+    "baseApyBps": 800,
+    "riskAdjBps": 200,
+    "maxApyBps": 1000,
+    "expectedEffectiveApyBps": 600
+  },
+  {
+    "name": "staleness edge case - exactly at max age",
+    "baseApyBps": 900,
+    "riskAdjBps": 300,
+    "maxApyBps": 1000,
+    "expectedEffectiveApyBps": 600
+  },
+  {
+    "name": "adapter disabled - zero risk adjustment",
+    "baseApyBps": 800,
+    "riskAdjBps": 0,
+    "maxApyBps": 1000,
+    "expectedEffectiveApyBps": 800
+  },
+  {
+    "name": "adapter enabled - high risk adjustment",
+    "baseApyBps": 1200,
+    "riskAdjBps": 800,
+    "maxApyBps": 1000,
+    "expectedEffectiveApyBps": 400
+  },
+  {
+    "name": "clamp to zero - risk exceeds base",
+    "baseApyBps": 500,
+    "riskAdjBps": 700,
+    "maxApyBps": 1000,
+    "expectedEffectiveApyBps": 0
+  },
+  {
+    "name": "clamp to max - effective exceeds maximum",
+    "baseApyBps": 1500,
+    "riskAdjBps": 200,
+    "maxApyBps": 1000,
+    "expectedEffectiveApyBps": 1000
+  },
+  {
+    "name": "override lower than oracle - higher APY",
+    "baseApyBps": 800,
+    "riskAdjBps": 100,
+    "maxApyBps": 1000,
+    "expectedEffectiveApyBps": 700
+  },
+  {
+    "name": "override higher than oracle - lower APY",
+    "baseApyBps": 800,
+    "riskAdjBps": 400,
+    "maxApyBps": 1000,
+    "expectedEffectiveApyBps": 400
+  },
+  {
+    "name": "override with high base - clamped to max",
+    "baseApyBps": 6000,
+    "riskAdjBps": 500,
+    "maxApyBps": 5000,
+    "expectedEffectiveApyBps": 5000
+  },
+  {
+    "name": "override exceeds base - zero APY",
+    "baseApyBps": 500,
+    "riskAdjBps": 600,
+    "maxApyBps": 1000,
+    "expectedEffectiveApyBps": 0
   }
 ]

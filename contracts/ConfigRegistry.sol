@@ -57,12 +57,16 @@ contract ConfigRegistry is AccessControl {
     mapping(bytes32 => SovereignCfg) public sovereign;
     bytes32[] public sovereignList;
 
+    // Per-tranche risk adjustment overrides
+    mapping(uint256 => uint16) private _trancheRiskAdjOverrideBps;
+
     event ParamSet(bytes32 key, uint256 value);
     event EmergencyLevelSet(uint8 level, string reason);
     event EmergencyParamsSet(uint8 level, EmergencyParams params);
     event SovereignAdded(bytes32 indexed code, uint256 utilCapBps, uint256 haircutBps, uint256 weightBps, bool enabled);
     event SovereignUpdated(bytes32 indexed code, uint256 utilCapBps, uint256 haircutBps, uint256 weightBps, bool enabled);
     event SovereignEnabled(bytes32 indexed code, bool enabled);
+    event TrancheRiskOverrideSet(uint256 indexed trancheId, uint16 oldVal, uint16 newVal);
 
     constructor(address gov){
         _grantRole(DEFAULT_ADMIN_ROLE, gov);
@@ -246,6 +250,7 @@ contract ConfigRegistry is AccessControl {
     }
 
     // View helper for economics parameters
+    // Note: Per-tranche risk overrides are external to this "global" economics tuple
     function getEconomics() external view returns (
         uint256 tradeFeeBps_,
         uint256 pmmCurveK_bps_,
@@ -259,5 +264,17 @@ contract ConfigRegistry is AccessControl {
     function getMaxIssuable(uint256 oracleCapacity) external view returns (uint256 maxIssuable) {
         // maxIssuable = capacity * (10000 - bufferBps) / 10000
         maxIssuable = oracleCapacity * (10000 - issuanceCapBufferBps) / 10000;
+    }
+
+    // Per-tranche risk adjustment override functions
+    function trancheRiskAdjOverrideBps(uint256 trancheId) external view returns (uint16) {
+        return _trancheRiskAdjOverrideBps[trancheId];
+    }
+
+    function setTrancheRiskAdjOverrideBps(uint256 trancheId, uint16 newVal) external onlyRole(GOV_ROLE) {
+        if (newVal > maxBoundBps) revert BadParam(); // Cannot exceed max bound
+        uint16 oldVal = _trancheRiskAdjOverrideBps[trancheId];
+        _trancheRiskAdjOverrideBps[trancheId] = newVal;
+        emit TrancheRiskOverrideSet(trancheId, oldVal, newVal);
     }
 }

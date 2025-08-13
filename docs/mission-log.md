@@ -475,3 +475,9 @@ PR #17 is finalized with all critical CI jobs green. Follow-up issues created fo
 - Branch merged: `chore/p2-kickoff`
 - Short SHA: `5938949`
 - Nightly gas baseline triggered
+
+---
+
+### 2025-08-13 15:00:06Z — PR #38 merged (Per-Tranche Risk Override)
+- Branch merged: `feat/p2-3-tranche-risk-override`
+- Short SHA: `13c0877`

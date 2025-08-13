@@ -71,6 +71,15 @@ contract ConfigRegistry is AccessControl {
     // Per-tranche base APY override
     mapping(uint256 => uint16) private _trancheBaseApyOverrideBps; // 0 = no override
 
+    // Redemption queue prioritization weights (basis points, sum ≤ 10000)
+    uint16 private _redemptionWeightRiskBps = 3333; // 33.33%
+    uint16 private _redemptionWeightAgeBps = 3333;  // 33.33%
+    uint16 private _redemptionWeightSizeBps = 3334; // 33.34%
+
+    // Redemption queue prioritization thresholds
+    uint256 private _redemptionMinAgeDays = 7; // 7 days minimum age for boost
+    uint256 private _redemptionSizeBoostThreshold = 1000 * 1e18; // 1000 tokens threshold
+
     // Rolling average data storage (fixed-size circular buffer)
     struct RiskPoint {
         uint16 riskAdjBps;
@@ -97,6 +106,8 @@ contract ConfigRegistry is AccessControl {
     event TrancheRollingEnabledSet(uint256 indexed trancheId, bool enabled);
     event TrancheRollingPointAppended(uint256 indexed trancheId, uint16 riskAdjBps, uint64 timestamp);
     event TrancheBaseApyOverrideSet(uint256 indexed trancheId, uint16 oldVal, uint16 newVal);
+    event RedemptionWeightSet(bytes32 indexed key, uint16 oldVal, uint16 newVal);
+    event RedemptionThresholdSet(bytes32 indexed key, uint256 oldVal, uint256 newVal);
 
     constructor(address gov){
         _grantRole(DEFAULT_ADMIN_ROLE, gov);
@@ -175,6 +186,42 @@ contract ConfigRegistry is AccessControl {
         if (v>10000) revert BadParam(); // Max 100% buffer
         issuanceCapBufferBps=v; 
         emit ParamSet("issuance_buffer", v); 
+    }
+
+    // Redemption queue prioritization setters
+    function setRedemptionWeightRiskBps(uint16 v) external onlyRole(GOV_ROLE) {
+        if (v > 10000) revert BadParam(); // Max 100%
+        uint16 oldVal = _redemptionWeightRiskBps;
+        _redemptionWeightRiskBps = v;
+        emit RedemptionWeightSet(keccak256("redemption.weight.risk.bps"), oldVal, v);
+    }
+
+    function setRedemptionWeightAgeBps(uint16 v) external onlyRole(GOV_ROLE) {
+        if (v > 10000) revert BadParam(); // Max 100%
+        uint16 oldVal = _redemptionWeightAgeBps;
+        _redemptionWeightAgeBps = v;
+        emit RedemptionWeightSet(keccak256("redemption.weight.age.bps"), oldVal, v);
+    }
+
+    function setRedemptionWeightSizeBps(uint16 v) external onlyRole(GOV_ROLE) {
+        if (v > 10000) revert BadParam(); // Max 100%
+        uint16 oldVal = _redemptionWeightSizeBps;
+        _redemptionWeightSizeBps = v;
+        emit RedemptionWeightSet(keccak256("redemption.weight.size.bps"), oldVal, v);
+    }
+
+    function setRedemptionMinAgeDays(uint256 v) external onlyRole(GOV_ROLE) {
+        if (v > 365) revert BadParam(); // Max 1 year
+        uint256 oldVal = _redemptionMinAgeDays;
+        _redemptionMinAgeDays = v;
+        emit RedemptionThresholdSet(keccak256("redemption.minAgeDays"), oldVal, v);
+    }
+
+    function setRedemptionSizeBoostThreshold(uint256 v) external onlyRole(GOV_ROLE) {
+        if (v > 1000000 * 1e18) revert BadParam(); // Max 1M tokens
+        uint256 oldVal = _redemptionSizeBoostThreshold;
+        _redemptionSizeBoostThreshold = v;
+        emit RedemptionThresholdSet(keccak256("redemption.sizeBoostThreshold"), oldVal, v);
     }
 
     // Emergency controls
@@ -420,5 +467,26 @@ contract ConfigRegistry is AccessControl {
         uint16 oldVal = _trancheBaseApyOverrideBps[trancheId];
         _trancheBaseApyOverrideBps[trancheId] = newVal;
         emit TrancheBaseApyOverrideSet(trancheId, oldVal, newVal);
+    }
+
+    // Redemption queue prioritization getters
+    function redemptionWeightRiskBps() external view returns (uint16) {
+        return _redemptionWeightRiskBps;
+    }
+
+    function redemptionWeightAgeBps() external view returns (uint16) {
+        return _redemptionWeightAgeBps;
+    }
+
+    function redemptionWeightSizeBps() external view returns (uint16) {
+        return _redemptionWeightSizeBps;
+    }
+
+    function redemptionMinAgeDays() external view returns (uint256) {
+        return _redemptionMinAgeDays;
+    }
+
+    function redemptionSizeBoostThreshold() external view returns (uint256) {
+        return _redemptionSizeBoostThreshold;
     }
 }

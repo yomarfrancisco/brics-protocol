@@ -946,6 +946,14 @@ Implement a comprehensive redemption queue prioritization system that calculates
 
 ---
 
+### 2025-08-14 19:30:00Z — NASASAGateway instant-lane ctor wiring fixed ✅
+- Short SHA: `1938b2e`
+- Notes: Updated test deployments to match current RedemptionQueue constructor (3 params)
+- Status: All 15 NASASAGateway tests passing, MockConfigRegistry enhanced with priority functions
+- Tests: Fixed constructor arg mismatch, added missing redemption priority functions to mock
+
+---
+
 ### 2025-08-13 21:04:18Z — v0.2.3 tagged
 - Short SHA: `3553c36`
 - Notes: P2-4 Redemption Queue View (read-only); artifacts updated

@@ -114,6 +114,35 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+      - name: Upload events documentation
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: events-docs_${{ github.sha }}
+          path: docs/CONTRACT_EVENTS.md
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Generate and upload audit bundle
+        if: always()
+        run: |
+          yarn audit:manifest
+          yarn audit:fixtures
+          yarn audit:tests
+          yarn audit:events
+          yarn audit:bundle
+
+      - name: Upload audit bundle artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-bundle_${{ github.sha }}
+          path: |
+            dist/audit/audit-bundle-*.zip
+            dist/audit/audit-bundle.sha256
+          if-no-files-found: warn
+          retention-days: 14
+
   coverage-fast:
     name: Coverage (fast track)
     runs-on: ubuntu-latest

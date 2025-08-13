@@ -169,6 +169,27 @@ export USDC_WHALE=0xYourRichUSDCAccount
 
 To keep tests isolated and fast, many specs use Hardhat snapshots to revert after each test.
 
+## Gas Reporting
+
+Generate gas reports locally for development and release verification:
+
+```bash
+# Generate gas report for specific test suite
+GAS_REPORT=true yarn hardhat test test/fast/economics/config.spec.ts
+
+# View the generated report
+open gas-report.txt
+
+# Generate gas report for bounds tests
+GAS_REPORT=true yarn hardhat test test/fast/amm/instant-bounds-levels.spec.ts
+```
+
+The gas report includes:
+- Method gas costs (min/max/average)
+- Deployment costs
+- USD estimates (when coinmarketcap is configured)
+- Time spent on each function
+
 #### Updating Replay Fixture
 To update the Replay fixture:
 1. Set `export CI_SIGNER_PRIVKEY=<your-fixed-key>`

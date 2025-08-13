@@ -88,6 +88,27 @@ git push origin vX.Y.Z
 4. Copy content from `dist/release-notes.md` to the release description
 5. Publish the release
 
+## Release Candidates
+
+Release candidates (RC) include additional artifacts for verification:
+
+- **Gas Report**: `gas-report.txt` - Gas usage analysis
+- **Events Documentation**: `docs/CONTRACT_EVENTS.md` - Auto-generated contract events
+- **Audit Bundle**: `dist/audit/audit-bundle-*.zip` - Complete audit trail with integrity checks
+- **Release Notes**: `dist/release-notes.md` - Detailed release documentation
+
+### RC Artifacts
+
+All RC artifacts are automatically generated and uploaded by CI:
+
+```bash
+# Generate all artifacts locally
+yarn audit:manifest && yarn audit:fixtures && yarn audit:tests && yarn audit:events && yarn audit:bundle
+
+# Verify artifacts
+ls -la gas-report.txt docs/CONTRACT_EVENTS.md dist/audit/audit-bundle-*.zip
+```
+
 ## Dry-Run Process
 
 ### Local Dry-Run

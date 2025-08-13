@@ -1,4 +1,4 @@
-# BRICS Protocol v4.0.0-rc11
+# BRICS Protocol v0.2.0
 
 [![Core CI](https://img.shields.io/badge/Core%20CI-✅%20green-brightgreen)](https://github.com/yomarfrancisco/brics-protocol/actions)
 
@@ -12,7 +12,7 @@ Frozen pricing fixture auto-rotates weekly; PRs fail if fixture older than 30 da
 
 [![Gas](https://img.shields.io/badge/Gas-Report%20generated-blue)](https://github.com/yomarfrancisco/brics-protocol/actions)
 
-[![Version](https://img.shields.io/badge/Version-v4.0.0--rc11-blue)](https://github.com/yomarfrancisco/brics-protocol/releases)
+[![Version](https://img.shields.io/badge/Version-v0.2.0-blue)](https://github.com/yomarfrancisco/brics-protocol/releases)
 
 ## 🎯 **AUDIT-READY: Institution-Grade Synthetic Risk Transfer Infrastructure**
 

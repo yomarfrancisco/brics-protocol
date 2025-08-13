@@ -264,6 +264,23 @@ To add new observability features:
 4. Update this documentation
 5. Include example usage and troubleshooting
 
+## Quick Commands
+
+```bash
+# Gas trend locally
+GAS_REPORT=true yarn hardhat test -g "bounds|economics"
+yarn gas:trend
+yarn gas:chart
+
+# Audit diff locally (example)
+yarn audit:bundle
+yarn audit:diff --base manifest-a.json --head manifest-b.json
+
+# Fixture management
+yarn fixtures:check
+yarn fixtures:freeze
+```
+
 ---
 
 For more information, see:

@@ -62,3 +62,4 @@ interface IRedemptionClaim {
      */
     function settleAndBurn(uint256 claimId) external;
 }
+

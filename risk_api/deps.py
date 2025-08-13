@@ -11,7 +11,7 @@ from typing import Dict, Any
 
 from dotenv import load_dotenv
 
-from .providers import NavProvider, EmergencyProvider, IssuanceProvider, RiskProvider
+from .providers import NavProvider, EmergencyProvider, IssuanceProvider, RiskProvider, SafetyProvider
 from .signing import SigningKey
 
 
@@ -48,6 +48,7 @@ def get_providers() -> Dict[str, Any]:
         "emergency": EmergencyProvider(),
         "issuance": IssuanceProvider(),
         "risk": RiskProvider(),
+        "safety": SafetyProvider(),
     }
 
 
@@ -69,3 +70,8 @@ def get_issuance_provider() -> IssuanceProvider:
 def get_risk_provider() -> RiskProvider:
     """Get risk provider instance."""
     return get_providers()["risk"]
+
+
+def get_safety_provider() -> SafetyProvider:
+    """Get safety provider instance."""
+    return get_providers()["safety"]

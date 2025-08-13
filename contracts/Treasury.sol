@@ -40,7 +40,9 @@ contract Treasury is AccessControl {
     }
 
     function pay(address to, uint256 amount) external onlyRole(PAY_ROLE) {
-        token.safeTransfer(to, amount); emit Paid(address(token), to, amount);
+        if (to == address(0)) revert("Treasury: zero address");
+        token.safeTransfer(to, amount); 
+        emit Paid(address(token), to, amount);
     }
 
     function balance() external view returns (uint256) { return token.balanceOf(address(this)); }

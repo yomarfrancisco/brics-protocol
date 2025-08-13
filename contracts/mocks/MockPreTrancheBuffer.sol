@@ -25,3 +25,4 @@ contract MockPreTrancheBuffer is IPreTrancheBuffer {
 
     event MockInstantRedeem(address member, uint256 amount);
 }
+

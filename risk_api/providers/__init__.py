@@ -9,5 +9,6 @@ from .emergency import EmergencyProvider
 from .issuance import IssuanceProvider
 from .nav import NavProvider
 from .risk import RiskProvider
+from .safety import SafetyProvider
 
-__all__ = ["NavProvider", "EmergencyProvider", "IssuanceProvider", "RiskProvider"]
+__all__ = ["NavProvider", "EmergencyProvider", "IssuanceProvider", "RiskProvider", "SafetyProvider"]

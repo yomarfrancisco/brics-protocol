@@ -9,10 +9,18 @@ async function main() {
   const [deployer] = await ethers.getSigners();
   const DAO = process.env.DAO_MULTISIG || deployer.address;
 
-  // BRICSToken
-  const BRICSToken = await ethers.getContractFactory("BRICSToken");
-  const brics = await BRICSToken.deploy(DAO, state.core.MemberRegistry);
-  await brics.waitForDeployment();
+  // BRICSToken - use existing deployment if available
+  let bricsTokenAddr = state.brics?.BRICSToken;
+  if (!bricsTokenAddr) {
+    // Deploy new BRICSToken if not already deployed
+    const BRICSToken = await ethers.getContractFactory("BRICSToken");
+    const brics = await BRICSToken.deploy(DAO, state.core.MemberRegistry);
+    await brics.waitForDeployment();
+    bricsTokenAddr = await brics.getAddress();
+    console.log(`🔧 Deployed new BRICSToken at: ${bricsTokenAddr}`);
+  } else {
+    console.log(`🔧 Using existing BRICSToken at: ${bricsTokenAddr}`);
+  }
 
   // SovereignClaimToken (SA)
   const SovereignClaimToken = await ethers.getContractFactory("SovereignClaimToken");
@@ -32,7 +40,7 @@ async function main() {
   await tm.waitForDeployment();
 
   state.tranche = {
-    BRICSToken: await brics.getAddress(),
+    BRICSToken: bricsTokenAddr,
     SovereignClaimToken_SA: await sbtSA.getAddress(),
     TrancheManagerV2: await tm.getAddress()
   };

@@ -11,6 +11,11 @@ contract MockNAVOracle is INAVOracleV3 {
     bytes32 private _modelHash;
     address[] private _signers;
     uint256 private _quorum;
+    
+    // NAV/TWAP sanity guard
+    uint256 public maxJumpBps = 500; // 5% default
+    bool public emergencyEnabled = false;
+    uint256 public lastNavRay;
 
     constructor() {
         _navRay = 1e27; // 1.00 NAV
@@ -21,7 +26,21 @@ contract MockNAVOracle is INAVOracleV3 {
         _quorum = 0;
     }
 
+    function setMaxJumpBps(uint256 bps) external {
+        maxJumpBps = bps;
+    }
+
+    function setEmergency(bool on) external {
+        emergencyEnabled = on;
+    }
+
     function setNavRay(uint256 navRay) external {
+        if (lastNavRay != 0 && !emergencyEnabled) {
+            uint256 hi = lastNavRay * (10000 + maxJumpBps) / 10000;
+            uint256 lo = lastNavRay * (10000 - maxJumpBps) / 10000;
+            require(navRay >= lo && navRay <= hi, "NAV_JUMP");
+        }
+        lastNavRay = navRay;
         _navRay = navRay;
     }
 
@@ -71,6 +90,12 @@ contract MockNAVOracle is INAVOracleV3 {
     }
 
     function setLatestNAVRay(uint256 navRay) external {
+        if (lastNavRay != 0 && !emergencyEnabled) {
+            uint256 hi = lastNavRay * (10000 + maxJumpBps) / 10000;
+            uint256 lo = lastNavRay * (10000 - maxJumpBps) / 10000;
+            require(navRay >= lo && navRay <= hi, "NAV_JUMP");
+        }
+        lastNavRay = navRay;
         _navRay = navRay;
     }
 }

@@ -89,6 +89,16 @@ Bank Equity (0-5% first loss)
 
 ## 🚀 **Quick Start**
 
+### Quick links
+- [BRICS Token Deployment](docs/BRICS_TOKEN_DEPLOYMENT.md)
+- [Admin Governance](docs/ADMIN-GOVERNANCE.md)
+- [Economics Parameters](docs/ECONOMICS.md)
+- [Release Process](docs/RELEASE.md)
+- [Audit Trails](docs/AUDIT_TRAILS.md)
+- [Replay Reproduction](CONTRIBUTING.md#reproducing-a-replay-locally)
+- [Risk API Safety Endpoints](docs/APIs.md#safety--policy-v1)
+- Dev Bootstrap: `scripts/dev/bootstrap.sh` or `yarn hardhat dev:bootstrap`
+
 ### Prerequisites
 - Node.js 18+ (LTS recommended)
 - npm or yarn

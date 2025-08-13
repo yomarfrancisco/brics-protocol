@@ -55,7 +55,8 @@ describe("NASASAGateway: instant lane integration", () => {
       await members.getAddress(),
       await amm.getAddress(),
       await configRegistry.getAddress(),
-      ethers.ZeroAddress // PMM parameter (optional, can be address(0))
+      ethers.ZeroAddress, // PMM parameter (optional, can be address(0))
+      await owner.getAddress() // gov parameter
     );
     await instantLane.waitForDeployment();
 

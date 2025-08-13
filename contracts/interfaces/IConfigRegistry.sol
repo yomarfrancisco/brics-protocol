@@ -30,3 +30,4 @@ interface IConfigRegistry {
      */
     function getCurrentParams() external view returns (CurrentParams memory);
 }
+

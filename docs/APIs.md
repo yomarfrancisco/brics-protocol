@@ -3,6 +3,8 @@
 ## Overview
 BRICS Protocol provides both on-chain and off-chain APIs for member-gated access, risk management, and emergency operations. All APIs require member authentication and follow strict security protocols.
 
+> **For administrative procedures and governance operations, see the [Admin Governance Guide](ADMIN-GOVERNANCE.md).**
+
 ## Authentication
 - **Member Gating**: All endpoints require valid member credentials
 - **Rate Limiting**: 100 requests/minute per member
@@ -95,6 +97,138 @@ BRICS Protocol provides both on-chain and off-chain APIs for member-gated access
 **Description**: Check if oracle is in emergency mode
 
 **Returns**: True if emergency mode is active
+
+---
+
+### Safety & Policy Checks
+
+#### NAV/TWAP Sanity Guard (Mock Oracle)
+**Contract**: `MockNAVOracle`
+
+**Function**: `setMaxJumpBps(uint256 bps)`
+
+**Description**: Set maximum allowed NAV jump in basis points (default: 500 = 5%)
+
+**Parameters**:
+- `bps`: Maximum jump in basis points
+
+---
+
+**Function**: `setEmergency(bool on)`
+
+**Description**: Enable/disable emergency mode to allow large NAV jumps
+
+**Parameters**:
+- `on`: True to enable emergency mode, false to disable
+
+---
+
+**Function**: `setNavRay(uint256 navRay)`
+
+**Description**: Set NAV value with sanity check (reverts if jump exceeds maxJumpBps unless emergency enabled)
+
+**Parameters**:
+- `navRay`: NAV value in ray format (1e27 precision)
+
+**Errors**:
+- `"NAV_JUMP"`: NAV change exceeds maximum allowed jump
+
+---
+
+#### Lane Pre-Trade Check
+**Contract**: `InstantLane`
+
+**Function**: `preTradeCheck(uint256 priceBps, uint8 emergencyLevel) → (bool ok, uint256 minBps, uint256 maxBps)`
+
+**Description**: Check if a candidate price is within current bounds for the given emergency level (view function, no state change)
+
+**Parameters**:
+- `priceBps`: Price in basis points (e.g., 10000 = 100%)
+- `emergencyLevel`: Emergency level to check bounds for
+
+**Returns**:
+- `ok`: Whether the price is within bounds
+- `minBps`: Minimum allowed price in basis points
+- `maxBps`: Maximum allowed price in basis points
+
+**Emergency Level Bounds**:
+- Level 0 (Normal): 9800-10200 bps (±2%)
+- Level 1 (Amber): 9900-10100 bps (±1%)
+- Level 2 (Red): 9975-10025 bps (±0.25%)
+
+---
+
+## Risk API
+
+### Safety & Policy (v1)
+
+#### Lane Pre-Trade Check
+**Endpoint**: `GET /api/v1/lane/pretrade`
+
+**Description**: Check if a candidate price is within current bounds for the given emergency level (view function, no state change)
+
+**Query Parameters**:
+- `price_bps` (int, required): Price in basis points (e.g., 10000 = 100%)
+- `emergency_level` (int, required): Emergency level to check bounds for
+- `lane_addr` (string, optional): Lane contract address (defaults to .devstack/addresses.json or LANE_ADDR env)
+
+**Response** (signed):
+```json
+{
+  "ok": 1,
+  "min_bps": 9800,
+  "max_bps": 10200,
+  "price_bps": 10000,
+  "emergency_level": 0,
+  "ts": 1755067422,
+  "sig": "4aaab42a5562c943c0b2b0ea1fd655b996a6f096a9da1bb7eade21799d2d39f7e0b1ef09b148ca14c9b636184ee5a507be442a459a40b1720c461c3454b36a0f"
+}
+```
+
+**Behavior**: Deterministic, no RPC dependency. Emulates lane bounds with same logic as `_boundsForLevel()`.
+
+**Example Request**:
+```bash
+curl "http://localhost:8000/api/v1/lane/pretrade?price_bps=10050&emergency_level=0"
+```
+
+---
+
+#### NAV Sanity Check
+**Endpoint**: `GET /api/v1/oracle/nav-sanity`
+
+**Description**: Check if a proposed NAV change is within allowed bounds
+
+**Query Parameters**:
+- `proposed_nav_ray` (int, required): Proposed NAV in ray format (1e27 precision)
+- `max_jump_bps` (int, optional): Maximum allowed jump in basis points (default: 500 = 5%)
+- `emergency` (int, optional): Whether emergency mode is enabled (0/1, default: 0)
+- `prev_nav_ray` (int, optional): Previous NAV in ray format (defaults to 1.0 RAY if not provided)
+
+**Response** (signed):
+```json
+{
+  "ok": 1,
+  "prev_nav_ray": 1000000000000000000000000000,
+  "proposed_nav_ray": 1049000000000000000000000000,
+  "max_jump_bps": 500,
+  "emergency_enabled": 0,
+  "assumed_prev": 0,
+  "ts": 1755067431,
+  "sig": "ef46aae1a98c4a7265e9423f155d6d04d0efe4fbd009b3dca4da2e37abf15dc39a3ba0ce6bea0d23beaf8729340f306d613371130319dcc8f04cfadfba2dc90c"
+}
+```
+
+**Behavior**: Pure function, no chain calls. Emulates the same guard logic used in MockNAVOracle tests.
+
+**Notes**:
+- If `prev_nav_ray` is not provided, uses 1.0 RAY as default and sets `assumed_prev: 1`
+- `assumed_prev: 1` indicates the previous NAV was assumed (clients should be aware)
+
+**Example Request**:
+```bash
+curl "http://localhost:8000/api/v1/oracle/nav-sanity?prev_nav_ray=1000000000000000000000000000&proposed_nav_ray=1049000000000000000000000000&max_jump_bps=500&emergency=0"
+```
 
 ---
 

@@ -20,3 +20,4 @@ interface IMemberRegistry {
      */
     function isWhitelistedPool(address account) external view returns (bool);
 }
+

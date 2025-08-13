@@ -1,8 +1,8 @@
 import { HardhatUserConfig } from "hardhat/config";
+import "hardhat-gas-reporter";
 import "@nomicfoundation/hardhat-toolbox";
 import "dotenv/config";
 import "solidity-coverage";
-import "hardhat-gas-reporter";
 import "./tasks/governance";
 import "./tasks/confirmSovereign";
 import "./tasks/mintMember";
@@ -15,6 +15,7 @@ import "./tasks/roles.wire";
 import "./tasks/roles.audit";
 import "./tasks/swap.demo";
 import "./tasks/pricing.fixture";
+import "./tasks/dev/bootstrap";
 
 const { SEPOLIA_RPC_URL, PRIVATE_KEY, ETHERSCAN_API_KEY } = process.env;
 
@@ -57,11 +58,21 @@ const config: HardhatUserConfig = {
     target: "ethers-v6"
   },
   gasReporter: {
-    enabled: false
+    enabled: process.env.GAS_REPORT === "true",
+    currency: "USD",
+    // Keep this deterministic / offline unless you explicitly set a key:
+    coinmarketcap: undefined,
+    outputFile: "gas-report.txt",
+    noColors: true,
+    // Optional: tighten for noisy suites
+    showTimeSpent: true,
+    excludeContracts: [],
+    // Optional: gasPrice in gwei (deterministic)
+    gasPrice: 1,
   },
 
   mocha: {
-    reporter: process.env.CI ? "min" : "spec",
+    // No reporter override here - let hardhat-gas-reporter plugin handle it
     timeout: 60000,
     retries: 1,
     bail: true

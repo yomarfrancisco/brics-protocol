@@ -8,3 +8,4 @@ pragma solidity ^0.8.24;
 interface ITrancheManagerV2 {
     // Placeholder interface - will be implemented when needed
 }
+

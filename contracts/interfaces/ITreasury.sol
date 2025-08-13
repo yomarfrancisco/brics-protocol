@@ -13,3 +13,4 @@ interface ITreasury {
      */
     function pay(address recipient, uint256 amount) external;
 }
+

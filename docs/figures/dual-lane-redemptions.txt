@@ -87,3 +87,4 @@ Sovereign claim triggers if junior layers exhausted
 - Freeze Windows: NORMAL/YELLOW 24h, ORANGE 48h, RED 72h
 - Daily Instant Cap: $50K per member (UTC reset)
 - Redeem Cap: 25% of total supply (pro-rata threshold)
+

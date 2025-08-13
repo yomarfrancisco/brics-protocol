@@ -20,3 +20,4 @@ interface IPreTrancheBuffer {
      */
     function instantRedeem(address member, uint256 amount) external;
 }
+

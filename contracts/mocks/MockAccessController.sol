@@ -16,3 +16,4 @@ contract MockAccessController {
         return roles[role][account];
     }
 }
+

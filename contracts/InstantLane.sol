@@ -4,6 +4,8 @@ pragma solidity ^0.8.20;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IAMM} from "./interfaces/IAMM.sol";
 import {IPMM} from "./interfaces/IPMM.sol";
+import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
+import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 
 interface IConfigRegistryLike {
     function getUint(bytes32 k) external view returns (uint256);
@@ -17,13 +19,17 @@ interface IMemberRegistryLike {
 
 /// @title InstantLane
 /// @notice Member-gated, price-bounded, per-member daily-cap instant redemption via AMM
-contract InstantLane {
+contract InstantLane is Pausable, AccessControl {
     error IL_NOT_MEMBER();
     error IL_CAP_EXCEEDED();
     error IL_BOUNDS();
     error IL_LEVEL();
     error IL_APPROVAL();
     error IL_TRANSFER_FAIL();
+    
+    // Roles
+    bytes32 public constant GOV_ROLE = keccak256("GOV");
+    bytes32 public constant PAUSER_ROLE = keccak256("PAUSER");
 
     event InstantRedeem(address indexed member, uint256 tokensIn18, uint256 usdcQuoted, uint256 usdcOut, uint256 priceBps);
 
@@ -65,7 +71,8 @@ contract InstantLane {
         IMemberRegistryLike _members,
         IAMM _amm,
         IConfigRegistryLike _cfg,
-        IPMM _pmm // optional, can be address(0)
+        IPMM _pmm, // optional, can be address(0)
+        address gov
     ) {
         brics = _brics;
         usdc = _usdc;
@@ -74,6 +81,11 @@ contract InstantLane {
         amm = _amm;
         cfg = _cfg;
         pmm = _pmm;
+        
+        // Setup access control
+        _grantRole(DEFAULT_ADMIN_ROLE, gov);
+        _grantRole(GOV_ROLE, gov);
+        _grantRole(PAUSER_ROLE, gov);
     }
 
     function _utcDay() internal view returns (uint64) {
@@ -133,12 +145,12 @@ contract InstantLane {
     }
 
     /// @notice Instant redeem BRICS tokens for USDC via AMM, enforcing member gating, daily cap, and price bounds
-    function instantRedeem(uint256 tokens18) external returns (uint256 usdcOut) {
+    function instantRedeem(uint256 tokens18) external whenNotPaused returns (uint256 usdcOut) {
         return _instantRedeem(msg.sender, tokens18);
     }
 
     /// @notice Instant redeem for a specific member (called by gateway)
-    function instantRedeemFor(address member, uint256 tokens18) external returns (uint256 usdcOut) {
+    function instantRedeemFor(address member, uint256 tokens18) external whenNotPaused returns (uint256 usdcOut) {
         return _instantRedeem(member, tokens18);
     }
 
@@ -198,5 +210,26 @@ contract InstantLane {
         dailyUsed[member] = d;
 
         emit InstantRedeem(member, tokens18, usdcIn, usdcOut, p);
+    }
+
+    /// @notice Pre-trade check: reports if a candidate price is within current bounds for the given emergency level
+    /// @param priceBps Price in basis points (e.g., 10000 = 100%)
+    /// @param emergencyLevel Emergency level to check bounds for
+    /// @return ok Whether the price is within bounds
+    /// @return minBps Minimum allowed price in basis points
+    /// @return maxBps Maximum allowed price in basis points
+    function preTradeCheck(uint256 priceBps, uint8 emergencyLevel) external view returns (bool ok, uint256 minBps, uint256 maxBps) {
+        (uint256 min, uint256 max) = _boundsForLevel(emergencyLevel);
+        bool within = priceBps >= min && priceBps <= max;
+        return (within, min, max);
+    }
+    
+    // Pause controls
+    function pause() external onlyRole(PAUSER_ROLE) {
+        _pause();
+    }
+    
+    function unpause() external onlyRole(PAUSER_ROLE) {
+        _unpause();
     }
 }

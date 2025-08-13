@@ -19,3 +19,4 @@ interface IBRICSToken {
      */
     function burnFrom(address from, uint256 amount) external;
 }
+

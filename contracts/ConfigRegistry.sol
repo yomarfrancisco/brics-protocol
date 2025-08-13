@@ -27,6 +27,12 @@ contract ConfigRegistry is AccessControl {
     uint256 public redeemCapBps    = 2500;        // 25%
     uint256 public instantBufferBps= 300;         // 3%
 
+    // Economics parameters
+    uint256 public tradeFeeBps     = 50;          // 0.5% trade fee
+    uint256 public pmmCurveK_bps   = 1000;        // 10% PMM curve K
+    uint256 public pmmTheta_bps    = 500;         // 5% PMM theta
+    uint256 public maxBoundBps     = 5000;        // 50% max bound sanity
+
     // Emergency system
     enum EmergencyLevel { NORMAL, YELLOW, ORANGE, RED }
     EmergencyLevel public emergencyLevel = EmergencyLevel.NORMAL;
@@ -88,10 +94,48 @@ contract ConfigRegistry is AccessControl {
     }
 
     // Global params setters (backward compatible)
-    function setMaxTailCorrPpm(uint256 v) external onlyRole(GOV_ROLE){ maxTailCorrPpm=v; emit ParamSet("tail", v); }
-    function setMaxSovUtilBps(uint256 v)  external onlyRole(GOV_ROLE){ if (v>10000) revert BadParam(); maxSovUtilBps=v;  emit ParamSet("sov", v); }
-    function setRedeemCapBps(uint256 v)   external onlyRole(GOV_ROLE){ if (v>10000) revert BadParam(); redeemCapBps=v;   emit ParamSet("cap", v); }
-    function setInstantBufferBps(uint256 v) external onlyRole(GOV_ROLE){ if (v>10000) revert BadParam(); instantBufferBps=v; emit ParamSet("irb", v); }
+    function setMaxTailCorrPpm(uint256 v) external onlyRole(GOV_ROLE){ 
+        if (v > 1_000_000_000) revert BadParam(); // Max 1.0 correlation
+        maxTailCorrPpm=v; 
+        emit ParamSet("tail", v); 
+    }
+    function setMaxSovUtilBps(uint256 v)  external onlyRole(GOV_ROLE){ 
+        if (v>10000) revert BadParam(); 
+        maxSovUtilBps=v;  
+        emit ParamSet("sov", v); 
+    }
+    function setRedeemCapBps(uint256 v)   external onlyRole(GOV_ROLE){ 
+        if (v>10000) revert BadParam(); 
+        redeemCapBps=v;   
+        emit ParamSet("cap", v); 
+    }
+    function setInstantBufferBps(uint256 v) external onlyRole(GOV_ROLE){ 
+        if (v>10000) revert BadParam(); 
+        instantBufferBps=v; 
+        emit ParamSet("irb", v); 
+    }
+
+    // Economics parameter setters
+    function setTradeFeeBps(uint256 v) external onlyRole(GOV_ROLE){ 
+        if (v>20000) revert BadParam(); // Max 200% fee
+        tradeFeeBps=v; 
+        emit ParamSet("trade", v); 
+    }
+    function setPmmCurveK_bps(uint256 v) external onlyRole(GOV_ROLE){ 
+        if (v>20000) revert BadParam(); // Max 200% K
+        pmmCurveK_bps=v; 
+        emit ParamSet("pmm_k", v); 
+    }
+    function setPmmTheta_bps(uint256 v) external onlyRole(GOV_ROLE){ 
+        if (v>20000) revert BadParam(); // Max 200% theta
+        pmmTheta_bps=v; 
+        emit ParamSet("pmm_theta", v); 
+    }
+    function setMaxBoundBps(uint256 v) external onlyRole(GOV_ROLE){ 
+        if (v>20000) revert BadParam(); // Max 200% bound
+        maxBoundBps=v; 
+        emit ParamSet("max_bound", v); 
+    }
 
     // Emergency controls
     function setEmergencyLevel(uint8 level, string calldata reason) external {
@@ -172,5 +216,36 @@ contract ConfigRegistry is AccessControl {
                 totalCap += effectiveCap;
             }
         }
+    }
+    
+    // View helper for emergency level bounds (centralized logic)
+    function getBoundsForLevel(uint8 level) external pure returns (uint256 minBps, uint256 maxBps) {
+        if (level == 0) {
+            // Level 0 (Normal): ±2%
+            minBps = 9800;
+            maxBps = 10200;
+        } else if (level == 1) {
+            // Level 1 (Amber): ±1%
+            minBps = 9900;
+            maxBps = 10100;
+        } else if (level == 2) {
+            // Level 2 (Red): ±0.25%
+            minBps = 9975;
+            maxBps = 10025;
+        } else {
+            // Level 3+ (Disabled): most restrictive
+            minBps = 9975;
+            maxBps = 10025;
+        }
+    }
+
+    // View helper for economics parameters
+    function getEconomics() external view returns (
+        uint256 tradeFeeBps_,
+        uint256 pmmCurveK_bps_,
+        uint256 pmmTheta_bps_,
+        uint256 maxBoundBps_
+    ) {
+        return (tradeFeeBps, pmmCurveK_bps, pmmTheta_bps, maxBoundBps);
     }
 }

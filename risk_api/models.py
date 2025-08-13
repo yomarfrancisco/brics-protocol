@@ -57,3 +57,24 @@ class RiskSummaryResponse(StampedModel):
     sovereign_usage_bps: int = Field(..., description="Sovereign usage in basis points")
     correlation_bps: int = Field(..., description="Correlation risk in basis points")
     sig: Optional[str] = Field(None, description="Ed25519 signature of canonical JSON")
+
+
+class LanePretradeResponse(StampedModel):
+    """Lane pre-trade check response."""
+    ok: int = Field(..., description="Whether price is within bounds (0/1)")
+    min_bps: int = Field(..., description="Minimum allowed price in basis points")
+    max_bps: int = Field(..., description="Maximum allowed price in basis points")
+    price_bps: int = Field(..., description="Input price in basis points")
+    emergency_level: int = Field(..., description="Emergency level checked")
+    sig: Optional[str] = Field(None, description="Ed25519 signature of canonical JSON")
+
+
+class NavSanityResponse(StampedModel):
+    """NAV sanity check response."""
+    ok: int = Field(..., description="Whether NAV jump is allowed (0/1)")
+    prev_nav_ray: int = Field(..., description="Previous NAV in ray format")
+    proposed_nav_ray: int = Field(..., description="Proposed NAV in ray format")
+    max_jump_bps: int = Field(..., description="Maximum allowed jump in basis points")
+    emergency_enabled: int = Field(..., description="Emergency mode enabled (0/1)")
+    assumed_prev: int = Field(..., description="Whether previous NAV was assumed (0/1)")
+    sig: Optional[str] = Field(None, description="Ed25519 signature of canonical JSON")

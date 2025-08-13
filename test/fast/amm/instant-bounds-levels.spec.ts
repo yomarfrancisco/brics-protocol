@@ -58,10 +58,10 @@ describe("InstantLane - Level-Aware Price Bounds", () => {
 
     // Deploy InstantLane without PMM
     const InstantLane = await ethers.getContractFactory("InstantLane");
-    lane = await InstantLane.deploy(brics, usdc, oracle, members, amm, config, ethers.ZeroAddress);
+    lane = await InstantLane.deploy(brics, usdc, oracle, members, amm, config, ethers.ZeroAddress, owner);
 
     // Deploy InstantLane with PMM
-    laneWithPmm = await InstantLane.deploy(brics, usdc, oracle, members, amm, config, pmm);
+    laneWithPmm = await InstantLane.deploy(brics, usdc, oracle, members, amm, config, pmm, owner);
 
     // Setup: Fund all participants with sufficient USDC using the helper
     await fundUSDC(usdc, [lane, laneWithPmm, memberAddr, amm, pmm], { amount: 2_000_000n * 10n**6n }); // 2M USDC each to cover max price scenarios
@@ -283,7 +283,7 @@ describe("InstantLane - Level-Aware Price Bounds", () => {
     it("should use defaults when config registry is address(0)", async () => {
       // Deploy lane with no config registry
       const InstantLane = await ethers.getContractFactory("InstantLane");
-      const laneNoConfig = await InstantLane.deploy(brics, usdc, oracle, members, amm, ethers.ZeroAddress, ethers.ZeroAddress);
+      const laneNoConfig = await InstantLane.deploy(brics, usdc, oracle, members, amm, ethers.ZeroAddress, ethers.ZeroAddress, owner);
       
       await usdc.mint(laneNoConfig, USDC_6 * 10n);
       await brics.connect(member).approve(laneNoConfig, TOKENS_18 * 10n);

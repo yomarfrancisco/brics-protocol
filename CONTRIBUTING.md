@@ -10,6 +10,21 @@ make bootstrap
 
 This sets up the complete development environment including Node.js, Python services, and pre-commit hooks.
 
+## Dev bootstrap (local)
+
+```bash
+scripts/dev/bootstrap.sh
+# or:
+yarn hardhat dev:bootstrap
+```
+
+Writes addresses to `.devstack/addresses.json`, mints USDC/BRICS in local/CI (mintable mocks), deploys mock NAV oracle + optional AMM/PMM + InstantLane, and seeds balances.
+
+**Env reference:**
+- `USDC_WHALE`, `BRICS_WHALE` — only used on forks (never required in local/CI)
+- `FIXTURE_SEED` — deterministic fixtures (`yarn fixtures:ci`)
+- `CI_SIGNER_PRIVKEY` — used by replay helpers; CI provides fallback
+
 ## Commit Style
 
 We follow [Conventional Commits](https://www.conventionalcommits.org/) format:
@@ -197,6 +212,14 @@ To update the Replay fixture:
 - All external calls use SafeERC20
 - Reentrancy guards on critical paths
 - Role-based access control
+
+## Release Process
+
+For information about cutting releases, see [docs/RELEASE.md](docs/RELEASE.md).
+
+## Audit Trails
+
+For information about audit bundles and verification, see [docs/AUDIT_TRAILS.md](docs/AUDIT_TRAILS.md).
 
 ## Questions?
 

@@ -10,3 +10,4 @@ import {ITrancheManagerV2} from "../interfaces/ITrancheManagerV2.sol";
 contract MockTrancheManager is ITrancheManagerV2 {
     // Placeholder mock - will be implemented when needed
 }
+

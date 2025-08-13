@@ -152,6 +152,35 @@ jobs:
       - name: Install dependencies
         run: |
           yarn install --immutable
+
+      - name: Dev bootstrap (dry-run)
+        run: |
+          yarn hardhat dev:bootstrap
+        continue-on-error: false
+
+      - name: Generate gas reports
+        run: |
+          yarn gas:bounds
+          yarn gas:core
+        continue-on-error: true
+
+      - name: Check gas budgets
+        run: |
+          yarn gas:budget
+        continue-on-error: true
+
+      - name: Upload devstack artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: devstack-${{ github.run_id }}
+          path: |
+            .devstack/addresses.json
+            gas-report.txt
+            deploy-logs/**
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Run coverage
         run: env -u HARDHAT_NETWORK yarn coverage || true
         env:
@@ -402,6 +431,51 @@ jobs:
             services/compliance/aml_sample.json
             services/compliance/cli.py
             services/compliance/app.py
+          if-no-files-found: warn
+          retention-days: 14
+
+  risk-api-test:
+    name: Risk API (Test)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: risk_api
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Use Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            risk_api/.venv
+          key: ${{ runner.os }}-python-3.11-${{ hashFiles('risk_api/pyproject.toml') }}
+          
+      - name: Install dependencies
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install -e ".[dev]"
+          
+      - name: Run tests
+        run: |
+          source .venv/bin/activate
+          pytest -q
+          
+      - name: Upload Risk API test logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: risk-api-test-logs-${{ github.run_id }}
+          path: |
+            risk_api/.pytest_cache/**
+            risk_api/tests/**
           if-no-files-found: warn
           retention-days: 14
 
@@ -781,5 +855,116 @@ jobs:
             sbom-node.json
             services/pricing/sbom-python.txt
             demo_output.sample.json
+          if-no-files-found: warn
+          retention-days: 14
+
+  audit-bundle:
+    name: Audit Bundle
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    continue-on-error: true
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history for commit analysis
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Enable Corepack & pin Yarn 4
+        run: |
+          corepack enable
+          corepack prepare yarn@4.9.2 --activate
+          yarn --version
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            node_modules
+          key: ${{ runner.os }}-node${{ env.NODE_VERSION }}-${{ hashFiles('yarn.lock') }}-audit
+
+      - name: Install dependencies
+        run: |
+          yarn install --immutable
+
+      - name: Compile contracts
+        run: |
+          yarn hardhat compile
+
+      - name: Generate audit artifacts
+        run: |
+          yarn audit:manifest
+          yarn audit:fixtures
+          yarn gas:bounds || true
+          yarn gas:core || true
+          yarn gas:budget || true
+          yarn audit:tests
+          yarn audit:events
+          yarn audit:bundle
+
+      - name: Upload audit bundle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-bundle-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            dist/audit/audit-bundle-*.zip
+            dist/audit/audit-bundle.sha256
+          if-no-files-found: warn
+          retention-days: 14
+
+  release-dry-run:
+    name: Release Dry-Run
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    continue-on-error: true
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history for commit analysis
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Enable Corepack & pin Yarn 4
+        run: |
+          corepack enable
+          corepack prepare yarn@4.9.2 --activate
+          yarn --version
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            node_modules
+          key: ${{ runner.os }}-node${{ env.NODE_VERSION }}-${{ hashFiles('yarn.lock') }}-release
+
+      - name: Install dependencies
+        run: |
+          yarn install --immutable
+
+      - name: Run release dry-run
+        run: |
+          yarn release:next && yarn release:notes && yarn release:dry
+
+      - name: Upload release artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-dry-run-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            CHANGELOG.md
+            dist/release-notes.md
           if-no-files-found: warn
           retention-days: 14

@@ -15,3 +15,4 @@ contract MockTreasury is ITreasury {
 
     event MockPay(address recipient, uint256 amount);
 }
+

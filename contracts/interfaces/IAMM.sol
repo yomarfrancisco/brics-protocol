@@ -10,3 +10,4 @@ interface IAMM {
     /// @dev For simplicity in mocks, in==out denomination. Real AMM would return different asset.
     function swap(uint256 usdcIn, address recipient) external returns (uint256 usdcOut);
 }
+

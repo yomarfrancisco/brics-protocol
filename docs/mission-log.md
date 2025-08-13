@@ -417,3 +417,22 @@ PR #17 is finalized with all critical CI jobs green. Follow-up issues created fo
 - **CI Status**: All replay tests passing (2/2), smoke test pipeline green
 - **Commit**: `35b6d7e` - chore: refresh fixtures post-0.2.0 for CI stability
 - **Fixture Hash**: `8d5a230ac9c07d1b12911a5a54cae979fd88633d235f6070ee2a059301855a96`
+
+---
+
+### 2025-08-13 14:04:49Z — P2 Kickoff wrap: fixtures refreshed + replay fix + artifacts ✅
+
+- **Branch**: `chore/p2-kickoff` @ `07abecd`
+- **Fixtures**: refreshed and frozen  
+  - **Path**: pricing-fixtures/ACME-LLC-30-frozen.json  
+  - **SHA256**: 54f0fb687fb6ef5fbcb87a3ae822e944bef18328c0de2f38e454d298e2d00a28
+- **Tests**: unit, settlement (engine/parity/e2e/invariants), tranche APY, issuance caps — all passing
+- **Replay**: updated `settleSwap` usage (added `elapsedDays, tenorDays`) and event to `SettlementExecuted`
+- **Artifacts**:
+  - `gas-report.txt`
+  - `dist/audit/abi.json`, `storage-layout.json`, `*.lock`
+  - `dist/audit/audit-bundle-*.zip`, `dist/audit/audit-bundle.sha256`
+  - `dist/demo/demo_settlement.json`
+- **Notes**: CI should be green with refreshed fixtures; gas budget within limits; ABI/storage locks updated.
+
+**Next**: PR review → merge → continue P2-3 (Tranche APY & Risk) deeper integration.

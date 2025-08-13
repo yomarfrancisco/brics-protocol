@@ -381,3 +381,12 @@ PR #17 is finalized with all critical CI jobs green. Follow-up issues created fo
 - Keep nightly gas & audit diff running on PRs
 - Maintain ≤60s smoke test on PRs (non-blocking)
 - Prep P2 economics re-entry (price-bounds invariants + PMM config)
+
+---
+
+### 2025-08-13 — Property Test Fix + CI Envelope ✅
+- Fixed signature verification alignment with RiskSignalLib.recoverSigner()
+- Corrected parameter validation ranges (correlation: 1000-9000 bps, spread: 1-2000 bps)
+- Added environment-gated trial counts (CI=32, local=64/128 via PROP_TRIALS)
+- Property test now passes with 50/50 valid/invalid distribution and <1s runtime
+- Next: P1-5 Settlement Math Integration with parity vectors and on-chain compute

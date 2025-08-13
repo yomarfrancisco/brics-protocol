@@ -1,6 +1,6 @@
 # BRICS Protocol — Running Mission Log
 
-**Last Updated**: 2025-08-11
+**Last Updated**: 2025-08-14
 
 ---
 
@@ -70,9 +70,9 @@
 
 ## Next High Level Actions
 
-**Current Step**: P1-2 Pricing Service implementation
+**Current Step**: P2-4 Redemption Queue implementation
 
-**After P1-2**: P1-3 KYC/AML Module
+**After P2-4**: P2-5 Integration with existing redemption flow
 
 **Keep In Mind**: Always ship PRs small & reviewable; no economic logic changes until tests cover scaffold behavior
 

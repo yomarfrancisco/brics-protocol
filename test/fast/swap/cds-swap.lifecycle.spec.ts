@@ -70,8 +70,10 @@ describe("CDS Swap Lifecycle", function () {
       };
       
       // This will fail due to invalid signature, but we can test the function signature
+      const elapsedDays = 1; // 1 day elapsed
+      const tenorDays = 365; // 1 year total tenor
       await expect(
-        cdsSwapEngine.connect(user1).settleSwap(swapId, mockQuote)
+        cdsSwapEngine.connect(user1).settleSwap(swapId, mockQuote, elapsedDays, tenorDays)
       ).to.be.revertedWithCustomError(cdsSwapEngine, "InvalidParams");
     });
 
@@ -132,7 +134,7 @@ describe("CDS Swap Lifecycle", function () {
 
   describe("Swap Metadata", function () {
     it("should store correct metadata after proposal", async function () {
-      const swapParams = createValidSwapParams(user1.address, user2.address);
+      const swapParams = await createValidSwapParams(user1.address, user2.address);
       
       const proposeTx = await cdsSwapEngine.connect(user3).proposeSwap(swapParams);
       const proposeReceipt = await proposeTx.wait();
@@ -193,8 +195,10 @@ describe("CDS Swap Lifecycle", function () {
       };
       
       // This will fail due to invalid signature, but we can test the function signature
+      const elapsedDays = 1; // 1 day elapsed
+      const tenorDays = 365; // 1 year total tenor
       await expect(
-        cdsSwapEngine.connect(user1).settleSwap(swapId, mockQuote)
+        cdsSwapEngine.connect(user1).settleSwap(swapId, mockQuote, elapsedDays, tenorDays)
       ).to.be.revertedWithCustomError(cdsSwapEngine, "InvalidParams");
     });
   });
@@ -300,8 +304,10 @@ describe("CDS Swap Lifecycle", function () {
       };
       
       // This will fail due to invalid signature, but we can test the function signature
+      const elapsedDays = 1; // 1 day elapsed
+      const tenorDays = 365; // 1 year total tenor
       await expect(
-        cdsSwapEngine.connect(user1).settleSwap(swapId, mockQuote)
+        cdsSwapEngine.connect(user1).settleSwap(swapId, mockQuote, elapsedDays, tenorDays)
       ).to.be.revertedWithCustomError(cdsSwapEngine, "InvalidParams");
     });
   });

@@ -88,8 +88,10 @@ describe("CDS Swap E2E Demo", function () {
       await time.increaseTo(START + 24 * 60 * 60);
 
       // Step 4: Settle swap (will fail due to signature verification, but we can test the structure)
+      const elapsedDays = 1; // 1 day elapsed
+      const tenorDays = tenor; // 30 days total tenor
       await expect(
-        cdsSwapEngine.settleSwap(swapId, quote)
+        cdsSwapEngine.settleSwap(swapId, quote, elapsedDays, tenorDays)
       ).to.be.revertedWithCustomError(cdsSwapEngine, "InvalidParams");
 
              // Verify the quote structure is correct
@@ -150,8 +152,10 @@ describe("CDS Swap E2E Demo", function () {
       };
 
       // This will fail due to signature verification, but demonstrates the structure
+      const elapsedDays = 30; // Assuming settlement at maturity
+      const tenorDays = 30; // 30 days total tenor
       await expect(
-        cdsSwapEngine.settleSwap(swapId, quote)
+        cdsSwapEngine.settleSwap(swapId, quote, elapsedDays, tenorDays)
       ).to.be.revertedWithCustomError(cdsSwapEngine, "InvalidParams");
 
       // Verify the expected payout calculation:

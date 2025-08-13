@@ -989,3 +989,9 @@ Implement a comprehensive redemption queue prioritization system that calculates
 ### 2025-08-13 21:04:18Z — v0.2.3 tagged
 - Short SHA: `3553c36`
 - Notes: P2-4 Redemption Queue View (read-only); artifacts updated
+
+---
+
+### 2025-08-13 23:02:35Z — Fix CDS Swap E2E ABI drift
+- Short SHA: `4f5ec6d`
+- Notes: Align test call with current ABI (name/tuple/types); deterministic

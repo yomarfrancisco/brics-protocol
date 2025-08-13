@@ -91,7 +91,9 @@ task("dev:bootstrap", "Deploys a local dev stack and seeds balances")
         await toAddr(deployer) // gov parameter
       );
       await lane.waitForDeployment();
-    } catch {}
+    } catch (error: any) {
+      console.log("⚠️  InstantLane deployment failed:", error.message);
+    }
 
     // 6) Seed balances (USDC & BRICS) for participants and venues
     const ONE_M_USDC = 1_000_000; // human, 6 decimals below

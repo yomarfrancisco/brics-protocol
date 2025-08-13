@@ -878,15 +878,6 @@ Implement a comprehensive redemption queue prioritization system that calculates
 
 ---
 
-### 2025-08-14 15:30:00Z — P2-4 Redemption Queue completed
-- Short SHA: `207e4c9`
-- Notes: Redemption queue prioritization system + comprehensive tests
-
----
-
-### 2025-08-14 16:45:00Z — Release Validation fix completed
-- Short SHA: `01395c0`
-- Notes: Fixed CEI rollback test with MockNAVOracleV3 + setNAV/failNext functions
 ### 2025-08-13 17:46:32Z — v0.2.1 tagged
 - Short SHA: `ba8670d`
 - Artifacts: ABI/storage locks + audit bundle updated
@@ -908,3 +899,15 @@ Implement a comprehensive redemption queue prioritization system that calculates
 ### 2025-08-13T20:00:45Z — v0.2.2+1 hotfix tagged
 - Short SHA: `cc483c9`
 - Notes: Release Validation fixed (MockNAVOracleV3)
+
+---
+
+### 2025-08-14 15:30:00Z — P2-4 Redemption Queue completed
+- Short SHA: `207e4c9`
+- Notes: Redemption queue prioritization system + comprehensive tests
+
+---
+
+### 2025-08-14 16:45:00Z — Release Validation fix completed
+- Short SHA: `01395c0`
+- Notes: Fixed CEI rollback test with MockNAVOracleV3 + setNAV/failNext functions

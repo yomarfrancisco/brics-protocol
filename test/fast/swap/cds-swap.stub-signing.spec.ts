@@ -109,7 +109,9 @@ describe("CDS Swap Stub Signing", function () {
 
       // Try to settle the swap
       try {
-        await cdsSwapEngine.settleSwap(swapId, quote);
+        const elapsedDays = 1; // 1 day elapsed
+        const tenorDays = 30; // 30 days total tenor
+        await cdsSwapEngine.settleSwap(swapId, quote, elapsedDays, tenorDays);
         console.log("✅ Settlement succeeded!");
       } catch (error: any) {
         console.log("❌ Settlement failed:", error.message);

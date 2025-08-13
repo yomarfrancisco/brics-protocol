@@ -930,6 +930,14 @@ Implement a comprehensive redemption queue prioritization system that calculates
 
 ---
 
+### 2025-08-14 18:30:00Z — PR #48 merged (P2-5 Redemption Queue Priority Integration) ✅
+- Short SHA: `22b0eed`
+- Notes: Priority integration merged to main - additive fields, processing path, docs & artifacts updated
+- Status: Core functionality implemented, test framework created (test fixes needed in follow-up)
+- Tests: Integration test framework created, deployment issues to be resolved
+
+---
+
 ### 2025-08-13 21:04:18Z — v0.2.3 tagged
 - Short SHA: `3553c36`
 - Notes: P2-4 Redemption Queue View (read-only); artifacts updated

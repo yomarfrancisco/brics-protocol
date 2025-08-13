@@ -66,14 +66,33 @@ describe("Property: quote verification", () => {
       await time.increaseTo(trialStart + 24 * 60 * 60);
 
       const asOf = Number(await time.latest());
-      const corr = randInt(r, 0, 10000); // 0..10000 bps
-      const fair = randInt(r, 0, 2000);  // 0..2000 bps
+      
+      // Ensure quote is not stale (within 5 minutes)
+      if (asOf > trialStart + 24 * 60 * 60 + 300) {
+        throw new Error(`Quote would be stale: asOf=${asOf}, trialStart=${trialStart}`);
+      }
+      const corr = randInt(r, 1000, 9000); // 1000..9000 bps (MIN_CORRELATION_BPS..MAX_CORRELATION_BPS)
+      const fair = randInt(r, 1, 2000);    // 1..2000 bps (MIN_SPREAD_BPS..MAX_SPREAD_BPS)
 
+      // Create payload matching RiskSignalLib format
+      const payload = {
+        portfolioId: portfolioId,
+        asOf: asOf,
+        riskScore: risk,
+        correlationBps: corr,
+        spreadBps: fair,
+        modelIdHash: modelIdHash,
+        featuresHash: featuresHash
+      };
+      
+      // Create digest using RiskSignalLib format (same as on-chain)
       const packed = coder.encode(
         ["bytes32","uint64","uint256","uint16","uint16","bytes32","bytes32"],
-        [portfolioId, asOf, risk, corr, fair, modelIdHash, featuresHash]
+        [payload.portfolioId, payload.asOf, payload.riskScore, payload.correlationBps, payload.spreadBps, payload.modelIdHash, payload.featuresHash]
       );
       const digest = keccak256(packed);
+      
+      // Sign the digest (RiskSignalLib.recoverSigner will apply EIP-191 prefix)
       const sig = await wallet.signMessage(getBytes(digest));
 
       // Valid should settle
@@ -109,6 +128,12 @@ describe("Property: quote verification", () => {
 
       // Advance time for the second swap
       await time.increaseTo(trialStart2 + 24 * 60 * 60);
+      
+      // Ensure quote is not stale for the second swap
+      const asOf2 = Number(await time.latest());
+      if (asOf2 > trialStart2 + 24 * 60 * 60 + 300) {
+        throw new Error(`Quote would be stale for second swap: asOf2=${asOf2}, trialStart2=${trialStart2}`);
+      }
 
       await expect(engine.settleSwap(trialSwapId2, {
         fairSpreadBps: fair,

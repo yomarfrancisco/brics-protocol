@@ -11,6 +11,12 @@ yarn test:prop
 
 # Run with custom trial count
 PROP_TRIALS=64 yarn test:prop
+
+# Run specific property test with replay provider
+PRICING_PROVIDER=replay BANK_DATA_MODE=off PROP_TRIALS=64 yarn test test/property/quote-verify.property.spec.ts
+
+# Local development with higher trial counts
+PROP_TRIALS=128 yarn test test/property/quote-verify.property.spec.ts
 ```
 
 ### Smoke Tests

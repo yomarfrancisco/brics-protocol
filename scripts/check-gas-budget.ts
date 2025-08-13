@@ -33,6 +33,7 @@ const GAS_BUDGETS: Record<string, Record<string, number>> = {
     'settleSwap': 150000,
     'proposeSwap': 100000,
     'activateSwap': 50000,
+    'computeSettlement': 30000,
   },
   'ConfigRegistry': {
     'setTradeFeeBps': 30000,

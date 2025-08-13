@@ -30,7 +30,10 @@ describe("Governance Permissions", () => {
     treasury = await Treasury.deploy(await gov.getAddress(), usdc, 1000);
     
     const MockMemberRegistry = await ethers.getContractFactory("MockMemberRegistry");
-    const memberRegistry = await MockMemberRegistry.deploy();
+    memberRegistry = await MockMemberRegistry.deploy();
+    
+    // Make user a member so minting works
+    await memberRegistry.setMember(await user.getAddress(), true);
     
     const BRICSToken = await ethers.getContractFactory("BRICSToken");
     bricsToken = await BRICSToken.deploy(await gov.getAddress(), memberRegistry);
@@ -211,20 +214,25 @@ describe("Governance Permissions", () => {
 
   describe("BRICS Token Permissions", () => {
     it("mint should require MINTER_ROLE", async () => {
+      // Verify gov has MINTER_ROLE
+      const MINTER_ROLE = await bricsToken.MINTER_ROLE();
+      expect(await bricsToken.hasRole(MINTER_ROLE, await gov.getAddress())).to.be.true;
+      
       // Should succeed with correct role
       await expect(bricsToken.connect(gov).mint(await user.getAddress(), 1000))
         .to.not.be.reverted;
       
       // Should fail with random account
-      try {
-        await bricsToken.connect(random).mint(await user.getAddress(), 1000);
-        expect.fail("Should have reverted");
-      } catch (error: any) {
-        expect(error.message).to.include("AccessControl");
-      }
+      await expect(bricsToken.connect(random).mint(await user.getAddress(), 1000))
+        .to.be.revertedWithCustomError(bricsToken, "AccessControlUnauthorizedAccount")
+        .withArgs(await random.getAddress(), MINTER_ROLE);
     });
 
     it("burn should require BURNER_ROLE", async () => {
+      // Verify gov has BURNER_ROLE
+      const BURNER_ROLE = await bricsToken.BURNER_ROLE();
+      expect(await bricsToken.hasRole(BURNER_ROLE, await gov.getAddress())).to.be.true;
+      
       // Mint first
       await bricsToken.connect(gov).mint(await user.getAddress(), 1000);
       
@@ -233,12 +241,9 @@ describe("Governance Permissions", () => {
         .to.not.be.reverted;
       
       // Should fail with random account
-      try {
-        await bricsToken.connect(random).burn(await user.getAddress(), 500);
-        expect.fail("Should have reverted");
-      } catch (error: any) {
-        expect(error.message).to.include("AccessControl");
-      }
+      await expect(bricsToken.connect(random).burn(await user.getAddress(), 500))
+        .to.be.revertedWithCustomError(bricsToken, "AccessControlUnauthorizedAccount")
+        .withArgs(await random.getAddress(), BURNER_ROLE);
     });
   });
 

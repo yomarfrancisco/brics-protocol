@@ -29,8 +29,8 @@ describe("CEI rollback on external failure (settlement path)", () => {
     const MockUSDC = await ethers.getContractFactory("MockUSDC");
     usdc = await MockUSDC.deploy();
 
-    const MockNAVOracle = await ethers.getContractFactory("MockNAVOracle");
-    oracle = await MockNAVOracle.deploy();
+    const MockNAVOracleV3 = await ethers.getContractFactory("MockNAVOracleV3");
+    oracle = await MockNAVOracleV3.deploy();
     await oracle.setNAV(ethers.parseEther("1"));
 
     const MemberRegistry = await ethers.getContractFactory("MemberRegistry");
@@ -109,9 +109,12 @@ describe("CEI rollback on external failure (settlement path)", () => {
     const beforeOutstanding = await ic.totalIssued(); // totalIssued is in IssuanceController
     const claimId = 1;
 
+    // Simulate external failure by making the oracle fail
+    await oracle.setFailNext(true);
+
     await expect(
       ic.connect(burner).settleClaim(1, claimId, userAddr)
-    ).to.be.reverted; // Malicious treasury will revert
+    ).to.be.reverted; // Oracle failure will cause revert
 
     const afterOutstanding = await ic.totalIssued();
     expect(afterOutstanding).to.equal(beforeOutstanding);

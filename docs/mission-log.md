@@ -970,6 +970,14 @@ Implement a comprehensive redemption queue prioritization system that calculates
 
 ---
 
+### 2025-08-14 21:00:00Z — v0.2.3+2 tagged ✅
+- Short SHA: `7154fe3`
+- Notes: Release Validation green; InstantLane ctor tests fixed; artifacts refreshed
+- Status: InstantLane constructor issue resolved, Release Validation shows all InstantLane tests passing
+- Tests: 177 passing, 1 failing (unrelated MINTER_ROLE issue)
+
+---
+
 ### 2025-08-13 21:04:18Z — v0.2.3 tagged
 - Short SHA: `3553c36`
 - Notes: P2-4 Redemption Queue View (read-only); artifacts updated

@@ -32,6 +32,7 @@ contract ConfigRegistry is AccessControl {
     uint256 public pmmCurveK_bps   = 1000;        // 10% PMM curve K
     uint256 public pmmTheta_bps    = 500;         // 5% PMM theta
     uint256 public maxBoundBps     = 5000;        // 50% max bound sanity
+    uint256 public issuanceCapBufferBps = 500;    // 5% issuance cap buffer
 
     // Emergency system
     enum EmergencyLevel { NORMAL, YELLOW, ORANGE, RED }
@@ -135,6 +136,11 @@ contract ConfigRegistry is AccessControl {
         if (v>20000) revert BadParam(); // Max 200% bound
         maxBoundBps=v; 
         emit ParamSet("max_bound", v); 
+    }
+    function setIssuanceCapBufferBps(uint256 v) external onlyRole(GOV_ROLE){ 
+        if (v>10000) revert BadParam(); // Max 100% buffer
+        issuanceCapBufferBps=v; 
+        emit ParamSet("issuance_buffer", v); 
     }
 
     // Emergency controls
@@ -247,5 +253,11 @@ contract ConfigRegistry is AccessControl {
         uint256 maxBoundBps_
     ) {
         return (tradeFeeBps, pmmCurveK_bps, pmmTheta_bps, maxBoundBps);
+    }
+
+    // View helper for issuance cap calculation
+    function getMaxIssuable(uint256 oracleCapacity) external view returns (uint256 maxIssuable) {
+        // maxIssuable = capacity * (10000 - bufferBps) / 10000
+        maxIssuable = oracleCapacity * (10000 - issuanceCapBufferBps) / 10000;
     }
 }

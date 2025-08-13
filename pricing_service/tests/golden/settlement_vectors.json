@@ -1,0 +1,90 @@
+[
+  {
+    "name": "mid-tenor positive pnl",
+    "fairSpreadBps": 800,
+    "fixedSpreadBps": 80,
+    "notional": 1000000,
+    "elapsedDays": 15,
+    "tenorDays": 30,
+    "tokenDecimals": 6,
+    "expectedPnlSmallest": 36000,
+    "direction": "seller_to_buyer"
+  },
+  {
+    "name": "mid-tenor negative pnl",
+    "fairSpreadBps": 50,
+    "fixedSpreadBps": 150,
+    "notional": 2000000,
+    "elapsedDays": 10,
+    "tenorDays": 40,
+    "tokenDecimals": 6,
+    "expectedPnlSmallest": -5000,
+    "direction": "buyer_to_seller"
+  },
+  {
+    "name": "full tenor positive pnl (max days)",
+    "fairSpreadBps": 1200,
+    "fixedSpreadBps": 200,
+    "notional": 50000000,
+    "elapsedDays": 365,
+    "tenorDays": 365,
+    "tokenDecimals": 6,
+    "expectedPnlSmallest": 5000000,
+    "direction": "seller_to_buyer"
+  },
+  {
+    "name": "tiny elapsed 1 day",
+    "fairSpreadBps": 300,
+    "fixedSpreadBps": 290,
+    "notional": 1000000,
+    "elapsedDays": 1,
+    "tenorDays": 30,
+    "tokenDecimals": 6,
+    "expectedPnlSmallest": 33,
+    "direction": "seller_to_buyer"
+  },
+  {
+    "name": "edge equal spreads = 0",
+    "fairSpreadBps": 500,
+    "fixedSpreadBps": 500,
+    "notional": 100000000,
+    "elapsedDays": 12,
+    "tenorDays": 360,
+    "tokenDecimals": 6,
+    "expectedPnlSmallest": 0,
+    "direction": "none"
+  },
+  {
+    "name": "large notional rounding upward",
+    "fairSpreadBps": 701,
+    "fixedSpreadBps": 700,
+    "notional": 123456789,
+    "elapsedDays": 137,
+    "tenorDays": 365,
+    "tokenDecimals": 6,
+    "expectedPnlSmallest": 4634,
+    "direction": "seller_to_buyer"
+  },
+  {
+    "name": "large notional rounding downward (negative)",
+    "fairSpreadBps": 899,
+    "fixedSpreadBps": 900,
+    "notional": 987654321,
+    "elapsedDays": 200,
+    "tenorDays": 365,
+    "tokenDecimals": 6,
+    "expectedPnlSmallest": -54118,
+    "direction": "buyer_to_seller"
+  },
+  {
+    "name": "near bounds high spread",
+    "fairSpreadBps": 10000,
+    "fixedSpreadBps": 1,
+    "notional": 1000000,
+    "elapsedDays": 7,
+    "tenorDays": 14,
+    "tokenDecimals": 6,
+    "expectedPnlSmallest": 499950,
+    "direction": "seller_to_buyer"
+  }
+]

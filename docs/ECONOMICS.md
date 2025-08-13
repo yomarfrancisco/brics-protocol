@@ -18,6 +18,7 @@ All economic parameters are stored in the `ConfigRegistry` contract and can be m
 | `pmmCurveK_bps` | 1,000 bps (10%) | 0-20,000 bps | PMM curve parameter K (volatility) |
 | `pmmTheta_bps` | 500 bps (5%) | 0-20,000 bps | PMM curve parameter theta (decay) |
 | `maxBoundBps` | 5,000 bps (50%) | 0-20,000 bps | Maximum price bound sanity check |
+| `issuanceCapBufferBps` | 500 bps (5%) | 0-10,000 bps | Issuance cap buffer percentage |
 
 ### Parameter Details
 
@@ -39,6 +40,13 @@ All economic parameters are stored in the `ConfigRegistry` contract and can be m
 - **Purpose**: Sanity check to prevent extreme price movements
 - **Usage**: Used as an upper limit for emergency level bounds
 - **Safety**: Prevents protocol from accepting unreasonable prices
+
+#### Issuance Cap Buffer (`issuanceCapBufferBps`)
+- **Purpose**: Safety buffer for issuance limits based on sovereign capacity
+- **Calculation**: `maxIssuable = capacity * (10000 - bufferBps) / 10000`
+- **Example 1**: 500 bps buffer with 1M USDC capacity = 950k USDC max issuable
+- **Example 2**: 1000 bps buffer with 2M USDC capacity = 1.8M USDC max issuable
+- **Safety**: Ensures protocol maintains reserves below oracle-reported capacity
 
 ## Reading Economic Parameters
 
@@ -73,6 +81,50 @@ The Risk API provides signed endpoints for reading economic parameters:
 ```bash
 # Get current economics parameters
 curl "http://localhost:8000/api/v1/economics/parameters"
+```
+
+## Tranche APY Surface (Read-Only)
+
+### Overview
+
+The tranche APY system provides risk-adjusted yields based on base APY and risk adjustments from oracle feeds.
+
+### APY Calculation
+
+The effective APY is calculated using the following formula:
+
+```
+effectiveApyBps = max(0, baseApyBps - riskAdjBps)
+```
+
+Where:
+- `baseApyBps`: Base annual percentage yield in basis points
+- `riskAdjBps`: Risk adjustment in basis points (subtracted from base)
+- `maxApyBps`: Maximum allowed APY in basis points (from ConfigRegistry)
+
+The result is clamped to the range `[0, maxApyBps]`.
+
+### Example Calculations
+
+**Example 1**: Base 800 bps, risk 200 bps, max 1000 bps
+- Effective APY = max(0, 800 - 200) = 600 bps (6.0%)
+
+**Example 2**: Base 1200 bps, risk 300 bps, max 1000 bps  
+- Effective APY = max(0, 1200 - 300) = 900 bps (9.0%)
+- Clamped to max: 1000 bps (10.0%)
+
+**Example 3**: Base 500 bps, risk 600 bps, max 1000 bps
+- Effective APY = max(0, 500 - 600) = 0 bps (0.0%)
+
+### Oracle Integration
+
+Tranche APY values are sourced from `ITrancheRiskOracle`:
+```solidity
+function latestTrancheRisk(uint256 trancheId) external view returns (
+    uint16 baseApyBps, 
+    uint16 riskAdjBps, 
+    uint64 asOf
+);
 ```
 
 ## Setting Economic Parameters

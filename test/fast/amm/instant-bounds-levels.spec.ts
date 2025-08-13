@@ -89,6 +89,24 @@ describe("InstantLane - Level-Aware Price Bounds", () => {
       await config.setUint(ethers.keccak256(ethers.toUtf8Bytes("emergency.level")), 0);
     });
 
+    it("should use ConfigRegistry bounds for L0", async () => {
+      // Verify that bounds are sourced from ConfigRegistry
+      const bounds = await config.getBoundsForLevel(0);
+      const minBps = bounds[0];
+      const maxBps = bounds[1];
+      expect(minBps).to.equal(9800);
+      expect(maxBps).to.equal(10200);
+      
+      // Verify preTradeCheck returns the same bounds
+      const checkResult = await lane.preTradeCheck(10000, 0);
+      const ok = checkResult[0];
+      const minCheck = checkResult[1];
+      const maxCheck = checkResult[2];
+      expect(minCheck).to.equal(minBps);
+      expect(maxCheck).to.equal(maxBps);
+      expect(ok).to.be.true;
+    });
+
     it("should allow swaps within L0 bounds [9800..10200]", async () => {
       // Set AMM price to 10000 (within bounds)
       await amm.setPriceBps(10000);
@@ -140,6 +158,24 @@ describe("InstantLane - Level-Aware Price Bounds", () => {
       await config.setUint(ethers.keccak256(ethers.toUtf8Bytes("emergency.level")), 1);
     });
 
+    it("should use ConfigRegistry bounds for L1", async () => {
+      // Verify that bounds are sourced from ConfigRegistry
+      const bounds = await config.getBoundsForLevel(1);
+      const minBps = bounds[0];
+      const maxBps = bounds[1];
+      expect(minBps).to.equal(9900);
+      expect(maxBps).to.equal(10100);
+      
+      // Verify preTradeCheck returns the same bounds
+      const checkResult = await lane.preTradeCheck(10000, 1);
+      const ok = checkResult[0];
+      const minCheck = checkResult[1];
+      const maxCheck = checkResult[2];
+      expect(minCheck).to.equal(minBps);
+      expect(maxCheck).to.equal(maxBps);
+      expect(ok).to.be.true;
+    });
+
     it("should allow swaps within L1 bounds [9900..10100]", async () => {
       await amm.setPriceBps(10000);
       
@@ -188,6 +224,24 @@ describe("InstantLane - Level-Aware Price Bounds", () => {
   describe("Emergency Level 2 (Red)", () => {
     beforeEach(async () => {
       await config.setUint(ethers.keccak256(ethers.toUtf8Bytes("emergency.level")), 2);
+    });
+
+    it("should use ConfigRegistry bounds for L2", async () => {
+      // Verify that bounds are sourced from ConfigRegistry
+      const bounds = await config.getBoundsForLevel(2);
+      const minBps = bounds[0];
+      const maxBps = bounds[1];
+      expect(minBps).to.equal(9975);
+      expect(maxBps).to.equal(10025);
+      
+      // Verify preTradeCheck returns the same bounds
+      const checkResult = await lane.preTradeCheck(10000, 2);
+      const ok = checkResult[0];
+      const minCheck = checkResult[1];
+      const maxCheck = checkResult[2];
+      expect(minCheck).to.equal(minBps);
+      expect(maxCheck).to.equal(maxBps);
+      expect(ok).to.be.true;
     });
 
     it("should allow swaps within L2 bounds [9975..10025]", async () => {

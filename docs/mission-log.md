@@ -381,3 +381,58 @@ PR #17 is finalized with all critical CI jobs green. Follow-up issues created fo
 - Keep nightly gas & audit diff running on PRs
 - Maintain ≤60s smoke test on PRs (non-blocking)
 - Prep P2 economics re-entry (price-bounds invariants + PMM config)
+
+---
+
+### 2025-08-13 — Property Test Fix + CI Envelope ✅
+- Fixed signature verification alignment with RiskSignalLib.recoverSigner()
+- Corrected parameter validation ranges (correlation: 1000-9000 bps, spread: 1-2000 bps)
+- Added environment-gated trial counts (CI=32, local=64/128 via PROP_TRIALS)
+- Property test now passes with 50/50 valid/invalid distribution and <1s runtime
+- Next: P1-5 Settlement Math Integration with parity vectors and on-chain compute
+
+---
+
+### 2025-08-13 — P1-5 Kickoff: Settlement Parity Scaffolding ✅
+- Added SETTLEMENT_MATH.md draft spec (units, rounding, bounds).
+- Seeded golden vectors + off-chain/on-chain parity tests.
+- Stubbed Solidity SettlementMath library; gas budget entries added.
+- Next: wire compute into CdsSwapEngine.settleSwap + SafeERC20 flows and invariants.
+
+---
+
+### 2025-08-13 — P1-5 Settlement Math Integration ✅ (E2E + Invariants + ABI/Storage Freeze)
+- Engine wired to SettlementMath (round-half-up parity), dual modes (ACCOUNTING/TRANSFERS).
+- E2E demo + invariants landed; ABI/storage freeze artifacts produced in CI.
+
+### P2 Kickoff — Full Economic Integration (planning)
+- P2-1: Surface lane price bounds & PMM params in ConfigRegistry; integrate into InstantLane checks; tests + gas.
+- P2-2: Add sovereign capacity feed + issuance caps; enforce caps in issuance paths; tests + docs.
+- P2-1/2 merged to PR — starting P2-3: tranche APY & risk (read-only).
+
+### CI/CD Stability — Post-0.2.0 Fixture Refresh (2024-12-13)
+- **Fixture Refresh**: Regenerated pricing fixtures with fresh timestamps and digests
+- **Test Fix**: Updated CDS swap replay test to match new `settleSwap` signature (added `elapsedDays`, `tenorDays` params)
+- **Event Update**: Changed test expectation from `SwapSettled` to `SettlementExecuted` event
+- **CI Status**: All replay tests passing (2/2), smoke test pipeline green
+- **Commit**: `35b6d7e` - chore: refresh fixtures post-0.2.0 for CI stability
+- **Fixture Hash**: `8d5a230ac9c07d1b12911a5a54cae979fd88633d235f6070ee2a059301855a96`
+
+---
+
+### 2025-08-13 14:04:49Z — P2 Kickoff wrap: fixtures refreshed + replay fix + artifacts ✅
+
+- **Branch**: `chore/p2-kickoff` @ `07abecd`
+- **Fixtures**: refreshed and frozen  
+  - **Path**: pricing-fixtures/ACME-LLC-30-frozen.json  
+  - **SHA256**: 54f0fb687fb6ef5fbcb87a3ae822e944bef18328c0de2f38e454d298e2d00a28
+- **Tests**: unit, settlement (engine/parity/e2e/invariants), tranche APY, issuance caps — all passing
+- **Replay**: updated `settleSwap` usage (added `elapsedDays, tenorDays`) and event to `SettlementExecuted`
+- **Artifacts**:
+  - `gas-report.txt`
+  - `dist/audit/abi.json`, `storage-layout.json`, `*.lock`
+  - `dist/audit/audit-bundle-*.zip`, `dist/audit/audit-bundle.sha256`
+  - `dist/demo/demo_settlement.json`
+- **Notes**: CI should be green with refreshed fixtures; gas budget within limits; ABI/storage locks updated.
+
+**Next**: PR review → merge → continue P2-3 (Tranche APY & Risk) deeper integration.

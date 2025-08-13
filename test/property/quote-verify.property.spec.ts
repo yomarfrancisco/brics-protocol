@@ -95,6 +95,10 @@ describe("Property: quote verification", () => {
       // Sign the digest (RiskSignalLib.recoverSigner will apply EIP-191 prefix)
       const sig = await wallet.signMessage(getBytes(digest));
 
+      // Generate random elapsed and tenor days for settlement
+      const tenorDays = randInt(r, 1, 365); // 1..365 days
+      const elapsedDays = randInt(r, 1, tenorDays); // 1..tenorDays
+
       // Valid should settle
       await expect(engine.settleSwap(trialSwapId, {
         fairSpreadBps: fair,
@@ -105,7 +109,7 @@ describe("Property: quote verification", () => {
         featuresHash,
         digest,
         signature: sig
-      })).to.emit(engine, "SwapSettled");
+      }, elapsedDays, tenorDays)).to.emit(engine, "SettlementExecuted");
       validCount++;
 
       // Test with mutated digest (should revert)
@@ -144,7 +148,7 @@ describe("Property: quote verification", () => {
         featuresHash,
         digest: badDigest,
         signature: sig
-      })).to.be.reverted;
+      }, elapsedDays, tenorDays)).to.be.reverted;
       invalidCount++;
     }
     

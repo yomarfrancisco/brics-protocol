@@ -94,7 +94,7 @@ describe("CDS Swap – E2E (replay)", () => {
         featuresHash:   featuresHashNorm,
         digest,
         signature
-      })
-    ).to.emit(engine, "SwapSettled");
+      }, 15, 30) // elapsedDays, tenorDays
+    ).to.emit(engine, "SettlementExecuted");
   });
 });

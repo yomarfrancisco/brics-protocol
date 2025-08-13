@@ -54,4 +54,33 @@ contract MockConfigRegistry is IConfigRegistry {
     function setUint(bytes32 key, uint256 value) external {
         configValues[key] = value;
     }
+
+    function getBoundsForLevel(uint8 level) external pure returns (uint256 minBps, uint256 maxBps) {
+        if (level == 0) {
+            // Level 0 (Normal): ±2%
+            minBps = 9800;
+            maxBps = 10200;
+        } else if (level == 1) {
+            // Level 1 (Amber): ±1%
+            minBps = 9900;
+            maxBps = 10100;
+        } else if (level == 2) {
+            // Level 2 (Red): ±0.25%
+            minBps = 9975;
+            maxBps = 10025;
+        } else {
+            // Level 3+ (Disabled): most restrictive
+            minBps = 9975;
+            maxBps = 10025;
+        }
+    }
+
+    function getEconomics() external pure returns (
+        uint256 tradeFeeBps,
+        uint256 pmmCurveK_bps,
+        uint256 pmmTheta_bps,
+        uint256 maxBoundBps
+    ) {
+        return (50, 1000, 500, 5000); // Default values
+    }
 }

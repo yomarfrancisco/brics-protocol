@@ -17,6 +17,31 @@ PRICING_PROVIDER=replay BANK_DATA_MODE=off PROP_TRIALS=64 yarn test test/propert
 
 # Local development with higher trial counts
 PROP_TRIALS=128 yarn test test/property/quote-verify.property.spec.ts
+
+## Settlement Tests
+
+# Run settlement engine tests
+yarn hardhat test test/settlement/settlement-engine.spec.ts
+
+# Run settlement parity tests
+yarn hardhat test test/settlement/settlement-parity.spec.ts
+
+# Test settlement with different modes
+# ACCOUNTING mode (no transfers): setSettlementMode(0)
+# TRANSFERS mode (with transfers): setSettlementMode(1)
+
+## Settlement Demo
+
+# Run the full settlement demo (ACCOUNTING + TRANSFERS)
+yarn demo:settlement
+
+# Run E2E settlement tests
+yarn test:settlement:e2e
+
+# Troubleshooting
+# - Ensure approvals are set: buyer/seller must approve engine to spend USDC
+# - Check balances: buyer/seller must have sufficient USDC
+# - Verify oracle setup: price oracle must be configured with correct signer
 ```
 
 ### Smoke Tests

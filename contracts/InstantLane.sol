@@ -9,6 +9,8 @@ import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 
 interface IConfigRegistryLike {
     function getUint(bytes32 k) external view returns (uint256);
+    function getBoundsForLevel(uint8 level) external view returns (uint256 minBps, uint256 maxBps);
+    function getEconomics() external view returns (uint256 tradeFeeBps, uint256 pmmCurveK_bps, uint256 pmmTheta_bps, uint256 maxBoundBps);
 }
 interface INAVOracleLike {
     function latestNAVRay() external view returns (uint256); // 1e27 precision
@@ -112,16 +114,37 @@ contract InstantLane is Pausable, AccessControl {
     }
 
     function _boundsForLevel(uint256 lvl) internal view returns (uint256 minBps, uint256 maxBps) {
-        if (lvl == 0) {
-            minBps = _getOrDefault(K_PRICE_MIN_BPS_L0, 9_800);
-            maxBps = _getOrDefault(K_PRICE_MAX_BPS_L0, 10_200);
-        } else if (lvl == 1) {
-            minBps = _getOrDefault(K_PRICE_MIN_BPS_L1, 9_900);
-            maxBps = _getOrDefault(K_PRICE_MAX_BPS_L1, 10_100);
+        if (address(cfg) == address(0)) {
+            // Fallback to hardcoded bounds if no config registry
+            if (lvl == 0) {
+                minBps = 9_800;
+                maxBps = 10_200;
+            } else if (lvl == 1) {
+                minBps = 9_900;
+                maxBps = 10_100;
+            } else {
+                // lvl >= 2 maps to L2 bounds; disabling handled separately
+                minBps = 9_975;
+                maxBps = 10_025;
+            }
         } else {
-            // lvl >= 2 maps to L2 bounds; disabling handled separately
-            minBps = _getOrDefault(K_PRICE_MIN_BPS_L2, 9_975);
-            maxBps = _getOrDefault(K_PRICE_MAX_BPS_L2, 10_025);
+            // Use ConfigRegistry's centralized bounds logic
+            try cfg.getBoundsForLevel(uint8(lvl)) returns (uint256 min, uint256 max) {
+                minBps = min;
+                maxBps = max;
+            } catch {
+                // Fallback to hardcoded bounds if registry call fails
+                if (lvl == 0) {
+                    minBps = 9_800;
+                    maxBps = 10_200;
+                } else if (lvl == 1) {
+                    minBps = 9_900;
+                    maxBps = 10_100;
+                } else {
+                    minBps = 9_975;
+                    maxBps = 10_025;
+                }
+            }
         }
     }
 

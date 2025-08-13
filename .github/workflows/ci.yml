@@ -911,6 +911,7 @@ jobs:
         run: |
           yarn gas:trend
           yarn gas:chart
+          yarn gas:summary
 
       - name: Upload gas trend artifacts
         if: always()
@@ -921,6 +922,59 @@ jobs:
             gas-report.txt
             dist/gas/gas-trend.csv
             dist/gas/gas-trend.svg
+            dist/gas/gas-summary.md
+          if-no-files-found: warn
+          retention-days: 14
+
+  smoke-dev:
+    name: Dev Bootstrap Smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    continue-on-error: true
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Enable Corepack & pin Yarn 4
+        run: |
+          corepack enable
+          corepack prepare yarn@4.9.2 --activate
+          yarn --version
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            node_modules
+          key: ${{ runner.os }}-node${{ env.NODE_VERSION }}-${{ hashFiles('yarn.lock') }}-smoke-dev
+
+      - name: Install dependencies
+        run: |
+          yarn install --immutable
+          cd risk_api && pip install -r requirements.txt
+
+      - name: Run smoke test
+        run: |
+          yarn smoke:dev > smoke-dev.log 2>&1 || echo "Smoke test completed with status $?"
+
+      - name: Upload smoke test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-dev-${{ github.run_id }}-${{ github.run_attempt }}
+          path: smoke-dev.log
           if-no-files-found: warn
           retention-days: 14
 

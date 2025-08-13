@@ -55,7 +55,7 @@ function generateSVGChart(data: GasDataPoint[]): string {
   
   const width = 800;
   const height = 400;
-  const margin = { top: 20, right: 20, bottom: 60, left: 60 };
+  const margin = { top: 30, right: 20, bottom: 80, left: 80 };
   const chartWidth = width - margin.left - margin.right;
   const chartHeight = height - margin.top - margin.bottom;
   
@@ -85,16 +85,34 @@ function generateSVGChart(data: GasDataPoint[]): string {
   svg += `  <rect width="${width}" height="${height}" fill="#f8f9fa"/>\n`;
   
   // Title
-  svg += `  <text x="${width/2}" y="15" text-anchor="middle" font-family="Arial" font-size="14" font-weight="bold">Gas Usage Trends</text>\n`;
+  svg += `  <text x="${width/2}" y="20" text-anchor="middle" font-family="Arial" font-size="16" font-weight="bold">Gas Usage Trends</text>\n`;
   
   // Y-axis
   svg += `  <line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${margin.top + chartHeight}" stroke="#333" stroke-width="2"/>\n`;
-  svg += `  <text x="${margin.left - 10}" y="${margin.top + chartHeight/2}" text-anchor="end" transform="rotate(-90 ${margin.left - 10} ${margin.top + chartHeight/2})" font-family="Arial" font-size="12">Gas Usage</text>\n`;
+  svg += `  <text x="${margin.left - 15}" y="${margin.top + chartHeight/2}" text-anchor="end" transform="rotate(-90 ${margin.left - 15} ${margin.top + chartHeight/2})" font-family="Arial" font-size="12" font-weight="bold">Gas Usage</text>\n`;
+  
+  // Y-axis labels
+  const yTicks = 5;
+  for (let i = 0; i <= yTicks; i++) {
+    const y = margin.top + (i / yTicks) * chartHeight;
+    const value = Math.round(minGas + (i / yTicks) * (maxGas - minGas));
+    svg += `  <line x1="${margin.left - 5}" y1="${y}" x2="${margin.left}" y2="${y}" stroke="#333" stroke-width="1"/>\n`;
+    svg += `  <text x="${margin.left - 10}" y="${y + 4}" text-anchor="end" font-family="Arial" font-size="10">${value.toLocaleString()}</text>\n`;
+  }
   
   // X-axis
   svg += `  <line x1="${margin.left}" y1="${margin.top + chartHeight}" x2="${margin.left + chartWidth}" y2="${margin.top + chartHeight}" stroke="#333" stroke-width="2"/>\n`;
   
-  // Plot data points
+  // X-axis labels
+  const xTicks = Math.min(5, dates.length);
+  for (let i = 0; i < xTicks; i++) {
+    const x = margin.left + (i / (xTicks - 1)) * chartWidth;
+    const date = dates[Math.floor((i / (xTicks - 1)) * (dates.length - 1))];
+    svg += `  <line x1="${x}" y1="${margin.top + chartHeight}" x2="${x}" y2="${margin.top + chartHeight + 5}" stroke="#333" stroke-width="1"/>\n`;
+    svg += `  <text x="${x}" y="${margin.top + chartHeight + 20}" text-anchor="middle" font-family="Arial" font-size="10">${date}</text>\n`;
+  }
+  
+  // Plot data points with hoverable tooltips
   functions.forEach((func, funcIndex) => {
     const funcData = data.filter(d => d.function === func);
     const color = colors[funcIndex % colors.length];
@@ -106,10 +124,29 @@ function generateSVGChart(data: GasDataPoint[]): string {
       svg += `  <line x1="${xScale(prev.date)}" y1="${yScale(prev.gas)}" x2="${xScale(curr.date)}" y2="${yScale(curr.gas)}" stroke="${color}" stroke-width="2"/>\n`;
     }
     
-    // Draw points
+    // Draw points with hoverable tooltips
     funcData.forEach(point => {
-      svg += `  <circle cx="${xScale(point.date)}" cy="${yScale(point.gas)}" r="3" fill="${color}"/>\n`;
+      svg += `  <circle cx="${xScale(point.date)}" cy="${yScale(point.gas)}" r="3" fill="${color}">\n`;
+      svg += `    <title>${point.function}\nDate: ${point.date}\nGas: ${point.gas.toLocaleString()}\nSHA: ${point.sha}</title>\n`;
+      svg += `  </circle>\n`;
     });
+    
+    // Calculate and draw 7-point moving average
+    if (funcData.length >= 7) {
+      const movingAvgData: Array<{date: string, avg: number}> = [];
+      for (let i = 6; i < funcData.length; i++) {
+        const window = funcData.slice(i - 6, i + 1);
+        const avg = window.reduce((sum, d) => sum + d.gas, 0) / window.length;
+        movingAvgData.push({ date: funcData[i].date, avg });
+      }
+      
+      // Draw moving average line
+      for (let i = 1; i < movingAvgData.length; i++) {
+        const prev = movingAvgData[i-1];
+        const curr = movingAvgData[i];
+        svg += `  <line x1="${xScale(prev.date)}" y1="${yScale(prev.avg)}" x2="${xScale(curr.date)}" y2="${yScale(curr.avg)}" stroke="${color}" stroke-width="1" stroke-dasharray="5,5" opacity="0.7"/>\n`;
+      }
+    }
   });
   
   // Legend

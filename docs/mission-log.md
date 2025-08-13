@@ -409,3 +409,11 @@ PR #17 is finalized with all critical CI jobs green. Follow-up issues created fo
 - P2-1: Surface lane price bounds & PMM params in ConfigRegistry; integrate into InstantLane checks; tests + gas.
 - P2-2: Add sovereign capacity feed + issuance caps; enforce caps in issuance paths; tests + docs.
 - P2-1/2 merged to PR — starting P2-3: tranche APY & risk (read-only).
+
+### CI/CD Stability — Post-0.2.0 Fixture Refresh (2024-12-13)
+- **Fixture Refresh**: Regenerated pricing fixtures with fresh timestamps and digests
+- **Test Fix**: Updated CDS swap replay test to match new `settleSwap` signature (added `elapsedDays`, `tenorDays` params)
+- **Event Update**: Changed test expectation from `SwapSettled` to `SettlementExecuted` event
+- **CI Status**: All replay tests passing (2/2), smoke test pipeline green
+- **Commit**: `35b6d7e` - chore: refresh fixtures post-0.2.0 for CI stability
+- **Fixture Hash**: `8d5a230ac9c07d1b12911a5a54cae979fd88633d235f6070ee2a059301855a96`

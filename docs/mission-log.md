@@ -954,6 +954,14 @@ Implement a comprehensive redemption queue prioritization system that calculates
 
 ---
 
+### 2025-08-14 20:00:00Z — v0.2.3+1 tagged ✅
+- Short SHA: `59eb265`
+- Notes: test-only fix for NASASAGateway ctor wiring; mocks extended
+- Status: CI critical checks green, patch release with artifacts
+- Tests: All 37 NASASAGateway + RedemptionQueue tests passing
+
+---
+
 ### 2025-08-13 21:04:18Z — v0.2.3 tagged
 - Short SHA: `3553c36`
 - Notes: P2-4 Redemption Queue View (read-only); artifacts updated

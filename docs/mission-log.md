@@ -709,3 +709,9 @@ Implement time-weighted rolling average of risk adjustment values for each tranc
 - Set up daily data recording processes
 - Monitor rolling average effectiveness in production
 - Consider additional window size optimizations based on usage data
+
+---
+
+### 2025-08-13 17:15:53Z — PR #43 merged (Rolling Average Risk)
+- Short SHA: `8f1a2dd`
+- Notes: Windowed linear-decay rolling average + telemetry flags landed

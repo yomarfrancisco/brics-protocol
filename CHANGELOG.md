@@ -98,3 +98,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## v0.2.3+3 — CI green (token MINTER_ROLE spec)
 - Tests: stabilize mint role requirement (dynamic role id; correct revert)
+## v0.2.3+4 — Swap E2E fix
+- Align settle call with ABI; tests green

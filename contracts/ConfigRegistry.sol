@@ -64,6 +64,24 @@ contract ConfigRegistry is AccessControl {
     mapping(uint256 => uint16) private _trancheRiskFloorBps;
     mapping(uint256 => uint16) private _trancheRiskCeilBps;
 
+    // Per-tranche rolling average configuration
+    mapping(uint256 => uint16) private _trancheRollingWindowDays; // 0 = disabled
+    mapping(uint256 => bool) private _trancheRollingEnabled;
+
+    // Rolling average data storage (fixed-size circular buffer)
+    struct RiskPoint {
+        uint16 riskAdjBps;
+        uint64 timestamp;
+    }
+
+    struct RollingBuf {
+        uint8 index;      // Current circular buffer index
+        uint8 count;      // Number of valid data points
+        RiskPoint[30] buf; // Fixed-size buffer (30 slots)
+    }
+
+    mapping(uint256 => RollingBuf) private _trancheRollingData;
+
     event ParamSet(bytes32 key, uint256 value);
     event EmergencyLevelSet(uint8 level, string reason);
     event EmergencyParamsSet(uint8 level, EmergencyParams params);
@@ -72,6 +90,9 @@ contract ConfigRegistry is AccessControl {
     event SovereignEnabled(bytes32 indexed code, bool enabled);
     event TrancheRiskOverrideSet(uint256 indexed trancheId, uint16 oldVal, uint16 newVal);
     event TrancheRiskBandsSet(uint256 indexed trancheId, uint16 floorBps, uint16 ceilBps);
+    event TrancheRollingWindowSet(uint256 indexed trancheId, uint16 oldWindow, uint16 newWindow);
+    event TrancheRollingEnabledSet(uint256 indexed trancheId, bool enabled);
+    event TrancheRollingPointAppended(uint256 indexed trancheId, uint16 riskAdjBps, uint64 timestamp);
 
     constructor(address gov){
         _grantRole(DEFAULT_ADMIN_ROLE, gov);
@@ -298,5 +319,90 @@ contract ConfigRegistry is AccessControl {
         _trancheRiskFloorBps[trancheId] = floorBps;
         _trancheRiskCeilBps[trancheId] = ceilBps;
         emit TrancheRiskBandsSet(trancheId, floorBps, ceilBps);
+    }
+
+    // Per-tranche rolling average functions
+    function trancheRollingEnabled(uint256 trancheId) external view returns (bool) {
+        return _trancheRollingEnabled[trancheId];
+    }
+
+    function trancheRollingWindowDays(uint256 trancheId) external view returns (uint16) {
+        return _trancheRollingWindowDays[trancheId];
+    }
+
+    function setTrancheRollingWindow(uint256 trancheId, uint16 windowDays) external onlyRole(GOV_ROLE) {
+        if (windowDays == 0 || windowDays > 90) revert BadParam(); // "Window: 1-90 days"
+        uint16 oldWindow = _trancheRollingWindowDays[trancheId];
+        _trancheRollingWindowDays[trancheId] = windowDays;
+        emit TrancheRollingWindowSet(trancheId, oldWindow, windowDays);
+    }
+
+    function setTrancheRollingEnabled(uint256 trancheId, bool enabled) external onlyRole(GOV_ROLE) {
+        _trancheRollingEnabled[trancheId] = enabled;
+        emit TrancheRollingEnabledSet(trancheId, enabled);
+    }
+
+    /**
+     * @notice Record a risk adjustment point for rolling average calculation
+     * @param trancheId The tranche identifier
+     * @param riskAdjBps Risk adjustment in basis points
+     * @param timestamp Timestamp for the data point
+     */
+    function recordTrancheRiskPoint(uint256 trancheId, uint16 riskAdjBps, uint64 timestamp) external onlyRole(GOV_ROLE) {
+        if (!_trancheRollingEnabled[trancheId]) revert BadParam(); // "Rolling: not enabled"
+        if (riskAdjBps > maxBoundBps) revert BadParam(); // "Risk: exceeds max bound"
+        
+        _appendRollingPoint(trancheId, riskAdjBps, timestamp);
+    }
+
+    /**
+     * @notice Internal function to append a data point to the rolling buffer
+     * @param trancheId The tranche identifier
+     * @param riskAdjBps Risk adjustment in basis points
+     * @param timestamp Timestamp for the data point
+     */
+    function _appendRollingPoint(uint256 trancheId, uint16 riskAdjBps, uint64 timestamp) internal {
+        RollingBuf storage buf = _trancheRollingData[trancheId];
+        
+        // Add new data point
+        buf.buf[buf.index] = RiskPoint({
+            riskAdjBps: riskAdjBps,
+            timestamp: timestamp
+        });
+        
+        // Update circular buffer index
+        buf.index = (buf.index + 1) % 30;
+        
+        // Update count (capped at 30)
+        if (buf.count < 30) {
+            buf.count++;
+        }
+        
+        emit TrancheRollingPointAppended(trancheId, riskAdjBps, timestamp);
+    }
+
+    /**
+     * @notice Get rolling buffer head information for testing/telemetry
+     * @param trancheId The tranche identifier
+     * @return count Number of valid data points
+     * @return index Current buffer index
+     */
+    function rollingHead(uint256 trancheId) external view returns (uint8 count, uint8 index) {
+        RollingBuf storage buf = _trancheRollingData[trancheId];
+        return (buf.count, buf.index);
+    }
+
+    /**
+     * @notice Get a specific data point from the rolling buffer
+     * @param trancheId The tranche identifier
+     * @param bufIndex Buffer index (0-29)
+     * @return riskAdjBps Risk adjustment in basis points
+     * @return timestamp Timestamp of the data point
+     */
+    function getRollingDataPoint(uint256 trancheId, uint8 bufIndex) external view returns (uint16 riskAdjBps, uint64 timestamp) {
+        require(bufIndex < 30, "Invalid buffer index");
+        RollingBuf storage buf = _trancheRollingData[trancheId];
+        RiskPoint memory point = buf.buf[bufIndex];
+        return (point.riskAdjBps, point.timestamp);
     }
 }

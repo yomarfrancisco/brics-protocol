@@ -382,7 +382,9 @@ function viewTrancheTelemetry(uint256 trancheId) external view returns (
     uint16 floorBps,             // Risk floor from confidence bands
     uint16 ceilBps,              // Risk ceiling from confidence bands
     uint64 asOf,                 // Timestamp when data was last updated
-    uint8 telemetryFlags         // Bit flags indicating decision path
+    uint8 telemetryFlags,        // Bit flags indicating decision path
+    uint16 rollingAverageBps,    // Rolling average risk adjustment (0 if not used)
+    uint16 rollingWindowDays     // Rolling window size in days (0 if disabled)
 );
 ```
 
@@ -398,6 +400,8 @@ The `telemetryFlags` field uses bit flags to indicate which decision path was ta
 | `FLAG_BANDS_ENABLED` | 0x08 | Risk confidence bands are enabled |
 | `FLAG_FLOOR_CLAMPED` | 0x10 | Risk was clamped to floor value |
 | `FLAG_CEIL_CLAMPED` | 0x20 | Risk was clamped to ceiling value |
+| `FLAG_ROLLING_AVG_ENABLED` | 0x40 | Rolling average is enabled for this tranche |
+| `FLAG_ROLLING_AVG_USED` | 0x80 | Rolling average was applied (different from raw value) |
 
 ### Decision Path Precedence
 
@@ -406,7 +410,8 @@ The risk calculation follows this precedence order:
 1. **Override Check**: If `overrideRiskAdjBps > 0`, use override value
 2. **Adapter Check**: If adapter enabled and available, use adapter value
 3. **Oracle Direct**: Otherwise, use oracle value directly
-4. **Bands Clamping**: Apply confidence band clamping if enabled
+4. **Rolling Average**: If enabled and no override, apply rolling average calculation
+5. **Bands Clamping**: Apply confidence band clamping if enabled
 
 ### Example Usage
 
@@ -439,6 +444,105 @@ if (flags & 0x08 != 0) {
 3. **Band Clamping**: Monitor when risk values are clamped
 4. **Adapter Health**: Verify adapter is functioning correctly
 5. **Data Freshness**: Check timestamp of last data update
+6. **Rolling Average**: Monitor rolling average usage and effectiveness
+
+## Rolling Average Risk Calculation
+
+### Overview
+
+The rolling average risk calculation provides time-weighted averaging of risk adjustment values to smooth out volatility and provide more stable risk assessments.
+
+### Algorithm
+
+The rolling average uses a linear decay weighting system:
+
+1. **Data Collection**: Risk adjustment values are recorded with timestamps
+2. **Window Filtering**: Only data points within the configured window are considered
+3. **Weight Calculation**: Each data point is weighted by its age using linear decay
+4. **Weighted Average**: Final risk adjustment is the weighted average of all valid points
+
+### Weight Calculation
+
+The weight for each data point is calculated as:
+
+```
+weight = (maxAge - age) / maxAge * 10000
+```
+
+Where:
+- `maxAge` = window size in seconds (e.g., 7 days = 604,800 seconds)
+- `age` = current time - data point timestamp
+- Weight is scaled to 0-10000 for precision
+
+### Governance Parameters
+
+| Parameter | Range | Description |
+|-----------|-------|-------------|
+| `trancheRollingEnabled` | boolean | Enable/disable rolling average per tranche |
+| `trancheRollingWindowDays` | 1-90 days | Window size for rolling average calculation |
+
+### Storage Structure
+
+- **Circular Buffer**: Fixed-size array (30 slots) to avoid unbounded growth
+- **Gas Efficiency**: ~100 bytes per data point, ~3KB per tranche for 30-day window
+- **Automatic Cleanup**: Old data points are automatically overwritten
+
+### Governance Controls
+
+```solidity
+// Enable rolling average for tranche 1 with 7-day window
+configRegistry.setTrancheRollingEnabled(1, true);
+configRegistry.setTrancheRollingWindow(1, 7);
+
+// Disable rolling average for tranche 2
+configRegistry.setTrancheRollingEnabled(2, false);
+```
+
+### Data Recording
+
+Risk adjustment points are recorded via governance or keeper functions:
+
+```solidity
+// Record a risk adjustment point
+configRegistry.recordTrancheRiskPoint(trancheId, riskAdjBps, timestamp);
+```
+
+### Example Scenarios
+
+#### Scenario 1: Single Data Point
+- Window: 7 days
+- Data: 200 bps risk adjustment recorded 1 day ago
+- Result: Rolling average = 200 bps (single point)
+
+#### Scenario 2: Multiple Data Points
+- Window: 7 days
+- Data: 200 bps (6 days ago), 250 bps (3 days ago), 300 bps (1 day ago)
+- Result: Weighted average favoring newer data points
+
+#### Scenario 3: Override Precedence
+- Override: 150 bps
+- Rolling average: 200 bps
+- Result: Override takes precedence, rolling average ignored
+
+#### Scenario 4: Bands Clamping
+- Rolling average: 500 bps
+- Bands: floor 200 bps, ceiling 400 bps
+- Result: Final risk = 400 bps (clamped to ceiling)
+
+### Integration with Existing Systems
+
+- **Override Compatibility**: Rolling average is ignored when override is set
+- **Adapter Integration**: Works with both oracle direct and adapter paths
+- **Bands Integration**: Rolling average is clamped by confidence bands
+- **Telemetry Integration**: Full visibility into rolling average usage
+
+### Operational Considerations
+
+1. **Data Recording**: Requires regular recording of risk adjustment points
+2. **Window Sizing**: Balance between stability (longer window) and responsiveness (shorter window)
+3. **Gas Costs**: Each data point recording costs ~50k gas
+4. **Storage Limits**: Maximum 30 data points per tranche
+5. **Governance**: Window size and enable/disable controls per tranche
 
 ## Future Enhancements
 

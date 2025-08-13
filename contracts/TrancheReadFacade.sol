@@ -49,6 +49,14 @@ contract TrancheReadFacade {
             }
         }
         
+        // Apply rolling average if enabled (after override/adapter, before bands)
+        uint16 rollingAvgBps;
+        bool rollingUsed;
+        (rollingAvgBps, rollingUsed) = _rollingAverage(trancheId, riskAdjBps, uint64(block.timestamp));
+        if (rollingUsed) {
+            riskAdjBps = rollingAvgBps;
+        }
+        
         // Apply risk confidence bands (clamp riskAdjBps to [floor, ceil])
         uint16 floorBps = IConfigRegistryLike(config).trancheRiskFloorBps(trancheId);
         uint16 ceilBps = IConfigRegistryLike(config).trancheRiskCeilBps(trancheId);
@@ -99,6 +107,14 @@ contract TrancheReadFacade {
             }
         }
         
+        // Apply rolling average if enabled (after override/adapter, before bands)
+        uint16 rollingAvgBps;
+        bool rollingUsed;
+        (rollingAvgBps, rollingUsed) = _rollingAverage(trancheId, riskAdjBps, uint64(block.timestamp));
+        if (rollingUsed) {
+            riskAdjBps = rollingAvgBps;
+        }
+        
         // Apply risk confidence bands (clamp riskAdjBps to [floor, ceil])
         uint16 floorBps = IConfigRegistryLike(config).trancheRiskFloorBps(trancheId);
         uint16 ceilBps = IConfigRegistryLike(config).trancheRiskCeilBps(trancheId);
@@ -128,6 +144,8 @@ contract TrancheReadFacade {
      * @return ceilBps Risk ceiling from confidence bands (0 if disabled)
      * @return asOf Timestamp when the data was last updated
      * @return telemetryFlags Bit flags indicating decision path taken
+     * @return rollingAverageBps Rolling average risk adjustment (0 if not used)
+     * @return rollingWindowDays Rolling window size in days (0 if disabled)
      */
     function viewTrancheTelemetry(uint256 trancheId) external view returns (
         uint16 baseApyBps,
@@ -140,7 +158,9 @@ contract TrancheReadFacade {
         uint16 floorBps,
         uint16 ceilBps,
         uint64 asOf,
-        uint8 telemetryFlags
+        uint8 telemetryFlags,
+        uint16 rollingAverageBps,
+        uint16 rollingWindowDays
     ) {
         // Get base data from oracle
         (baseApyBps, oracleRiskAdjBps, asOf) = oracle.latestTrancheRisk(trancheId);
@@ -166,6 +186,28 @@ contract TrancheReadFacade {
                 finalRiskAdjBps = oracleRiskAdjBps;
                 telemetryFlags |= 0x04; // FLAG_ORACLE_DIRECT
             }
+        }
+        
+        // Apply rolling average if enabled (after override/adapter, before bands)
+        rollingWindowDays = IConfigRegistryLike(config).trancheRollingWindowDays(trancheId);
+        if (IConfigRegistryLike(config).trancheRollingEnabled(trancheId) && rollingWindowDays > 0) {
+            telemetryFlags |= 0x40; // FLAG_ROLLING_AVG_ENABLED
+            // Only apply rolling average if no override is set
+            if (overrideRiskAdjBps == 0) {
+                bool rollingUsed;
+                (rollingAverageBps, rollingUsed) = _rollingAverage(trancheId, finalRiskAdjBps, uint64(block.timestamp));
+                if (rollingUsed) {
+                    finalRiskAdjBps = rollingAverageBps;
+                    telemetryFlags |= 0x80; // FLAG_ROLLING_AVG_USED
+                } else {
+                    // If rolling average is not used (e.g., no data points), set to 0 for telemetry
+                    rollingAverageBps = 0;
+                }
+            } else {
+                rollingAverageBps = 0; // Override takes precedence, so rolling average not used
+            }
+        } else {
+            rollingAverageBps = 0;
         }
         
         // Apply risk confidence bands
@@ -200,6 +242,77 @@ contract TrancheReadFacade {
             maxApyBps = 1000; // 10%
         }
     }
+
+    /**
+     * @notice Calculate linear weight for rolling average (0-10000 scale)
+     * @param age Age of data point in seconds
+     * @param maxAge Maximum age in seconds
+     * @return weight Linear weight (0-10000)
+     */
+    function _linearWeight(uint64 age, uint64 maxAge) internal pure returns (uint64 weight) {
+        if (age >= maxAge) return 0;
+        // Linear decay: weight = (maxAge - age) / maxAge * 10000
+        return (maxAge - age) * 10000 / maxAge;
+    }
+
+    /**
+     * @notice Calculate rolling average risk adjustment
+     * @param trancheId The tranche identifier
+     * @param rawRiskAdjBps Raw risk adjustment from oracle/adapter
+     * @param currentTime Current timestamp
+     * @return avgBps Rolling average in basis points
+     * @return used Whether rolling average was used (vs raw value)
+     */
+    function _rollingAverage(uint256 trancheId, uint16 rawRiskAdjBps, uint64 currentTime) internal view returns (uint16 avgBps, bool used) {
+        // Check if rolling average is enabled
+        if (!IConfigRegistryLike(config).trancheRollingEnabled(trancheId)) {
+            return (rawRiskAdjBps, false);
+        }
+
+        uint16 windowDays = IConfigRegistryLike(config).trancheRollingWindowDays(trancheId);
+        if (windowDays == 0) {
+            return (rawRiskAdjBps, false);
+        }
+
+        // Get rolling buffer data
+        (uint8 count, uint8 index) = IConfigRegistryLike(config).rollingHead(trancheId);
+        if (count == 0) {
+            return (rawRiskAdjBps, false);
+        }
+
+        // Calculate cutoff time
+        uint64 cutoffTime = currentTime - (uint64(windowDays) * 1 days);
+        
+        uint256 totalWeight = 0;
+        uint256 weightedSum = 0;
+        uint64 maxAge = uint64(windowDays) * 1 days;
+
+        // Scan through data points in reverse order (newest first)
+        for (uint8 i = 0; i < count; i++) {
+            uint8 bufIndex;
+            if (index > i) {
+                bufIndex = index - 1 - i;
+            } else {
+                bufIndex = 30 - (i - index + 1);
+            }
+            (uint16 riskAdjBps, uint64 timestamp) = IConfigRegistryLike(config).getRollingDataPoint(trancheId, bufIndex);
+            
+            if (timestamp >= cutoffTime) {
+                uint64 age = currentTime - timestamp;
+                uint64 weight = _linearWeight(age, maxAge);
+                weightedSum += uint256(riskAdjBps) * weight;
+                totalWeight += weight;
+            }
+        }
+
+        if (totalWeight == 0) {
+            return (rawRiskAdjBps, false);
+        }
+
+        avgBps = uint16(weightedSum / totalWeight);
+        used = (avgBps != rawRiskAdjBps);
+        return (avgBps, used);
+    }
 }
 
 // Interface for ConfigRegistry calls
@@ -208,4 +321,8 @@ interface IConfigRegistryLike {
     function trancheRiskAdjOverrideBps(uint256 trancheId) external view returns (uint16);
     function trancheRiskFloorBps(uint256 trancheId) external view returns (uint16);
     function trancheRiskCeilBps(uint256 trancheId) external view returns (uint16);
+    function trancheRollingEnabled(uint256 trancheId) external view returns (bool);
+    function trancheRollingWindowDays(uint256 trancheId) external view returns (uint16);
+    function rollingHead(uint256 trancheId) external view returns (uint8 count, uint8 index);
+    function getRollingDataPoint(uint256 trancheId, uint8 bufIndex) external view returns (uint16 riskAdjBps, uint64 timestamp);
 }

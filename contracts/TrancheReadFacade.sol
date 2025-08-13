@@ -49,6 +49,17 @@ contract TrancheReadFacade {
             }
         }
         
+        // Apply risk confidence bands (clamp riskAdjBps to [floor, ceil])
+        uint16 floorBps = IConfigRegistryLike(config).trancheRiskFloorBps(trancheId);
+        uint16 ceilBps = IConfigRegistryLike(config).trancheRiskCeilBps(trancheId);
+        if (ceilBps > 0) { // Bands enabled
+            if (riskAdjBps < floorBps) {
+                riskAdjBps = floorBps;
+            } else if (riskAdjBps > ceilBps) {
+                riskAdjBps = ceilBps;
+            }
+        }
+        
         // Get max APY from config (reuse maxBoundBps for now)
         uint16 maxApyBps = _getMaxApyBps();
         
@@ -88,6 +99,17 @@ contract TrancheReadFacade {
             }
         }
         
+        // Apply risk confidence bands (clamp riskAdjBps to [floor, ceil])
+        uint16 floorBps = IConfigRegistryLike(config).trancheRiskFloorBps(trancheId);
+        uint16 ceilBps = IConfigRegistryLike(config).trancheRiskCeilBps(trancheId);
+        if (ceilBps > 0) { // Bands enabled
+            if (riskAdjBps < floorBps) {
+                riskAdjBps = floorBps;
+            } else if (riskAdjBps > ceilBps) {
+                riskAdjBps = ceilBps;
+            }
+        }
+        
         maxApyBps = _getMaxApyBps();
         effectiveApyBps = TrancheMath.effectiveApyBps(baseApyBps, riskAdjBps, maxApyBps);
     }
@@ -112,4 +134,6 @@ contract TrancheReadFacade {
 interface IConfigRegistryLike {
     function maxBoundBps() external view returns (uint256);
     function trancheRiskAdjOverrideBps(uint256 trancheId) external view returns (uint16);
+    function trancheRiskFloorBps(uint256 trancheId) external view returns (uint16);
+    function trancheRiskCeilBps(uint256 trancheId) external view returns (uint16);
 }

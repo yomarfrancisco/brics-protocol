@@ -212,6 +212,64 @@ When adjusting risk overrides:
    require(override == 0, "Override not removed");
    ```
 
+## Risk Confidence Bands Management
+
+### Setting Risk Bands
+
+Risk confidence bands can be set per tranche to clamp risk adjustments to safe ranges:
+
+```solidity
+// Set bands for specific tranche
+await configRegistry.setTrancheRiskBands(trancheId, 200, 400); // 2% to 4% risk
+
+// Disable bands (no clamping)
+await configRegistry.setTrancheRiskBands(trancheId, 0, 0);
+```
+
+### Band Adjustment Checklist
+
+When adjusting risk confidence bands:
+
+1. **Pre-adjustment Checklist**:
+   - [ ] Verify current oracle/adapter risk values
+   - [ ] Calculate impact on effective APY ranges
+   - [ ] Ensure bands are valid (floor ≤ ceil ≤ maxBoundBps)
+   - [ ] Test bands on staging environment
+   - [ ] Prepare rollback plan
+
+2. **Band Process**:
+   ```solidity
+   // Set bands
+   await configRegistry.setTrancheRiskBands(trancheId, floorBps, ceilBps);
+   
+   // Verify bands are applied
+   uint16 floor = await configRegistry.trancheRiskFloorBps(trancheId);
+   uint16 ceil = await configRegistry.trancheRiskCeilBps(trancheId);
+   require(floor == floorBps && ceil == ceilBps, "Bands not set");
+   
+   // Test APY calculation with bands
+   (uint16 apyBps, uint64 asOf) = await facade.viewEffectiveApy(trancheId);
+   console.log("APY with bands:", apyBps);
+   ```
+
+3. **Post-adjustment Verification**:
+   - [ ] Monitor effective APY changes
+   - [ ] Verify bands clamp risk adjustments correctly
+   - [ ] Check that bands work with overrides and staleness
+   - [ ] Update band documentation
+   - [ ] Plan adjustment timeline if temporary
+
+4. **Rollback Process**:
+   ```solidity
+   // Disable bands (restore unclamped behavior)
+   await configRegistry.setTrancheRiskBands(trancheId, 0, 0);
+   
+   // Verify rollback
+   uint16 floor = await configRegistry.trancheRiskFloorBps(trancheId);
+   uint16 ceil = await configRegistry.trancheRiskCeilBps(trancheId);
+   require(floor == 0 && ceil == 0, "Bands not disabled");
+   ```
+
 ## Emergency Procedures
 
 ### Setting Emergency Levels

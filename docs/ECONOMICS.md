@@ -181,6 +181,32 @@ function setTrancheRiskAdjOverrideBps(uint256 trancheId, uint16 newVal) external
 - **Higher override**: Set override = 400 bps when oracle reports 200 bps → lower APY
 - **Emergency zero**: Set override = 0 to disable risk adjustment entirely
 
+### Per-Tranche Risk Confidence Bands
+
+The `ConfigRegistry` provides per-tranche risk confidence bands that clamp risk adjustments to safe ranges:
+
+```solidity
+function trancheRiskFloorBps(uint256 trancheId) external view returns (uint16);
+function trancheRiskCeilBps(uint256 trancheId) external view returns (uint16);
+function setTrancheRiskBands(uint256 trancheId, uint16 floorBps, uint16 ceilBps) external onlyRole(GOV_ROLE);
+```
+
+**Band Behavior**:
+- **Precedence**: Override → Bands → APY clamp (when bands enabled)
+- **Bounds**: 0 ≤ floor ≤ ceil ≤ maxBoundBps (governance enforced)
+- **Enable/Disable**: Set ceil = 0 to disable bands (no clamping)
+- **Governance**: Only `GOV_ROLE` can set bands
+
+**Use Cases**:
+- **Risk containment**: Prevent extreme risk adjustments during market volatility
+- **Stability**: Maintain reasonable APY ranges for investor confidence
+- **Emergency limits**: Set narrow bands during crisis periods
+
+**Examples**:
+- **Narrow bands**: Set floor = 200 bps, ceil = 400 bps → risk clamped to [2%, 4%]
+- **Wide bands**: Set floor = 100 bps, ceil = 800 bps → risk clamped to [1%, 8%]
+- **Disable bands**: Set floor = 0, ceil = 0 → no clamping (use oracle/adapter/override)
+
 ## Setting Economic Parameters
 
 ### Governance Process

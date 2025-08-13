@@ -124,5 +124,33 @@
     "riskAdjBps": 600,
     "maxApyBps": 1000,
     "expectedEffectiveApyBps": 0
+  },
+  {
+    "name": "bands clamp oracle below floor",
+    "baseApyBps": 800,
+    "riskAdjBps": 200,
+    "maxApyBps": 1000,
+    "expectedEffectiveApyBps": 600
+  },
+  {
+    "name": "bands clamp oracle above ceiling",
+    "baseApyBps": 800,
+    "riskAdjBps": 400,
+    "maxApyBps": 1000,
+    "expectedEffectiveApyBps": 400
+  },
+  {
+    "name": "bands clamp override to floor",
+    "baseApyBps": 800,
+    "riskAdjBps": 200,
+    "maxApyBps": 1000,
+    "expectedEffectiveApyBps": 600
+  },
+  {
+    "name": "bands clamp override to ceiling",
+    "baseApyBps": 800,
+    "riskAdjBps": 400,
+    "maxApyBps": 1000,
+    "expectedEffectiveApyBps": 400
   }
 ]

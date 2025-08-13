@@ -39,11 +39,13 @@ interface DiffReport {
     testsChanged: boolean;
   };
   details: {
-    contracts: Array<{
-      name: string;
-      bytecodeChanged: boolean;
-      abiChanged: boolean;
-    }>;
+          contracts: Array<{
+        name: string;
+        bytecodeChanged: boolean;
+        abiChanged: boolean;
+        added: boolean;
+        removed: boolean;
+      }>;
     fixtures: {
       oldHash: string;
       newHash: string;
@@ -60,13 +62,32 @@ function parseManifest(manifestPath: string): BundleManifest {
 }
 
 function compareManifests(baseManifest: BundleManifest, headManifest: BundleManifest): DiffReport {
-  // Compare contracts
-  const contractsChanged = baseManifest.contracts.filter((baseContract) => {
+  // Compare contracts with detailed analysis
+  const contractChanges = baseManifest.contracts.map((baseContract) => {
     const headContract = headManifest.contracts.find((c) => c.name === baseContract.name);
-    return !headContract || 
-           headContract.bytecodeHash !== baseContract.bytecodeHash ||
-           headContract.abiHash !== baseContract.abiHash;
-  }).length;
+    return {
+      name: baseContract.name,
+      bytecodeChanged: !headContract || headContract.bytecodeHash !== baseContract.bytecodeHash,
+      abiChanged: !headContract || headContract.abiHash !== baseContract.abiHash,
+      added: false,
+      removed: !headContract
+    };
+  });
+  
+  // Add new contracts
+  headManifest.contracts.forEach((headContract) => {
+    if (!baseManifest.contracts.find((c) => c.name === headContract.name)) {
+      contractChanges.push({
+        name: headContract.name,
+        bytecodeChanged: false,
+        abiChanged: false,
+        added: true,
+        removed: false
+      });
+    }
+  });
+  
+  const contractsChanged = contractChanges.filter(c => c.bytecodeChanged || c.abiChanged || c.added || c.removed).length;
   
   // Compare fixtures
   const fixturesChanged = baseManifest.fixtures.hash !== headManifest.fixtures.hash;
@@ -85,14 +106,7 @@ function compareManifests(baseManifest: BundleManifest, headManifest: BundleMani
       testsChanged
     },
     details: {
-      contracts: baseManifest.contracts.map((baseContract) => {
-        const headContract = headManifest.contracts.find((c) => c.name === baseContract.name);
-        return {
-          name: baseContract.name,
-          bytecodeChanged: !headContract || headContract.bytecodeHash !== baseContract.bytecodeHash,
-          abiChanged: !headContract || headContract.abiHash !== baseContract.abiHash
-        };
-      }),
+      contracts: contractChanges,
       fixtures: {
         oldHash: baseManifest.fixtures.hash,
         newHash: headManifest.fixtures.hash,
@@ -116,14 +130,38 @@ function generateMarkdown(baseManifest: BundleManifest, headManifest: BundleMani
   // Details
   if (diff.summary.contractsChanged > 0) {
     markdown += `## 🔧 Contract Changes\n\n`;
-    markdown += `| Contract | Bytecode | ABI |\n`;
-    markdown += `|----------|----------|-----|\n`;
-    diff.details.contracts.forEach(contract => {
-      if (contract.bytecodeChanged || contract.abiChanged) {
+    
+    // Show added contracts
+    const addedContracts = diff.details.contracts.filter(c => c.added);
+    if (addedContracts.length > 0) {
+      markdown += `### ➕ Added Contracts\n`;
+      addedContracts.forEach(contract => {
+        markdown += `- **${contract.name}** (new)\n`;
+      });
+      markdown += `\n`;
+    }
+    
+    // Show removed contracts
+    const removedContracts = diff.details.contracts.filter(c => c.removed);
+    if (removedContracts.length > 0) {
+      markdown += `### ➖ Removed Contracts\n`;
+      removedContracts.forEach(contract => {
+        markdown += `- **${contract.name}** (removed)\n`;
+      });
+      markdown += `\n`;
+    }
+    
+    // Show modified contracts
+    const modifiedContracts = diff.details.contracts.filter(c => (c.bytecodeChanged || c.abiChanged) && !c.added && !c.removed);
+    if (modifiedContracts.length > 0) {
+      markdown += `### 🔄 Modified Contracts\n`;
+      markdown += `| Contract | Bytecode | ABI |\n`;
+      markdown += `|----------|----------|-----|\n`;
+      modifiedContracts.forEach(contract => {
         markdown += `| ${contract.name} | ${contract.bytecodeChanged ? '🔄' : '✅'} | ${contract.abiChanged ? '🔄' : '✅'} |\n`;
-      }
-    });
-    markdown += `\n`;
+      });
+      markdown += `\n`;
+    }
   }
   
   if (diff.summary.fixturesChanged) {

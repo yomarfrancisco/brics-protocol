@@ -123,9 +123,20 @@ describe("Property: quote verification", () => {
       invalidCount++;
     }
     
-    // Light distribution check
-    console.log(`📊 Property test distribution: ${validCount} valid, ${invalidCount} invalid`);
+    // Light distribution check with panic if deviation >±10% from expected
+    const expectedValidRatio = 0.5; // 50% valid, 50% invalid
+    const totalTrials = validCount + invalidCount;
+    const actualValidRatio = validCount / totalTrials;
+    const deviation = Math.abs(actualValidRatio - expectedValidRatio);
+    
+    console.log(`📊 Property test distribution: ${validCount} valid, ${invalidCount} invalid (${(actualValidRatio * 100).toFixed(1)}% valid)`);
+    console.log(`📈 Deviation from expected 50/50: ${(deviation * 100).toFixed(1)}%`);
+    
     expect(validCount).to.be.greaterThan(0);
     expect(invalidCount).to.be.greaterThan(0);
+    
+    if (deviation > 0.1) {
+      throw new Error(`Distribution deviation too high: ${(deviation * 100).toFixed(1)}% > 10%. Expected ~50% valid, got ${(actualValidRatio * 100).toFixed(1)}%`);
+    }
   });
 });

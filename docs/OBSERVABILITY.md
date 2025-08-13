@@ -45,6 +45,30 @@ date,sha,suite,function,gas
 - Color-coded by function/contract
 - Legend showing all tracked functions
 - Automatic scaling and formatting
+- Hoverable data points with detailed information
+- 7-point moving average lines (dashed)
+- Axis labels and tick marks
+
+### How to Read Gas Trends
+
+#### Chart Elements
+- **Solid Lines**: Actual gas measurements over time
+- **Dashed Lines**: 7-point moving average (trend indicator)
+- **Data Points**: Hover for function name, date, gas usage, and commit SHA
+- **Y-Axis**: Gas usage in thousands (e.g., 50 = 50,000 gas)
+- **X-Axis**: Date of measurement
+
+#### Trend Analysis
+- **Upward Trend**: Gas usage increasing (potential optimization needed)
+- **Downward Trend**: Gas usage decreasing (optimizations working)
+- **Flat Trend**: Stable gas usage (good)
+- **Spikes**: Sudden increases (investigate specific commits)
+
+#### Key Metrics
+- **Average Gas**: Overall gas usage across all functions
+- **Top Functions**: Highest gas-consuming functions
+- **Trend Direction**: Moving average slope
+- **Volatility**: Consistency of gas usage over time
 
 ## Audit Bundles
 

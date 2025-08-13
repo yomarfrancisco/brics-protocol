@@ -919,3 +919,9 @@ Implement a comprehensive redemption queue prioritization system that calculates
 - Notes: Redemption queue prioritization system + comprehensive tests merged to main
 - Status: All critical CI checks green (9/10 passing, Audit Bundle Diff failed as expected)
 - Tests: 21 comprehensive tests passing, full integration with tranche risk system
+
+---
+
+### 2025-08-13 21:04:18Z — v0.2.3 tagged
+- Short SHA: `3553c36`
+- Notes: P2-4 Redemption Queue View (read-only); artifacts updated

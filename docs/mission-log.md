@@ -962,6 +962,14 @@ Implement a comprehensive redemption queue prioritization system that calculates
 
 ---
 
+### 2025-08-14 20:30:00Z — tests: fix InstantLane ctor wiring ✅
+- Short SHA: `55c3af1`
+- Notes: Align deploy args with current ABI; test-only
+- Status: All 57 InstantLane tests passing, constructor args fixed
+- Tests: Fixed missing gov parameter in 3 test files
+
+---
+
 ### 2025-08-13 21:04:18Z — v0.2.3 tagged
 - Short SHA: `3553c36`
 - Notes: P2-4 Redemption Queue View (read-only); artifacts updated

@@ -54,7 +54,8 @@ describe("InstantLane - member gating, daily cap, AMM bounds", function () {
       await members.getAddress(),
       await amm.getAddress(),
       await cfg.getAddress(),
-      ethers.ZeroAddress // PMM parameter (optional, can be address(0))
+      ethers.ZeroAddress, // PMM parameter (optional, can be address(0))
+      await deployer.getAddress() // gov parameter
     );
     await lane.waitForDeployment();
 
@@ -131,7 +132,8 @@ describe("InstantLane - member gating, daily cap, AMM bounds", function () {
       await members.getAddress(),
       await amm.getAddress(),
       await cfg.getAddress(),
-      ethers.ZeroAddress // PMM parameter (optional, can be address(0))
+      ethers.ZeroAddress, // PMM parameter (optional, can be address(0))
+      await deployer.getAddress() // gov parameter
     );
     await lane.waitForDeployment();
     await usdc.transfer(await lane.getAddress(), 10_000n * 1_000_000n);

@@ -1007,3 +1007,9 @@ Implement a comprehensive redemption queue prioritization system that calculates
 ### 2025-08-13 23:15:02Z — Fix CDS Swap E2E ABI drift
 - Short SHA: `155daeb`
 - Notes: Align test call with current ABI (name/tuple/types); deterministic
+
+---
+
+### 2025-08-13 23:44:01Z — Fix CDS Swap Parity (EIP-191)
+- Short SHA: `13f8d41`
+- Notes: Test now signs EIP-191 prefixed digest; contract adds same prefix; addresses match

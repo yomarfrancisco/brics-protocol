@@ -49,8 +49,10 @@ describe("CDS Swap Parity Test", function () {
       [portfolioIdBytes32, asOf, riskScore, corr, fair, modelIdHash, featuresHash]
     ));
 
-    // Sign with deterministic key
-    const signature = await wallet.signMessage(ethers.getBytes(digest));
+    // Sign the EIP-191 prefixed digest (contract adds the same prefix)
+    const ethHash = ethers.hashMessage(ethers.getBytes(digest));
+    const signatureObj = await wallet.signingKey.sign(ethHash);
+    const signature = signatureObj.serialized;
 
     const quote = {
       fairSpreadBps: fair,

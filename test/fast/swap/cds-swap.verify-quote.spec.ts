@@ -27,7 +27,7 @@ describe("CDS Swap Verify Quote", function () {
   describe("verifyQuote", function () {
     it("should verify quote signature correctly", async function () {
       const portfolioId = "0x5703dee4c046e60c377da8cb247cd87d7c75dca25a1da95d63e35fa49d579135";
-      const asOf = 1600000000;
+      const asOf = Math.floor(Date.now() / 1000) - 60; // 1 minute ago
       const deterministicKey = "0x000000000000000000000000000000000000000000000000000000000000002a";
       const wallet = new ethers.Wallet(deterministicKey);
 
@@ -50,8 +50,10 @@ describe("CDS Swap Verify Quote", function () {
         [portfolioIdBytes32, asOf, riskScore, corr, fair, modelIdHash, featuresHash]
       ));
 
-      // Sign with deterministic key
-      const signature = await wallet.signMessage(ethers.getBytes(digest));
+      // Sign the EIP-191 prefixed digest (contract adds the same prefix)
+      const ethHash = ethers.hashMessage(ethers.getBytes(digest));
+      const signatureObj = await wallet.signingKey.sign(ethHash);
+      const signature = signatureObj.serialized;
 
       const quote = {
         fairSpreadBps: fair,

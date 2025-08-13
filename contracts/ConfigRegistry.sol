@@ -59,6 +59,10 @@ contract ConfigRegistry is AccessControl {
 
     // Per-tranche risk adjustment overrides
     mapping(uint256 => uint16) private _trancheRiskAdjOverrideBps;
+    
+    // Per-tranche risk confidence bands (floor/ceiling)
+    mapping(uint256 => uint16) private _trancheRiskFloorBps;
+    mapping(uint256 => uint16) private _trancheRiskCeilBps;
 
     event ParamSet(bytes32 key, uint256 value);
     event EmergencyLevelSet(uint8 level, string reason);
@@ -67,6 +71,7 @@ contract ConfigRegistry is AccessControl {
     event SovereignUpdated(bytes32 indexed code, uint256 utilCapBps, uint256 haircutBps, uint256 weightBps, bool enabled);
     event SovereignEnabled(bytes32 indexed code, bool enabled);
     event TrancheRiskOverrideSet(uint256 indexed trancheId, uint16 oldVal, uint16 newVal);
+    event TrancheRiskBandsSet(uint256 indexed trancheId, uint16 floorBps, uint16 ceilBps);
 
     constructor(address gov){
         _grantRole(DEFAULT_ADMIN_ROLE, gov);
@@ -250,7 +255,7 @@ contract ConfigRegistry is AccessControl {
     }
 
     // View helper for economics parameters
-    // Note: Per-tranche risk overrides are external to this "global" economics tuple
+    // Note: Per-tranche risk overrides and confidence bands are applied downstream in read surfaces
     function getEconomics() external view returns (
         uint256 tradeFeeBps_,
         uint256 pmmCurveK_bps_,
@@ -276,5 +281,22 @@ contract ConfigRegistry is AccessControl {
         uint16 oldVal = _trancheRiskAdjOverrideBps[trancheId];
         _trancheRiskAdjOverrideBps[trancheId] = newVal;
         emit TrancheRiskOverrideSet(trancheId, oldVal, newVal);
+    }
+
+    // Per-tranche risk confidence bands functions
+    function trancheRiskFloorBps(uint256 trancheId) external view returns (uint16) {
+        return _trancheRiskFloorBps[trancheId];
+    }
+
+    function trancheRiskCeilBps(uint256 trancheId) external view returns (uint16) {
+        return _trancheRiskCeilBps[trancheId];
+    }
+
+    function setTrancheRiskBands(uint256 trancheId, uint16 floorBps, uint16 ceilBps) external onlyRole(GOV_ROLE) {
+        if (floorBps > ceilBps) revert BadParam(); // "Bands: floor>ceil"
+        if (ceilBps > maxBoundBps) revert BadParam(); // "Bands: ceil>max"
+        _trancheRiskFloorBps[trancheId] = floorBps;
+        _trancheRiskCeilBps[trancheId] = ceilBps;
+        emit TrancheRiskBandsSet(trancheId, floorBps, ceilBps);
     }
 }

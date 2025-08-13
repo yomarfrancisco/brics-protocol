@@ -469,6 +469,22 @@ PR #17 is finalized with all critical CI jobs green. Follow-up issues created fo
 
 **Next**: Rolling average risk calculations or risk confidence intervals.
 
+### 2025-08-13 16:30:00Z — P2-3: Risk Confidence Bands ✅
+
+- **Branch**: `feat/p2-3-risk-confidence-bands` @ `e79b88c`
+- **Implementation**: 
+  - `ConfigRegistry.sol`: Added `_trancheRiskFloorBps` + `_trancheRiskCeilBps` mappings + governance setters
+  - `TrancheReadFacade.sol`: Band clamping logic (clamp riskAdjBps to [floor, ceil] when ceil > 0)
+  - Bounds validation: 0 ≤ floor ≤ ceil ≤ maxBoundBps
+  - Band disabling: Set ceil = 0 to disable (no clamping)
+- **Tests**: 17 passing band tests (clamping, override interaction, staleness, governance)
+- **Golden Vectors**: Extended with 4 new band cases
+- **Gas**: Band path optimized; all budgets within limits
+- **Artifacts**: ABI/storage locks updated; audit bundle generated
+- **Docs**: ECONOMICS.md (band behavior + examples) + ADMIN-GOVERNANCE.md (adjustment checklist)
+
+**Next**: Rolling average risk calculations or per-tranche base APY overrides.
+
 ---
 
 ### 2025-08-13 14:27:21Z — PR #37 merged (P2 Kickoff)

@@ -902,3 +902,9 @@ Implement a comprehensive redemption queue prioritization system that calculates
 ### 2025-08-13 18:38:41Z — v0.2.2 tagged
 - Short SHA: `7edbf26`
 - Artifacts: ABI/storage locks + audit bundle updated
+
+---
+
+### 2025-08-13T20:00:45Z — v0.2.2+1 hotfix tagged
+- Short SHA: `cc483c9`
+- Notes: Release Validation fixed (MockNAVOracleV3)

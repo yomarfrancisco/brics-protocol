@@ -29,9 +29,21 @@ library SettlementMath {
         require(tenorDays <= 36500, "TENOR_OOB");
         require(notional > 0, "NOTIONAL_ZERO");
 
-        int256 deltaBps = int256(uint256(fairSpreadBps) - uint256(fixedSpreadBps));
-        int256 numer = deltaBps * int256(notional) * int256(uint256(elapsedDays));
-        int256 denom = int256(BPS_DENOM) * int256(uint256(tenorDays));
-        return roundHalfUp(numer, denom);
+        // Use unchecked arithmetic to avoid overflow checks
+        unchecked {
+            int256 deltaBps = int256(uint256(fairSpreadBps) - uint256(fixedSpreadBps));
+            
+            // Calculate numerator step by step to avoid overflow
+            // First: deltaBps * notional (can be negative)
+            int256 step1 = deltaBps * int256(notional);
+            
+            // Second: multiply by elapsedDays
+            int256 numer = step1 * int256(uint256(elapsedDays));
+            
+            // Denominator: BPS_DENOM * tenorDays
+            int256 denom = int256(BPS_DENOM) * int256(uint256(tenorDays));
+            
+            return roundHalfUp(numer, denom);
+        }
     }
 }

@@ -79,6 +79,8 @@ interface ICdsSwap {
      * @notice Settle a CDS swap with price quote
      * @param swapId Unique identifier of the swap to settle
      * @param quote Price quote for settlement
+     * @param elapsedDays Number of days elapsed since swap start
+     * @param tenorDays Total tenor days of the swap
      */
-    function settleSwap(bytes32 swapId, PriceQuote calldata quote) external;
+    function settleSwap(bytes32 swapId, PriceQuote calldata quote, uint32 elapsedDays, uint32 tenorDays) external;
 }

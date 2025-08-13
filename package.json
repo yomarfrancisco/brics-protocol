@@ -62,7 +62,6 @@
     "@nomicfoundation/hardhat-verify": "^2.1.1",
     "@nomicfoundation/ignition-core": "^0.15.13",
     "@octokit/rest": "^20.0.2",
-    "@openzeppelin/contracts": "^5.4.0",
     "@typechain/ethers-v6": "^0.5.0",
     "@typechain/hardhat": "^9.1.0",
     "@types/chai": "^4.3.11",
@@ -87,6 +86,7 @@
     "typescript": "^5.4.5"
   },
   "dependencies": {
+    "@openzeppelin/contracts": "^5.4.0",
     "yargs": "^18.0.0"
   }
 }

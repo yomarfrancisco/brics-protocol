@@ -58,13 +58,46 @@ denominator = S * tenorDays
   - `ACCOUNTING` (default): emit events / internal accounting only.
   - `TRANSFERS`: perform ERC20 transfers via SafeERC20.
 
-## 6. Determinism & Parity
+## 6. Events
+
+### SettlementExecuted Event
+```solidity
+event SettlementExecuted(
+    bytes32 indexed swapId,
+    address indexed buyer,
+    address indexed seller,
+    int256 pnlSmallest,
+    uint256 asOf,
+    uint32 elapsedDays,
+    uint32 tenorDays
+);
+```
+
+This event is emitted when a swap is settled, providing detailed information about:
+- **swapId**: Unique identifier for the settled swap
+- **buyer**: Address of the protection buyer
+- **seller**: Address of the protection seller  
+- **pnlSmallest**: PnL in smallest units (can be negative)
+- **asOf**: Timestamp when settlement was executed
+- **elapsedDays**: Number of days elapsed since swap start
+- **tenorDays**: Total tenor days of the swap
+
+## 7. Security Features
+
+- **SafeERC20**: All token transfers use SafeERC20 to prevent common ERC20 issues
+- **Pausable**: Contract can be paused by governance in emergency situations
+- **ReentrancyGuard**: Prevents reentrancy attacks during settlement
+- **Role-based Access**: Only authorized roles can perform settlement operations
+- **Bounds Validation**: All inputs are validated against defined bounds
+- **Signature Verification**: Quote signatures are verified using ECDSA
+
+## 8. Determinism & Parity
 
 - Off-chain (Python) and on-chain (Solidity) must produce identical `pnlSmallestUnits` for the same inputs.
 - Golden vectors in `pricing_service/tests/golden/settlement_vectors.json`.
 - Tolerance: **exact match** (integer).
 
-## 7. Examples
+## 9. Examples
 
 For `fair=800`, `fixed=80`, `notional=1_000_000` (USDC 1e6), `elapsedDays=15`, `tenorDays=30`:
 

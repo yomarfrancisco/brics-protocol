@@ -5,18 +5,21 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/utils/Pausable.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "./ICdsSwap.sol";
 import "./ICdsSwapEvents.sol";
 import "./CdsSwapRegistry.sol";
 import "./IPriceOracleAdapter.sol";
 import "../libraries/RiskSignalLib.sol";
+import "../settlement/SettlementMath.sol";
 
 /**
  * @title CdsSwapEngine
  * @notice Engine for Credit Default Swap (CDS) operations
  * @dev RBAC-gated operations with parameter validation stubs
  */
-contract CdsSwapEngine is ICdsSwap, ICdsSwapEvents, CdsSwapRegistry, AccessControl {
+contract CdsSwapEngine is ICdsSwap, ICdsSwapEvents, CdsSwapRegistry, AccessControl, Pausable, ReentrancyGuard {
     using Strings for uint256;
     using SafeERC20 for IERC20;
 
@@ -139,8 +142,15 @@ contract CdsSwapEngine is ICdsSwap, ICdsSwapEvents, CdsSwapRegistry, AccessContr
      * @notice Settle a CDS swap with price quote
      * @param swapId Unique identifier of the swap to settle
      * @param quote Price quote for settlement
+     * @param elapsedDays Number of days elapsed since swap start
+     * @param tenorDays Total tenor days of the swap
      */
-    function settleSwap(bytes32 swapId, PriceQuote calldata quote) external override {
+    function settleSwap(
+        bytes32 swapId, 
+        PriceQuote calldata quote,
+        uint32 elapsedDays,
+        uint32 tenorDays
+    ) external override whenNotPaused nonReentrant {
         SwapMetadata storage swap = swaps[swapId];
         if (swap.proposer == address(0)) {
             revert NotFound(swapId);
@@ -155,70 +165,64 @@ contract CdsSwapEngine is ICdsSwap, ICdsSwapEvents, CdsSwapRegistry, AccessContr
             revert InvalidParams("Invalid quote signature");
         }
 
-        // Calculate P&L
-        int256 payout = _calculatePayout(swap, quote);
+        // Validate quote parameters
+        if (quote.fairSpreadBps < MIN_SPREAD_BPS || quote.fairSpreadBps > MAX_SPREAD_BPS) {
+            revert InvalidParams("Invalid fair spread");
+        }
+
+        // Validate elapsed and tenor days
+        if (elapsedDays < 1 || elapsedDays > tenorDays || tenorDays > 36500) {
+            revert InvalidParams("Invalid elapsed/tenor days");
+        }
+
+        // Check for zero addresses
+        if (swap.params.protectionBuyer.counterparty == address(0) || 
+            swap.params.protectionSeller.counterparty == address(0)) {
+            revert InvalidParams("Invalid counterparty addresses");
+        }
+
+        // Calculate P&L using SettlementMath
+        int256 pnl = SettlementMath.computeSettlementPnl(
+            quote.fairSpreadBps,
+            swap.params.protectionBuyer.spreadBps,
+            swap.params.protectionBuyer.notional,
+            elapsedDays,
+            tenorDays
+        );
 
         // Execute settlement transfer if token is configured
         if (address(settlementToken) != address(0)) {
             address buyer = swap.params.protectionBuyer.counterparty;
             address seller = swap.params.protectionSeller.counterparty;
             
-            if (payout > 0) {
+            if (pnl > 0) {
                 // Seller pays buyer
-                _settlementTransfer(swapId, seller, buyer, uint256(payout));
-            } else if (payout < 0) {
+                _settlementTransfer(swapId, seller, buyer, uint256(pnl));
+            } else if (pnl < 0) {
                 // Buyer pays seller
-                _settlementTransfer(swapId, buyer, seller, uint256(-payout));
+                _settlementTransfer(swapId, buyer, seller, uint256(-pnl));
             }
         }
 
         // Update status
         _updateSwapStatus(swapId, SwapStatus.Settled);
 
-        // Emit event with calculated P&L
-        emit SwapSettled(swapId, msg.sender, payout);
+        // Emit detailed settlement event
+        emit SettlementExecuted(
+            swapId,
+            swap.params.protectionBuyer.counterparty,
+            swap.params.protectionSeller.counterparty,
+            pnl,
+            block.timestamp,
+            elapsedDays,
+            tenorDays
+        );
+
+        // Emit legacy event for backward compatibility
+        emit SwapSettled(swapId, msg.sender, pnl);
     }
 
-    /**
-     * @notice Calculate payout for swap settlement
-     * @param swap Swap metadata
-     * @param quote Price quote
-     * @return payout Calculated payout amount
-     */
-    function _calculatePayout(SwapMetadata storage swap, PriceQuote calldata quote) internal view returns (int256 payout) {
-        // Calculate spread difference in basis points
-        int256 pnlBps = int256(uint256(quote.fairSpreadBps)) - int256(uint256(swap.params.protectionBuyer.spreadBps));
-        
-        // Calculate notional in basis points (divide by 1e4)
-        int256 notionalBps = int256(swap.params.protectionBuyer.notional) / 10000;
-        
-        // Calculate elapsed days
-        uint64 currentTime = uint64(block.timestamp);
-        uint64 startTime = swap.params.protectionBuyer.start;
-        uint64 endTime = swap.params.protectionBuyer.maturity;
-        
-        // Guard against future start
-        if (currentTime < startTime) {
-            revert InvalidParams("Swap has not started yet");
-        }
-        
-        // Calculate elapsed days (min of current time and end time)
-        uint64 effectiveEndTime = currentTime < endTime ? currentTime : endTime;
-        uint64 elapsedDays = (effectiveEndTime - startTime) / 86400; // Convert seconds to days
-        
-        // Calculate tenor days
-        uint64 tenorDays = (endTime - startTime) / 86400;
-        
-        if (tenorDays == 0) {
-            revert InvalidParams("Invalid tenor");
-        }
-        
-        // Calculate payout: pnlBps * notionalBps * elapsedDays / tenorDays
-        payout = (pnlBps * notionalBps * int256(uint256(elapsedDays))) / int256(uint256(tenorDays));
-        
-        // Clamp to int256 bounds (this is handled automatically by Solidity)
-        return payout;
-    }
+
 
     /**
      * @notice Execute settlement transfer
@@ -347,6 +351,26 @@ contract CdsSwapEngine is ICdsSwap, ICdsSwapEvents, CdsSwapRegistry, AccessContr
         }
         settlementMode = mode;
         emit SettlementModeSet(mode);
+    }
+
+    /**
+     * @notice Pause the contract (GOV_ROLE only)
+     */
+    function pause() external {
+        if (!hasRole(GOV_ROLE, msg.sender)) {
+            revert Unauthorized();
+        }
+        _pause();
+    }
+
+    /**
+     * @notice Unpause the contract (GOV_ROLE only)
+     */
+    function unpause() external {
+        if (!hasRole(GOV_ROLE, msg.sender)) {
+            revert Unauthorized();
+        }
+        _unpause();
     }
 
     /**

@@ -398,3 +398,10 @@ PR #17 is finalized with all critical CI jobs green. Follow-up issues created fo
 - Seeded golden vectors + off-chain/on-chain parity tests.
 - Stubbed Solidity SettlementMath library; gas budget entries added.
 - Next: wire compute into CdsSwapEngine.settleSwap + SafeERC20 flows and invariants.
+
+---
+
+### 2025-08-13 — P1-5: Settlement wired into engine ✅
+- settleSwap now uses SettlementMath with round-half-up parity to golden vectors.
+- Events + SafeERC20 transfers (mode-gated), guards for signer/staleness/bounds.
+- Unit + integration tests added; gas budgets tracked.

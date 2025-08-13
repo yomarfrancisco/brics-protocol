@@ -95,4 +95,24 @@ interface ICdsSwapEvents {
      * @param amount Amount transferred
      */
     event SettlementPaid(bytes32 indexed swapId, address indexed payer, address indexed payee, uint256 amount);
+
+    /**
+     * @notice Emitted when settlement is executed with detailed PnL information
+     * @param swapId Unique identifier for the swap
+     * @param buyer Address of the protection buyer
+     * @param seller Address of the protection seller
+     * @param pnlSmallest PnL in smallest units (can be negative)
+     * @param asOf Timestamp when settlement was executed
+     * @param elapsedDays Number of days elapsed since swap start
+     * @param tenorDays Total tenor days of the swap
+     */
+    event SettlementExecuted(
+        bytes32 indexed swapId,
+        address indexed buyer,
+        address indexed seller,
+        int256 pnlSmallest,
+        uint256 asOf,
+        uint32 elapsedDays,
+        uint32 tenorDays
+    );
 }

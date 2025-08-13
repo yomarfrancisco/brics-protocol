@@ -95,3 +95,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## v0.2.3+2 — CI stability (InstantLane ctor)
 - Tests: align InstantLane deployments with current ABI (add gov)
 - CI: Release Validation green on main before tagging
+
+## v0.2.3+3 — CI green (token MINTER_ROLE spec)
+- Tests: stabilize mint role requirement (dynamic role id; correct revert)

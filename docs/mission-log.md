@@ -715,3 +715,9 @@ Implement time-weighted rolling average of risk adjustment values for each tranc
 ### 2025-08-13 17:15:53Z — PR #43 merged (Rolling Average Risk)
 - Short SHA: `8f1a2dd`
 - Notes: Windowed linear-decay rolling average + telemetry flags landed
+
+---
+
+### 2025-08-13 17:19:42Z — PR #44 merged (CI Polish)
+- Short SHA: `bd95f7b`
+- Notes: Added ABI/storage validation to audit-bundle job

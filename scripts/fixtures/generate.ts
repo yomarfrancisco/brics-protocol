@@ -15,7 +15,13 @@ async function main() {
   
   // Use seed for deterministic timestamps, fallback to current time
   const seed = process.env.FIXTURE_SEED ? parseInt(process.env.FIXTURE_SEED) : Date.now();
-  const asOf = Math.floor(Date.now() / 1000) + 60; // 1 minute in the future, always fresh
+  
+  // Ensure asOf is always fresh and sane (>= 1e9, which is 2001-09-09)
+  let asOf = Math.floor(Date.now() / 1000) + 60; // 1 minute in the future, always fresh
+  if (asOf < 1e9) {
+    console.warn("Warning: asOf timestamp too old, using current time");
+    asOf = Math.floor(Date.now() / 1000) + 60;
+  }
   const modelIdHash = ethers.keccak256(ethers.toUtf8Bytes("MODEL_V1"));
   const featuresHash = ethers.keccak256(ethers.toUtf8Bytes("FEATURES_V1"));
   const correlationBps = 3200;

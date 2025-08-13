@@ -82,26 +82,7 @@ jobs:
           fi
       - name: Check fixture staleness
         run: |
-          FIXTURE_PATH="pricing-fixtures/ACME-LLC-30-frozen.json"
-          if [ -f "$FIXTURE_PATH" ]; then
-            FIXTURE_ASOF=$(jq -r '.asOf' "$FIXTURE_PATH")
-            CURRENT_TIME=$(date +%s)
-            DAYS_OLD=$(( (CURRENT_TIME - FIXTURE_ASOF) / 86400 ))
-            
-            if [ "$DAYS_OLD" -gt 30 ]; then
-              echo "ERROR: Fixture stale (>30d old, $DAYS_OLD days)"
-              echo "Fixture asOf: $FIXTURE_ASOF"
-              echo "Current time: $CURRENT_TIME"
-              echo "Days old: $DAYS_OLD"
-              echo "Please run: yarn fixtures:freeze && yarn fixtures:hashcheck and commit both files."
-              exit 1
-            else
-              echo "Fixture is fresh ($DAYS_OLD days old)"
-            fi
-          else
-            echo "ERROR: Frozen fixture not found at $FIXTURE_PATH"
-            exit 1
-          fi
+          yarn fixtures:check
       - run: PRICING_PROVIDER=stub BANK_DATA_MODE=off yarn test:unit
 
       # Artifacts (tests don't always have files, but keep a pattern)
@@ -884,6 +865,62 @@ jobs:
             sbom-node.json
             services/pricing/sbom-python.txt
             demo_output.sample.json
+          if-no-files-found: warn
+          retention-days: 14
+
+  gas-nightly:
+    name: Gas Trend (Nightly)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    continue-on-error: true
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history for trend analysis
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Enable Corepack & pin Yarn 4
+        run: |
+          corepack enable
+          corepack prepare yarn@4.9.2 --activate
+          yarn --version
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            node_modules
+          key: ${{ runner.os }}-node${{ env.NODE_VERSION }}-${{ hashFiles('yarn.lock') }}-gas-nightly
+
+      - name: Install dependencies
+        run: |
+          yarn install --immutable
+
+      - name: Compile contracts
+        run: |
+          yarn hardhat compile
+
+      - name: Generate gas trend data
+        run: |
+          yarn gas:trend
+          yarn gas:chart
+
+      - name: Upload gas trend artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gas-nightly-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            gas-report.txt
+            dist/gas/gas-trend.csv
+            dist/gas/gas-trend.svg
           if-no-files-found: warn
           retention-days: 14
 

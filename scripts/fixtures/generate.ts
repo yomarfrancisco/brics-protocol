@@ -15,7 +15,7 @@ async function main() {
   
   // Use seed for deterministic timestamps, fallback to current time
   const seed = process.env.FIXTURE_SEED ? parseInt(process.env.FIXTURE_SEED) : Date.now();
-  const asOf = Math.floor(seed / 1000) + 60; // 1 minute in the future
+  const asOf = Math.floor(Date.now() / 1000) + 60; // 1 minute in the future, always fresh
   const modelIdHash = ethers.keccak256(ethers.toUtf8Bytes("MODEL_V1"));
   const featuresHash = ethers.keccak256(ethers.toUtf8Bytes("FEATURES_V1"));
   const correlationBps = 3200;

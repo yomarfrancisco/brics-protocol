@@ -156,6 +156,62 @@ When swapping tranche risk oracles:
    - [ ] Check for any `StaleRiskData` reverts
    - [ ] Update adapter documentation
 
+## Per-Tranche Risk Override Management
+
+### Setting Risk Overrides
+
+Risk overrides can be set per tranche for emergency adjustments or manual corrections:
+
+```solidity
+// Set override for specific tranche
+await configRegistry.setTrancheRiskAdjOverrideBps(trancheId, 150); // 1.5% risk
+
+// Remove override (set to 0)
+await configRegistry.setTrancheRiskAdjOverrideBps(trancheId, 0);
+```
+
+### Override Adjustment Checklist
+
+When adjusting risk overrides:
+
+1. **Pre-adjustment Checklist**:
+   - [ ] Verify current oracle/adapter risk values
+   - [ ] Calculate impact on effective APY
+   - [ ] Ensure override is within bounds (0 ≤ override ≤ maxBoundBps)
+   - [ ] Test override on staging environment
+   - [ ] Prepare rollback plan
+
+2. **Override Process**:
+   ```solidity
+   // Set override
+   await configRegistry.setTrancheRiskAdjOverrideBps(trancheId, newOverride);
+   
+   // Verify override is applied
+   uint16 override = await configRegistry.trancheRiskAdjOverrideBps(trancheId);
+   require(override == newOverride, "Override not set");
+   
+   // Test APY calculation
+   (uint16 apyBps, uint64 asOf) = await facade.viewEffectiveApy(trancheId);
+   console.log("New effective APY:", apyBps);
+   ```
+
+3. **Post-adjustment Verification**:
+   - [ ] Monitor effective APY changes
+   - [ ] Verify override takes precedence over oracle/adapter
+   - [ ] Check that stale data is bypassed when override > 0
+   - [ ] Update override documentation
+   - [ ] Plan removal timeline if temporary
+
+4. **Rollback Process**:
+   ```solidity
+   // Remove override (restore oracle/adapter behavior)
+   await configRegistry.setTrancheRiskAdjOverrideBps(trancheId, 0);
+   
+   // Verify rollback
+   uint16 override = await configRegistry.trancheRiskAdjOverrideBps(trancheId);
+   require(override == 0, "Override not removed");
+   ```
+
 ## Emergency Procedures
 
 ### Setting Emergency Levels

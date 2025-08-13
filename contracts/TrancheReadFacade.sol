@@ -36,11 +36,17 @@ contract TrancheReadFacade {
     function viewEffectiveApy(uint256 trancheId) external view returns (uint16 apyBps, uint64 asOf) {
         (uint16 baseApyBps, uint16 riskAdjBps, uint64 oracleAsOf) = oracle.latestTrancheRisk(trancheId);
         
-        // Use adapter for risk adjustment if enabled
-        if (enableTrancheRisk && address(riskAdapter) != address(0)) {
-            (uint16 adapterRiskAdj, uint64 adapterTs) = riskAdapter.latestRisk(trancheId);
-            riskAdjBps = adapterRiskAdj;
-            oracleAsOf = adapterTs;
+        // Check for per-tranche override first (takes precedence over adapter/oracle)
+        uint16 overrideBps = IConfigRegistryLike(config).trancheRiskAdjOverrideBps(trancheId);
+        if (overrideBps > 0) {
+            riskAdjBps = overrideBps;
+        } else {
+            // Use adapter for risk adjustment if enabled and no override
+            if (enableTrancheRisk && address(riskAdapter) != address(0)) {
+                (uint16 adapterRiskAdj, uint64 adapterTs) = riskAdapter.latestRisk(trancheId);
+                riskAdjBps = adapterRiskAdj;
+                oracleAsOf = adapterTs;
+            }
         }
         
         // Get max APY from config (reuse maxBoundBps for now)
@@ -69,11 +75,17 @@ contract TrancheReadFacade {
     ) {
         (baseApyBps, riskAdjBps, asOf) = oracle.latestTrancheRisk(trancheId);
         
-        // Use adapter for risk adjustment if enabled
-        if (enableTrancheRisk && address(riskAdapter) != address(0)) {
-            (uint16 adapterRiskAdj, uint64 adapterTs) = riskAdapter.latestRisk(trancheId);
-            riskAdjBps = adapterRiskAdj;
-            asOf = adapterTs;
+        // Check for per-tranche override first (takes precedence over adapter/oracle)
+        uint16 overrideBps = IConfigRegistryLike(config).trancheRiskAdjOverrideBps(trancheId);
+        if (overrideBps > 0) {
+            riskAdjBps = overrideBps;
+        } else {
+            // Use adapter for risk adjustment if enabled and no override
+            if (enableTrancheRisk && address(riskAdapter) != address(0)) {
+                (uint16 adapterRiskAdj, uint64 adapterTs) = riskAdapter.latestRisk(trancheId);
+                riskAdjBps = adapterRiskAdj;
+                asOf = adapterTs;
+            }
         }
         
         maxApyBps = _getMaxApyBps();
@@ -99,4 +111,5 @@ contract TrancheReadFacade {
 // Interface for ConfigRegistry calls
 interface IConfigRegistryLike {
     function maxBoundBps() external view returns (uint256);
+    function trancheRiskAdjOverrideBps(uint256 trancheId) external view returns (uint16);
 }

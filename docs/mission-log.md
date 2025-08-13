@@ -628,3 +628,84 @@ Create GitHub issues for rolling average risk calculation and per-tranche base A
 
 ### Next Mission
 Ready for next development cycle with enhanced observability and clear roadmap for rolling averages and per-tranche overrides.
+
+---
+
+## Mission: Issue #41 - Rolling Average Risk Calculation ✅
+
+**Date**: 2025-08-13  
+**Status**: ✅ **COMPLETED** - Rolling average risk calculation fully implemented
+
+### Objective
+Implement time-weighted rolling average of risk adjustment values for each tranche with governance-configurable window size and full integration with existing systems.
+
+### Implementation Complete
+- **ConfigRegistry**: Added rolling average storage and governance controls
+  - `_trancheRollingWindowDays`: Per-tranche window size (1-90 days)
+  - `_trancheRollingEnabled`: Per-tranche enable/disable flag
+  - `RollingBuf`: Fixed-size circular buffer (30 slots) for data storage
+  - `recordTrancheRiskPoint`: Governance function for data recording
+  - Events: `TrancheRollingWindowSet`, `TrancheRollingEnabledSet`, `TrancheRollingPointAppended`
+
+- **TrancheReadFacade**: Integrated rolling average into risk calculation
+  - `_linearWeight`: Linear decay weight calculation (0-10000 scale)
+  - `_rollingAverage`: Time-weighted rolling average computation
+  - Precedence: Override → Rolling Average → Bands → APY clamp
+  - Telemetry: Added rolling average fields and flags
+
+- **Telemetry Integration**: Extended `viewTrancheTelemetry` function
+  - `rollingAverageBps`: Rolling average value (0 if not used)
+  - `rollingWindowDays`: Window size in days (0 if disabled)
+  - `FLAG_ROLLING_AVG_ENABLED`: 0x40 (rolling average enabled)
+  - `FLAG_ROLLING_AVG_USED`: 0x80 (rolling average applied)
+
+### Technical Details
+- **Algorithm**: Linear decay weighting with time-based filtering
+- **Storage**: Circular buffer with 30 slots (~3KB per tranche)
+- **Gas Efficiency**: ~50k gas per data point recording
+- **Bounds**: Window size 1-90 days, risk values 0-maxBoundBps
+- **Integration**: Compatible with overrides, bands, and telemetry
+
+### Test Coverage
+- **18 Comprehensive Tests**: All passing
+  - Basic functionality (4 tests): Single point, weighted average, window filtering, empty data
+  - Governance controls (4 tests): Window changes, enable/disable, bounds validation, events
+  - Integration precedence (3 tests): Override precedence, bands integration, adapter path
+  - Telemetry integration (2 tests): Flag correctness, field population
+  - Edge cases and gas (3 tests): Buffer wraparound, window sizes, risk values
+  - Circular buffer operations (2 tests): Index management, data retrieval
+
+### Documentation Updates
+- **ECONOMICS.md**: Added comprehensive rolling average section
+  - Algorithm explanation with weight calculation formula
+  - Governance parameters and storage structure
+  - Example scenarios and integration details
+  - Operational considerations and gas costs
+
+- **ADMIN-GOVERNANCE.md**: Added rolling average management section
+  - Configuration process with checklists
+  - Data recording management
+  - Operational considerations and cadence
+  - Rollback procedures
+
+### Governance Parameters
+- **Per-tranche controls**: Enable/disable and window size
+- **Bounds validation**: Window size 1-90 days, risk values within maxBoundBps
+- **Data recording**: Governance function for risk point recording
+- **Events**: Comprehensive event emission for monitoring
+
+### Acceptance Criteria Met
+- ✅ ConfigRegistry holds rolling average configuration and storage
+- ✅ TrancheReadFacade applies correct precedence (Override → Rolling → Bands → APY clamp)
+- ✅ Telemetry exposes rolling fields and sets appropriate flags
+- ✅ Full test matrix passing (18 tests, deterministic timing, buffer wrap tested)
+- ✅ Documentation updated in Economics and Admin Governance
+- ✅ Artifacts regenerated (ABI/storage locks, audit bundle)
+- ✅ No state changes in view functions
+- ✅ Backward compatible defaults (rolling disabled unless set)
+
+### Next Steps
+- Deploy to staging for integration testing
+- Set up daily data recording processes
+- Monitor rolling average effectiveness in production
+- Consider additional window size optimizations based on usage data

@@ -257,6 +257,93 @@ When adjusting risk confidence bands:
    - [ ] Verify bands clamp risk adjustments correctly
    - [ ] Check that bands work with overrides and staleness
    - [ ] Update band documentation
+
+## Rolling Average Risk Management
+
+### Enabling Rolling Average
+
+Rolling average risk calculation can be enabled per tranche to smooth out volatility:
+
+```solidity
+// Enable rolling average for specific tranche
+await configRegistry.setTrancheRollingEnabled(trancheId, true);
+
+// Set window size (1-90 days)
+await configRegistry.setTrancheRollingWindow(trancheId, 7); // 7-day window
+
+// Disable rolling average
+await configRegistry.setTrancheRollingEnabled(trancheId, false);
+```
+
+### Rolling Average Adjustment Checklist
+
+When configuring rolling average:
+
+1. **Pre-configuration Checklist**:
+   - [ ] Verify current oracle/adapter risk values
+   - [ ] Calculate expected smoothing effect
+   - [ ] Ensure window size is appropriate (1-90 days)
+   - [ ] Test configuration on staging environment
+   - [ ] Prepare rollback plan
+
+2. **Configuration Process**:
+   ```solidity
+   // Enable rolling average
+   await configRegistry.setTrancheRollingEnabled(trancheId, true);
+   await configRegistry.setTrancheRollingWindow(trancheId, windowDays);
+   
+   // Verify configuration
+   bool enabled = await configRegistry.trancheRollingEnabled(trancheId);
+   uint16 window = await configRegistry.trancheRollingWindowDays(trancheId);
+   require(enabled && window == windowDays, "Config not set");
+   
+   // Test APY calculation with rolling average
+   (uint16 apyBps, uint64 asOf) = await facade.viewEffectiveApy(trancheId);
+   console.log("APY with rolling average:", apyBps);
+   ```
+
+3. **Post-configuration Verification**:
+   - [ ] Monitor effective APY changes
+   - [ ] Verify rolling average smooths volatility
+   - [ ] Check that rolling average works with overrides and bands
+   - [ ] Update rolling average documentation
+
+4. **Rollback Process**:
+   ```solidity
+   // Disable rolling average (restore direct oracle/adapter behavior)
+   await configRegistry.setTrancheRollingEnabled(trancheId, false);
+   
+   // Verify rollback
+   bool enabled = await configRegistry.trancheRollingEnabled(trancheId);
+   require(!enabled, "Rolling average not disabled");
+   ```
+
+### Data Recording Management
+
+Rolling average requires regular recording of risk adjustment points:
+
+```solidity
+// Record risk adjustment point
+await configRegistry.recordTrancheRiskPoint(trancheId, riskAdjBps, timestamp);
+```
+
+### Operational Considerations
+
+1. **Data Recording Frequency**: Record points daily or when risk values change significantly
+2. **Window Size Selection**: 
+   - Short window (1-7 days): More responsive, less smoothing
+   - Medium window (7-30 days): Balanced smoothing and responsiveness
+   - Long window (30-90 days): Maximum smoothing, less responsive
+3. **Gas Costs**: Each data point recording costs ~50k gas
+4. **Storage Limits**: Maximum 30 data points per tranche
+5. **Governance**: Window size and enable/disable controls per tranche
+
+### Expected Operational Cadence
+
+- **Daily**: Record risk adjustment points for active tranches
+- **Weekly**: Monitor rolling average effectiveness
+- **Monthly**: Review window sizes and adjust if needed
+- **Quarterly**: Evaluate overall rolling average performance
    - [ ] Plan adjustment timeline if temporary
 
 4. **Rollback Process**:

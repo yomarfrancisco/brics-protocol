@@ -37,8 +37,32 @@ describe("NASASAGateway: redemption lifecycle", () => {
     const MockConfigRegistry = await ethers.getContractFactory("MockConfigRegistry");
     configRegistry = await MockConfigRegistry.deploy();
 
+    // Deploy mock oracle and adapter for RedemptionQueueView
+    const MockTrancheRiskOracle = await ethers.getContractFactory("MockTrancheRiskOracle");
+    const mockOracle = await MockTrancheRiskOracle.deploy();
+
+    const MockTrancheRiskOracleAdapter = await ethers.getContractFactory("MockTrancheRiskOracleAdapter");
+    const mockRiskAdapter = await MockTrancheRiskOracleAdapter.deploy();
+
+    // Deploy TrancheReadFacade
+    const TrancheReadFacade = await ethers.getContractFactory("TrancheReadFacade");
+    const trancheFacade = await TrancheReadFacade.deploy(
+      mockOracle,
+      configRegistry,
+      mockRiskAdapter,
+      true // enableTrancheRisk
+    );
+
+    // Deploy RedemptionQueueView
+    const RedemptionQueueView = await ethers.getContractFactory("RedemptionQueueView");
+    const redemptionQueueView = await RedemptionQueueView.deploy(
+      configRegistry,
+      trancheFacade
+    );
+
+    // Deploy RedemptionQueue with all required parameters
     const RedemptionQueue = await ethers.getContractFactory("RedemptionQueue");
-    queue = await RedemptionQueue.deploy(await accessController.getAddress(), await configRegistry.getAddress());
+    queue = await RedemptionQueue.deploy(accessController, configRegistry, redemptionQueueView);
 
     const NASASAGateway = await ethers.getContractFactory("NASASAGateway");
     gateway = await NASASAGateway.deploy(

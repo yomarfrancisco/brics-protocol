@@ -83,4 +83,29 @@ contract MockConfigRegistry is IConfigRegistry {
     ) {
         return (50, 1000, 500, 5000); // Default values
     }
+
+    // Add missing functions for RedemptionQueue compatibility
+    function redemptionPriorityEnabled() external pure returns (bool) {
+        return false; // Default to disabled
+    }
+
+    function redemptionWeightRiskBps() external pure returns (uint16) {
+        return 3333;
+    }
+
+    function redemptionWeightAgeBps() external pure returns (uint16) {
+        return 3333;
+    }
+
+    function redemptionWeightSizeBps() external pure returns (uint16) {
+        return 3334;
+    }
+
+    function redemptionMinAgeDays() external pure returns (uint256) {
+        return 7;
+    }
+
+    function redemptionSizeBoostThreshold() external pure returns (uint256) {
+        return 1000 * 1e18;
+    }
 }

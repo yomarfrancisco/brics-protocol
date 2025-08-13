@@ -627,3 +627,112 @@ const (ok, min, max) = await instantLane.preTradeCheck(10000, 0);
 - Time-delayed parameter updates for additional safety
 - Automated monitoring and alerting systems
 - Enhanced emergency response procedures
+
+## Redemption Queue Prioritization Management
+
+### Configuring Priority Weights
+
+Redemption queue prioritization uses governance-configurable weights to balance risk, age, and size factors:
+
+```solidity
+// Set weights (must sum to ≤100%)
+await configRegistry.setRedemptionWeights(4000, 3000, 3000); // 40% risk, 30% age, 30% size
+
+// Get current weights
+(uint16 riskWeight, uint16 ageWeight, uint16 sizeWeight) = await configRegistry.getRedemptionWeights();
+```
+
+### Setting Thresholds
+
+Configure age and size thresholds for priority boosts:
+
+```solidity
+// Set age threshold (minimum days for age boost)
+await configRegistry.setRedemptionThresholds(7, 10000); // 7 days, 10k USDC
+
+// Get current thresholds
+(uint16 minAgeDays, uint16 sizeThreshold) = await configRegistry.getRedemptionThresholds();
+```
+
+### Weight Adjustment Checklist
+
+When adjusting redemption priority weights:
+
+1. **Pre-adjustment Checklist**:
+   - [ ] Review current queue behavior and redemption patterns
+   - [ ] Analyze reason flag distribution from priority scoring
+   - [ ] Calculate desired weight distribution (sum ≤100%)
+   - [ ] Test weight configuration on staging environment
+   - [ ] Prepare rollback plan
+
+2. **Weight Configuration Process**:
+   ```solidity
+   // Set new weights
+   await configRegistry.setRedemptionWeights(riskWeightBps, ageWeightBps, sizeWeightBps);
+   
+   // Verify weights are set correctly
+   (uint16 risk, uint16 age, uint16 size) = await configRegistry.getRedemptionWeights();
+   require(risk == riskWeightBps && age == ageWeightBps && size == sizeWeightBps, "Weights not set");
+   
+   // Test priority scoring with sample requests
+   uint256 score = await queueView.computePriorityScore(trancheId, account, amount, timestamp);
+   console.log("Priority score:", score);
+   ```
+
+3. **Post-adjustment Verification**:
+   - [ ] Monitor reason flag distribution changes
+   - [ ] Verify priority scoring behavior
+   - [ ] Check queue processing efficiency
+   - [ ] Update weight documentation
+
+### Threshold Adjustment Checklist
+
+When adjusting redemption thresholds:
+
+1. **Pre-adjustment Checklist**:
+   - [ ] Review current age and size patterns
+   - [ ] Calculate impact on priority distribution
+   - [ ] Ensure thresholds are within bounds (age: 0-365 days, size: 0-1M USDC)
+   - [ ] Test threshold configuration on staging environment
+   - [ ] Prepare rollback plan
+
+2. **Threshold Configuration Process**:
+   ```solidity
+   // Set new thresholds
+   await configRegistry.setRedemptionThresholds(minAgeDays, sizeThreshold);
+   
+   // Verify thresholds are set correctly
+   (uint16 age, uint16 size) = await configRegistry.getRedemptionThresholds();
+   require(age == minAgeDays && size == sizeThreshold, "Thresholds not set");
+   
+   // Test priority scoring with threshold scenarios
+   uint256 score = await queueView.computePriorityScore(trancheId, account, amount, timestamp);
+   console.log("Priority score with new thresholds:", score);
+   ```
+
+3. **Post-adjustment Verification**:
+   - [ ] Monitor age and size component changes
+   - [ ] Verify reason flag distribution
+   - [ ] Check queue fairness and efficiency
+   - [ ] Update threshold documentation
+
+### Integration with Queue Management
+
+- **Risk-Based**: Higher risk periods automatically prioritize redemptions
+- **Age-Based**: Prevents requests from being stuck indefinitely
+- **Size-Based**: Balances efficiency vs. fairness for large vs. small requests
+- **Future**: Can integrate with capacity monitoring for pressure-based priority
+
+### Operational Cadence
+
+- **Daily**: Monitor reason flag distribution and queue behavior
+- **Weekly**: Review priority scoring effectiveness
+- **Monthly**: Assess weight and threshold adjustments
+- **Quarterly**: Comprehensive review of queue prioritization strategy
+
+### Monitoring and Alerts
+
+- **Reason Flag Distribution**: Track which factors are driving priority decisions
+- **Queue Efficiency**: Monitor processing times and fairness
+- **Weight Effectiveness**: Assess if current weights achieve desired outcomes
+- **Threshold Impact**: Evaluate age and size threshold effectiveness

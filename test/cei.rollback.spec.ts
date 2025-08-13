@@ -31,7 +31,7 @@ describe("CEI rollback on external failure (settlement path)", () => {
 
     const MockNAVOracle = await ethers.getContractFactory("MockNAVOracle");
     oracle = await MockNAVOracle.deploy();
-    await oracle.setNAV(ethers.parseEther("1"));
+    await oracle.setNavRay(ethers.parseEther("1"));
 
     const MemberRegistry = await ethers.getContractFactory("MemberRegistry");
     member = await MemberRegistry.deploy(govAddr);
@@ -84,6 +84,9 @@ describe("CEI rollback on external failure (settlement path)", () => {
     
     // Set sovereign caps after IC is deployed
     await ic.connect(gov).setSovereignCap(SOV, ethers.parseEther("1000000"), ethers.parseEther("2000000"));
+
+    // Mint user some BRICS tokens first
+    await brics.connect(gov).mint(userAddr, ethers.parseEther("1000"));
 
     // Mint user some BRICS and move through NAV flow to create a claim
     // Open window, queue, close, mint claim, strike

@@ -48,6 +48,10 @@ contract MockNAVOracle is INAVOracleV3 {
         return _isEmergency ? _emergencyNavRay : _navRay;
     }
 
+    function navRay() external view returns (uint256) {
+        return _isEmergency ? _emergencyNavRay : _navRay;
+    }
+
     function lastUpdateTs() external view override returns (uint256) {
         return _lastUpdateTs;
     }

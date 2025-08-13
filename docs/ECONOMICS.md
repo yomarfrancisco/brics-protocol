@@ -646,3 +646,113 @@ uint16 override = configRegistry.trancheBaseApyOverrideBps(trancheId);
 - **Analytics Dashboard**: Real-time economics dashboard
 - **Automated Monitoring**: Automated alerts for parameter breaches
 
+## Redemption Queue Prioritization (Read-Only)
+
+### Overview
+
+The redemption queue prioritization system provides a read-only scoring mechanism to determine the priority of redemption requests based on risk adjustment, age, and size with governance-configurable weights.
+
+### Purpose
+
+- **Fair Queue Management**: Ensure redemption requests are processed in order of urgency and importance
+- **Risk-Based Prioritization**: Prioritize redemptions during high-risk periods
+- **Age-Based Fairness**: Prevent requests from being stuck in queue indefinitely
+- **Size-Based Efficiency**: Balance large vs. small redemption requests
+
+### Priority Score Formula
+
+The priority score is computed using a weighted combination of three components:
+
+```
+priorityScore = (riskComponent * riskWeightBps + ageComponent * ageWeightBps + sizeComponent * sizeWeightBps) / 10000
+```
+
+Where each component is normalized to 0-10000 basis points.
+
+### Component Calculations
+
+#### Risk Component
+- **Input**: Final risk adjustment from tranche telemetry
+- **Calculation**: `riskComponent = (finalRiskAdjBps * 10000) / maxApyBps`
+- **Range**: 0-10000 bps
+- **Logic**: Higher risk adjustment = higher priority (more urgent)
+
+#### Age Component
+- **Input**: Request timestamp, current time, minimum age threshold
+- **Calculation**: Linear boost from `minAgeDays` to 365 days
+- **Range**: 0-10000 bps
+- **Logic**: Older requests get higher priority (fairness)
+
+#### Size Component
+- **Input**: Redemption amount, size threshold
+- **Calculation**: Linear boost from threshold to 10x threshold
+- **Range**: 0-10000 bps
+- **Logic**: Larger amounts get higher priority (efficiency)
+
+### Governance Parameters
+
+| Parameter | Default | Range | Description |
+|-----------|---------|-------|-------------|
+| `redemptionWeightRiskBps` | 4000 (40%) | 0-10000 bps | Weight for risk adjustment component |
+| `redemptionWeightAgeBps` | 3000 (30%) | 0-10000 bps | Weight for age component |
+| `redemptionWeightSizeBps` | 3000 (30%) | 0-10000 bps | Weight for size component |
+| `minAgeDaysForBoost` | 7 days | 0-365 days | Minimum age for age boost |
+| `sizeBoostThreshold` | 10,000 USDC | 0-1,000,000 USDC | Size threshold for boost |
+
+### Reason Flags
+
+The system provides reason flags to explain priority decisions:
+
+| Flag | Value | Description |
+|------|-------|-------------|
+| `FLAG_RISK_HIGH` | 0x0001 | High risk adjustment (>25%) |
+| `FLAG_SIZE_LARGE` | 0x0002 | Large redemption amount (≥threshold) |
+| `FLAG_AGE_OLD` | 0x0004 | Old redemption request (≥minAgeDays) |
+| `FLAG_CAP_PRESSURE` | 0x0008 | Near capacity limits (future) |
+
+### Example Scenarios
+
+#### Scenario 1: Standard Priority
+- Risk adjustment: 200 bps (2%)
+- Age: 5 days (below 7-day threshold)
+- Size: 5,000 USDC (below 10k threshold)
+- Result: Low priority score, no reason flags
+
+#### Scenario 2: High Risk Priority
+- Risk adjustment: 3,000 bps (30%)
+- Age: 3 days
+- Size: 8,000 USDC
+- Result: High priority due to risk, `FLAG_RISK_HIGH` set
+
+#### Scenario 3: Age-Based Priority
+- Risk adjustment: 150 bps (1.5%)
+- Age: 30 days (above 7-day threshold)
+- Size: 7,000 USDC
+- Result: Medium priority due to age, `FLAG_AGE_OLD` set
+
+#### Scenario 4: Size-Based Priority
+- Risk adjustment: 100 bps (1%)
+- Age: 2 days
+- Size: 50,000 USDC (above 10k threshold)
+- Result: High priority due to size, `FLAG_SIZE_LARGE` set
+
+#### Scenario 5: Multi-Factor Priority
+- Risk adjustment: 2,500 bps (25%)
+- Age: 60 days
+- Size: 100,000 USDC
+- Result: Very high priority, all flags set
+
+### Integration with Existing Systems
+
+- **TrancheReadFacade**: Uses telemetry data for risk adjustment
+- **ConfigRegistry**: Provides governance-configurable weights and thresholds
+- **Telemetry**: Reason flags align with decision path analysis
+- **Future**: Can integrate with capacity monitoring for `FLAG_CAP_PRESSURE`
+
+### Operational Considerations
+
+1. **Weight Balancing**: Ensure weights sum to ≤100% for predictable scoring
+2. **Threshold Tuning**: Adjust thresholds based on queue behavior and market conditions
+3. **Monitoring**: Track reason flag distribution to understand queue dynamics
+4. **Gas Efficiency**: Read-only design minimizes gas costs for priority computation
+

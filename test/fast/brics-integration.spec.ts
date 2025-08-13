@@ -67,7 +67,8 @@ describe("BRICS Token Integration", () => {
       memberRegistry,
       mockAMM,
       configRegistry,
-      mockPMM
+      mockPMM,
+      await deployer.getAddress() // gov parameter
     );
     await instantLane.waitForDeployment();
 

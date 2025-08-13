@@ -814,3 +814,26 @@ Implement per-tranche base APY override functionality allowing governance to dir
 ### 2025-08-13 17:46:32Z — v0.2.1 tagged
 - Short SHA: `ba8670d`
 - Artifacts: ABI/storage locks + audit bundle updated
+
+### 2025-08-13 17:50:00Z — P2-4: Redemption Queue Prioritization (read-only) kickoff
+- **Objective**: Implement read-only priority scoring for redemption queue management
+- **Scope**: ConfigRegistry weights/thresholds + RedemptionQueueView contract + comprehensive tests
+- **Acceptance Criteria**:
+  - ConfigRegistry exposes redemption weighting params with GOV setters + events
+  - RedemptionQueueView returns deterministic priorityScore + reasonBits
+  - Full tests for monotonicity, bounds, telemetry; deterministic
+  - Docs updated (Economics/Admin) and mission log appended
+  - CI green on critical checks (allow non-blocking audit diff)
+
+---
+
+### 2025-01-27 15:30:00Z — Fix Release Validation: CEI rollback oracle mutator drift
+- **Root Cause**: CEI rollback test assumed `oracle.setNAV()` function, but `MockNAVOracle` had `setNavRay()` instead
+- **Fix Path**: Updated test to use correct function name and added missing `navRay()` function to `MockNAVOracle`
+- **Changes Made**:
+  - Fixed `test/cei.rollback.spec.ts`: Changed `oracle.setNAV()` to `oracle.setNavRay()`
+  - Enhanced `contracts/mocks/MockNAVOracle.sol`: Added `navRay()` function to match production oracle API
+  - Fixed `InstantLane` constructor calls in test files: Added missing `gov` parameter
+- **Assertions Kept**: CEI rollback test still proves state is rolled back on external failure (malicious treasury revert)
+- **Test Status**: CEI rollback test ✅ green, all critical test suites ✅ green
+- **Impact**: No production contract behavior changes, only test/mock alignment

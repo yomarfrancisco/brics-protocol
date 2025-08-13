@@ -50,7 +50,8 @@ describe("InstantLane Pre-Trade Check", () => {
       memberRegistry,
       amm,
       configRegistry,
-      ethers.ZeroAddress // No PMM
+      ethers.ZeroAddress, // No PMM
+      await deployer.getAddress() // gov parameter
     );
     await instantLane.waitForDeployment();
 

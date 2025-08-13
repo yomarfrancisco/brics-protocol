@@ -71,6 +71,13 @@ contract ConfigRegistry is AccessControl {
     // Per-tranche base APY override
     mapping(uint256 => uint16) private _trancheBaseApyOverrideBps; // 0 = no override
 
+    // Redemption queue prioritization weights
+    uint16 public redemptionWeightRiskBps = 4000;    // 40% weight for risk adjustment
+    uint16 public redemptionWeightAgeBps = 3000;     // 30% weight for age
+    uint16 public redemptionWeightSizeBps = 3000;    // 30% weight for size
+    uint16 public minAgeDaysForBoost = 7;            // Minimum age for age boost
+    uint16 public sizeBoostThreshold = 10000;        // Size threshold for boost (in USDC)
+
     // Rolling average data storage (fixed-size circular buffer)
     struct RiskPoint {
         uint16 riskAdjBps;
@@ -97,6 +104,8 @@ contract ConfigRegistry is AccessControl {
     event TrancheRollingEnabledSet(uint256 indexed trancheId, bool enabled);
     event TrancheRollingPointAppended(uint256 indexed trancheId, uint16 riskAdjBps, uint64 timestamp);
     event TrancheBaseApyOverrideSet(uint256 indexed trancheId, uint16 oldVal, uint16 newVal);
+    event RedemptionWeightsSet(uint16 riskWeightBps, uint16 ageWeightBps, uint16 sizeWeightBps);
+    event RedemptionThresholdsSet(uint16 minAgeDays, uint16 sizeThreshold);
 
     constructor(address gov){
         _grantRole(DEFAULT_ADMIN_ROLE, gov);
@@ -420,5 +429,35 @@ contract ConfigRegistry is AccessControl {
         uint16 oldVal = _trancheBaseApyOverrideBps[trancheId];
         _trancheBaseApyOverrideBps[trancheId] = newVal;
         emit TrancheBaseApyOverrideSet(trancheId, oldVal, newVal);
+    }
+
+    // Redemption queue prioritization governance controls
+    function setRedemptionWeights(uint16 riskWeightBps, uint16 ageWeightBps, uint16 sizeWeightBps) external onlyRole(GOV_ROLE) {
+        if (riskWeightBps > 10000 || ageWeightBps > 10000 || sizeWeightBps > 10000) revert BadParam();
+        if (riskWeightBps + ageWeightBps + sizeWeightBps > 10000) revert BadParam(); // Sum must be ≤ 100%
+        
+        redemptionWeightRiskBps = riskWeightBps;
+        redemptionWeightAgeBps = ageWeightBps;
+        redemptionWeightSizeBps = sizeWeightBps;
+        
+        emit RedemptionWeightsSet(riskWeightBps, ageWeightBps, sizeWeightBps);
+    }
+
+    function setRedemptionThresholds(uint16 minAgeDays, uint16 sizeThreshold) external onlyRole(GOV_ROLE) {
+        if (minAgeDays > 365) revert BadParam(); // Max 1 year
+        if (sizeThreshold > 1000000) revert BadParam(); // Max 1M USDC
+        
+        minAgeDaysForBoost = minAgeDays;
+        sizeBoostThreshold = sizeThreshold;
+        
+        emit RedemptionThresholdsSet(minAgeDays, sizeThreshold);
+    }
+
+    function getRedemptionWeights() external view returns (uint16 riskWeight, uint16 ageWeight, uint16 sizeWeight) {
+        return (redemptionWeightRiskBps, redemptionWeightAgeBps, redemptionWeightSizeBps);
+    }
+
+    function getRedemptionThresholds() external view returns (uint16 minAgeDays, uint16 sizeThreshold) {
+        return (minAgeDaysForBoost, sizeBoostThreshold);
     }
 }

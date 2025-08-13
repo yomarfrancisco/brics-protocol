@@ -344,6 +344,86 @@ await configRegistry.recordTrancheRiskPoint(trancheId, riskAdjBps, timestamp);
 - **Weekly**: Monitor rolling average effectiveness
 - **Monthly**: Review window sizes and adjust if needed
 - **Quarterly**: Evaluate overall rolling average performance
+
+## Per-Tranche Base APY Override Management
+
+### Setting Base APY Overrides
+
+Base APY overrides can be set per tranche to directly control tranche yields independent of oracle feeds:
+
+```solidity
+// Set base APY override for specific tranche
+await configRegistry.setTrancheBaseApyOverrideBps(trancheId, 1200); // 12% base APY
+
+// Remove override (set to 0)
+await configRegistry.setTrancheBaseApyOverrideBps(trancheId, 0);
+```
+
+### Base APY Override Adjustment Checklist
+
+When adjusting base APY overrides:
+
+1. **Pre-adjustment Checklist**:
+   - [ ] Verify current oracle base APY values
+   - [ ] Calculate impact on effective APY
+   - [ ] Ensure override is within bounds (0 ≤ override ≤ 50,000 bps)
+   - [ ] Test override on staging environment
+   - [ ] Prepare rollback plan
+
+2. **Override Process**:
+   ```solidity
+   // Set base APY override
+   await configRegistry.setTrancheBaseApyOverrideBps(trancheId, newOverride);
+   
+   // Verify override is applied
+   uint16 override = await configRegistry.trancheBaseApyOverrideBps(trancheId);
+   require(override == newOverride, "Override not set");
+   
+   // Test APY calculation
+   (uint16 apyBps, uint64 asOf) = await facade.viewEffectiveApy(trancheId);
+   console.log("New effective APY:", apyBps);
+   ```
+
+3. **Post-adjustment Verification**:
+   - [ ] Monitor effective APY changes
+   - [ ] Verify override takes precedence over oracle base APY
+   - [ ] Check that risk adjustments still apply correctly
+   - [ ] Update override documentation
+   - [ ] Plan removal timeline if temporary
+
+4. **Rollback Process**:
+   ```solidity
+   // Remove override (restore oracle base APY behavior)
+   await configRegistry.setTrancheBaseApyOverrideBps(trancheId, 0);
+   
+   // Verify rollback
+   uint16 override = await configRegistry.trancheBaseApyOverrideBps(trancheId);
+   require(override == 0, "Override not removed");
+   ```
+
+### Integration with Other Features
+
+Base APY overrides work seamlessly with all other per-tranche features:
+
+1. **Risk Overrides**: Base APY override affects base APY, risk overrides affect risk adjustment
+2. **Rolling Average**: Rolling average applies to risk adjustments, not base APY
+3. **Confidence Bands**: Bands clamp risk adjustments, not base APY
+4. **Telemetry**: Override usage is tracked via `FLAG_BASE_APY_OVERRIDE_USED`
+
+### Operational Considerations
+
+1. **Parameter Bounds**: Maximum 500% (50,000 bps) to prevent extreme values
+2. **Governance Control**: Only `GOV_ROLE` can set overrides
+3. **Event Emission**: All changes emit `TrancheBaseApyOverrideSet` events
+4. **Gas Costs**: ~20k gas per setter call, minimal read costs
+5. **Precedence**: Base APY override takes precedence over oracle base APY
+
+### Expected Operational Cadence
+
+- **As Needed**: Set overrides for market adjustments or strategic positioning
+- **Weekly**: Monitor override effectiveness and market impact
+- **Monthly**: Review override usage and plan adjustments
+- **Quarterly**: Evaluate overall override strategy and effectiveness
    - [ ] Plan adjustment timeline if temporary
 
 4. **Rollback Process**:

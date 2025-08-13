@@ -36,7 +36,13 @@ contract TrancheReadFacade {
     function viewEffectiveApy(uint256 trancheId) external view returns (uint16 apyBps, uint64 asOf) {
         (uint16 baseApyBps, uint16 riskAdjBps, uint64 oracleAsOf) = oracle.latestTrancheRisk(trancheId);
         
-        // Check for per-tranche override first (takes precedence over adapter/oracle)
+        // Check for per-tranche base APY override first (takes precedence over oracle base APY)
+        uint16 baseApyOverrideBps = IConfigRegistryLike(config).trancheBaseApyOverrideBps(trancheId);
+        if (baseApyOverrideBps > 0) {
+            baseApyBps = baseApyOverrideBps;
+        }
+        
+        // Check for per-tranche risk adjustment override (takes precedence over adapter/oracle)
         uint16 overrideBps = IConfigRegistryLike(config).trancheRiskAdjOverrideBps(trancheId);
         if (overrideBps > 0) {
             riskAdjBps = overrideBps;
@@ -94,7 +100,13 @@ contract TrancheReadFacade {
     ) {
         (baseApyBps, riskAdjBps, asOf) = oracle.latestTrancheRisk(trancheId);
         
-        // Check for per-tranche override first (takes precedence over adapter/oracle)
+        // Check for per-tranche base APY override first (takes precedence over oracle base APY)
+        uint16 baseApyOverrideBps = IConfigRegistryLike(config).trancheBaseApyOverrideBps(trancheId);
+        if (baseApyOverrideBps > 0) {
+            baseApyBps = baseApyOverrideBps;
+        }
+        
+        // Check for per-tranche risk adjustment override (takes precedence over adapter/oracle)
         uint16 overrideBps = IConfigRegistryLike(config).trancheRiskAdjOverrideBps(trancheId);
         if (overrideBps > 0) {
             riskAdjBps = overrideBps;
@@ -134,6 +146,8 @@ contract TrancheReadFacade {
      * @notice Get comprehensive telemetry data for tranche risk calculations
      * @param trancheId The tranche identifier
      * @return baseApyBps Base APY in basis points
+     * @return oracleBaseApyBps Original base APY from oracle
+     * @return baseApyOverrideBps Base APY override (0 if not set)
      * @return oracleRiskAdjBps Original risk adjustment from oracle
      * @return overrideRiskAdjBps Override risk adjustment (0 if not set)
      * @return adapterRiskAdjBps Adapter risk adjustment (0 if not used)
@@ -143,12 +157,14 @@ contract TrancheReadFacade {
      * @return floorBps Risk floor from confidence bands (0 if disabled)
      * @return ceilBps Risk ceiling from confidence bands (0 if disabled)
      * @return asOf Timestamp when the data was last updated
-     * @return telemetryFlags Bit flags indicating decision path taken
+     * @return telemetryFlags Bit flags indicating decision path taken (uint16)
      * @return rollingAverageBps Rolling average risk adjustment (0 if not used)
      * @return rollingWindowDays Rolling window size in days (0 if disabled)
      */
     function viewTrancheTelemetry(uint256 trancheId) external view returns (
         uint16 baseApyBps,
+        uint16 oracleBaseApyBps,
+        uint16 baseApyOverrideBps,
         uint16 oracleRiskAdjBps,
         uint16 overrideRiskAdjBps,
         uint16 adapterRiskAdjBps,
@@ -158,22 +174,31 @@ contract TrancheReadFacade {
         uint16 floorBps,
         uint16 ceilBps,
         uint64 asOf,
-        uint8 telemetryFlags,
+        uint16 telemetryFlags,
         uint16 rollingAverageBps,
         uint16 rollingWindowDays
     ) {
         // Get base data from oracle
-        (baseApyBps, oracleRiskAdjBps, asOf) = oracle.latestTrancheRisk(trancheId);
+        (oracleBaseApyBps, oracleRiskAdjBps, asOf) = oracle.latestTrancheRisk(trancheId);
         
         // Initialize telemetry flags and adapter risk
         telemetryFlags = 0;
         adapterRiskAdjBps = 0;
         
-        // Check for per-tranche override
+        // Check for per-tranche base APY override first (takes precedence over oracle base APY)
+        baseApyOverrideBps = IConfigRegistryLike(config).trancheBaseApyOverrideBps(trancheId);
+        if (baseApyOverrideBps > 0) {
+            baseApyBps = baseApyOverrideBps;
+            telemetryFlags |= 0x01; // FLAG_BASE_APY_OVERRIDE_USED
+        } else {
+            baseApyBps = oracleBaseApyBps;
+        }
+        
+        // Check for per-tranche risk adjustment override
         overrideRiskAdjBps = IConfigRegistryLike(config).trancheRiskAdjOverrideBps(trancheId);
         if (overrideRiskAdjBps > 0) {
             finalRiskAdjBps = overrideRiskAdjBps;
-            telemetryFlags |= 0x01; // FLAG_OVERRIDE_USED
+            telemetryFlags |= 0x02; // FLAG_RISK_OVERRIDE_USED
         } else {
             // Use adapter for risk adjustment if enabled
             if (enableTrancheRisk && address(riskAdapter) != address(0)) {
@@ -181,24 +206,24 @@ contract TrancheReadFacade {
                 (adapterRiskAdjBps, adapterTs) = riskAdapter.latestRisk(trancheId);
                 finalRiskAdjBps = adapterRiskAdjBps;
                 asOf = adapterTs;
-                telemetryFlags |= 0x02; // FLAG_ADAPTER_USED
+                telemetryFlags |= 0x04; // FLAG_ADAPTER_USED
             } else {
                 finalRiskAdjBps = oracleRiskAdjBps;
-                telemetryFlags |= 0x04; // FLAG_ORACLE_DIRECT
+                telemetryFlags |= 0x08; // FLAG_ORACLE_DIRECT
             }
         }
         
         // Apply rolling average if enabled (after override/adapter, before bands)
         rollingWindowDays = IConfigRegistryLike(config).trancheRollingWindowDays(trancheId);
         if (IConfigRegistryLike(config).trancheRollingEnabled(trancheId) && rollingWindowDays > 0) {
-            telemetryFlags |= 0x40; // FLAG_ROLLING_AVG_ENABLED
+            telemetryFlags |= 0x10; // FLAG_ROLLING_AVG_ENABLED
             // Only apply rolling average if no override is set
             if (overrideRiskAdjBps == 0) {
                 bool rollingUsed;
                 (rollingAverageBps, rollingUsed) = _rollingAverage(trancheId, finalRiskAdjBps, uint64(block.timestamp));
                 if (rollingUsed) {
                     finalRiskAdjBps = rollingAverageBps;
-                    telemetryFlags |= 0x80; // FLAG_ROLLING_AVG_USED
+                    telemetryFlags |= 0x20; // FLAG_ROLLING_AVG_USED
                 } else {
                     // If rolling average is not used (e.g., no data points), set to 0 for telemetry
                     rollingAverageBps = 0;
@@ -214,13 +239,13 @@ contract TrancheReadFacade {
         floorBps = IConfigRegistryLike(config).trancheRiskFloorBps(trancheId);
         ceilBps = IConfigRegistryLike(config).trancheRiskCeilBps(trancheId);
         if (ceilBps > 0) { // Bands enabled
-            telemetryFlags |= 0x08; // FLAG_BANDS_ENABLED
+            telemetryFlags |= 0x40; // FLAG_BANDS_ENABLED
             if (finalRiskAdjBps < floorBps) {
                 finalRiskAdjBps = floorBps;
-                telemetryFlags |= 0x10; // FLAG_FLOOR_CLAMPED
+                telemetryFlags |= 0x80; // FLAG_FLOOR_CLAMPED
             } else if (finalRiskAdjBps > ceilBps) {
                 finalRiskAdjBps = ceilBps;
-                telemetryFlags |= 0x20; // FLAG_CEIL_CLAMPED
+                telemetryFlags |= 0x100; // FLAG_CEIL_CLAMPED
             }
         }
         
@@ -325,4 +350,5 @@ interface IConfigRegistryLike {
     function trancheRollingWindowDays(uint256 trancheId) external view returns (uint16);
     function rollingHead(uint256 trancheId) external view returns (uint8 count, uint8 index);
     function getRollingDataPoint(uint256 trancheId, uint8 bufIndex) external view returns (uint16 riskAdjBps, uint64 timestamp);
+    function trancheBaseApyOverrideBps(uint256 trancheId) external view returns (uint16);
 }

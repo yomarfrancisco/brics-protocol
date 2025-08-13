@@ -68,6 +68,9 @@ contract ConfigRegistry is AccessControl {
     mapping(uint256 => uint16) private _trancheRollingWindowDays; // 0 = disabled
     mapping(uint256 => bool) private _trancheRollingEnabled;
 
+    // Per-tranche base APY override
+    mapping(uint256 => uint16) private _trancheBaseApyOverrideBps; // 0 = no override
+
     // Rolling average data storage (fixed-size circular buffer)
     struct RiskPoint {
         uint16 riskAdjBps;
@@ -93,6 +96,7 @@ contract ConfigRegistry is AccessControl {
     event TrancheRollingWindowSet(uint256 indexed trancheId, uint16 oldWindow, uint16 newWindow);
     event TrancheRollingEnabledSet(uint256 indexed trancheId, bool enabled);
     event TrancheRollingPointAppended(uint256 indexed trancheId, uint16 riskAdjBps, uint64 timestamp);
+    event TrancheBaseApyOverrideSet(uint256 indexed trancheId, uint16 oldVal, uint16 newVal);
 
     constructor(address gov){
         _grantRole(DEFAULT_ADMIN_ROLE, gov);
@@ -404,5 +408,17 @@ contract ConfigRegistry is AccessControl {
         RollingBuf storage buf = _trancheRollingData[trancheId];
         RiskPoint memory point = buf.buf[bufIndex];
         return (point.riskAdjBps, point.timestamp);
+    }
+
+    // Per-tranche base APY override functions
+    function trancheBaseApyOverrideBps(uint256 trancheId) external view returns (uint16) {
+        return _trancheBaseApyOverrideBps[trancheId];
+    }
+
+    function setTrancheBaseApyOverrideBps(uint256 trancheId, uint16 newVal) external onlyRole(GOV_ROLE) {
+        if (newVal > 50000) revert BadParam(); // Max 500% APY (50,000 bps)
+        uint16 oldVal = _trancheBaseApyOverrideBps[trancheId];
+        _trancheBaseApyOverrideBps[trancheId] = newVal;
+        emit TrancheBaseApyOverrideSet(trancheId, oldVal, newVal);
     }
 }

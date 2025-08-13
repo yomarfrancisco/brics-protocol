@@ -74,6 +74,94 @@ await treasury.setBufferTargetBps(1500); // 15%
 - [ ] Check for any unexpected side effects
 - [ ] Update documentation
 
+## Redemption Queue Priority Management
+
+### Enabling Priority Processing
+
+To enable redemption queue priority processing:
+
+1. **Pre-enablement Checklist**:
+   - [ ] Set appropriate weights (risk, age, size)
+   - [ ] Configure thresholds (min age, size boost)
+   - [ ] Dry-run on staging environment
+   - [ ] Monitor queue behavior and telemetry
+   - [ ] Prepare rollback plan
+
+2. **Enable Priority Processing**:
+```solidity
+// Enable priority processing
+await configRegistry.setRedemptionPriorityEnabled(true);
+
+// Optional: Set per-batch processing limit
+await configRegistry.setRedemptionMaxPerBatchBps(5000); // 50% per batch
+```
+
+3. **Post-enablement Verification**:
+   - [ ] Verify priority processing is active
+   - [ ] Monitor queue ordering behavior
+   - [ ] Check telemetry for priority decision paths
+   - [ ] Validate tie-breaking behavior
+
+### Adjusting Priority Weights
+
+The priority scoring uses configurable weights for risk, age, and size factors:
+
+```solidity
+// Set weights (must sum to 10000 bps)
+await configRegistry.setRedemptionWeightRiskBps(4000);  // 40% weight on risk
+await configRegistry.setRedemptionWeightAgeBps(3000);   // 30% weight on age
+await configRegistry.setRedemptionWeightSizeBps(3000);  // 30% weight on size
+
+// Verify weights sum to 10000
+uint16 total = configRegistry.redemptionWeightRiskBps() + 
+               configRegistry.redemptionWeightAgeBps() + 
+               configRegistry.redemptionWeightSizeBps();
+require(total == 10000, "Weights must sum to 10000");
+```
+
+### Adjusting Priority Thresholds
+
+Configure the thresholds that trigger priority boosts:
+
+```solidity
+// Set minimum age for age-based priority (7 days)
+await configRegistry.setRedemptionMinAgeDays(7);
+
+// Set size threshold for size-based priority (1000 tokens)
+await configRegistry.setRedemptionSizeBoostThreshold(ethers.parseEther("1000"));
+```
+
+### Monitoring Priority Processing
+
+Use the view functions to monitor priority processing:
+
+```solidity
+// Check if priority processing is enabled
+bool enabled = configRegistry.redemptionPriorityEnabled();
+
+// Get next claim candidate with priority info
+(uint256 claimId, uint256 priorityScore, uint16 reasonBits) = 
+    redemptionQueue.viewNextClaim();
+
+// Get claim metadata including priority data
+(uint256 priorityScore, uint16 reasonBits, uint64 enqueuedAt) = 
+    redemptionQueue.viewClaimMeta(claimId);
+```
+
+### Rollback Procedures
+
+To disable priority processing:
+
+```solidity
+// Disable priority processing (returns to FIFO)
+await configRegistry.setRedemptionPriorityEnabled(false);
+
+// Clear per-batch limit
+await configRegistry.setRedemptionMaxPerBatchBps(0);
+```
+
+**Note**: Disabling priority processing does not affect existing claims. All claims continue to work in both FIFO and priority modes.
+
 ## Adjusting Issuance Buffer & Swapping Capacity Oracle
 
 ### Issuance Buffer Adjustment

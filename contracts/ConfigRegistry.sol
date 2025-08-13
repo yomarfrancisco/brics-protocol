@@ -80,6 +80,10 @@ contract ConfigRegistry is AccessControl {
     uint256 private _redemptionMinAgeDays = 7; // 7 days minimum age for boost
     uint256 private _redemptionSizeBoostThreshold = 1000 * 1e18; // 1000 tokens threshold
 
+    // Redemption queue priority integration (gated)
+    bool private _redemptionPriorityEnabled = false; // Feature flag for priority processing
+    uint16 private _redemptionMaxPerBatchBps = 0; // 0 = no limit, otherwise max % of queue per batch
+
     // Rolling average data storage (fixed-size circular buffer)
     struct RiskPoint {
         uint16 riskAdjBps;
@@ -108,6 +112,8 @@ contract ConfigRegistry is AccessControl {
     event TrancheBaseApyOverrideSet(uint256 indexed trancheId, uint16 oldVal, uint16 newVal);
     event RedemptionWeightSet(bytes32 indexed key, uint16 oldVal, uint16 newVal);
     event RedemptionThresholdSet(bytes32 indexed key, uint256 oldVal, uint256 newVal);
+    event RedemptionPriorityEnabledSet(bool oldVal, bool newVal);
+    event RedemptionMaxPerBatchBpsSet(uint16 oldVal, uint16 newVal);
 
     constructor(address gov){
         _grantRole(DEFAULT_ADMIN_ROLE, gov);
@@ -222,6 +228,20 @@ contract ConfigRegistry is AccessControl {
         uint256 oldVal = _redemptionSizeBoostThreshold;
         _redemptionSizeBoostThreshold = v;
         emit RedemptionThresholdSet(keccak256("redemption.sizeBoostThreshold"), oldVal, v);
+    }
+
+    // Redemption queue priority integration setters
+    function setRedemptionPriorityEnabled(bool enabled) external onlyRole(GOV_ROLE) {
+        bool oldVal = _redemptionPriorityEnabled;
+        _redemptionPriorityEnabled = enabled;
+        emit RedemptionPriorityEnabledSet(oldVal, enabled);
+    }
+
+    function setRedemptionMaxPerBatchBps(uint16 v) external onlyRole(GOV_ROLE) {
+        if (v > 10000) revert BadParam(); // Max 100%
+        uint16 oldVal = _redemptionMaxPerBatchBps;
+        _redemptionMaxPerBatchBps = v;
+        emit RedemptionMaxPerBatchBpsSet(oldVal, v);
     }
 
     // Emergency controls
@@ -488,5 +508,14 @@ contract ConfigRegistry is AccessControl {
 
     function redemptionSizeBoostThreshold() external view returns (uint256) {
         return _redemptionSizeBoostThreshold;
+    }
+
+    // Redemption queue priority integration getters
+    function redemptionPriorityEnabled() external view returns (bool) {
+        return _redemptionPriorityEnabled;
+    }
+
+    function redemptionMaxPerBatchBps() external view returns (uint16) {
+        return _redemptionMaxPerBatchBps;
     }
 }

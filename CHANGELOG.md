@@ -82,3 +82,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - P2-3: Risk bands, telemetry, rolling avg, base APY override
 - CI: ABI/storage freeze in audit-bundle job
 - Fixtures/Replay refreshed; E2E settlement stable
+## v0.2.2+1 — Hotfix CEI validation
+- Test-only: MockNAVOracleV3 + CEI rollback repair

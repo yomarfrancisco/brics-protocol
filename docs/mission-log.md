@@ -811,6 +811,82 @@ Implement per-tranche base APY override functionality allowing governance to dir
 
 ---
 
+## Mission: Issue #46 - Redemption Queue Prioritization System ✅
+
+**Date**: 2025-08-14  
+**Status**: ✅ **COMPLETED** - Redemption queue prioritization system fully implemented
+
+### Objective
+Implement a comprehensive redemption queue prioritization system that calculates deterministic priority scores based on risk, age, and size factors, enabling fair and efficient redemption processing.
+
+### Implementation Complete
+- **ConfigRegistry**: Added redemption queue configuration parameters
+  - `_redemptionWeightRiskBps`, `_redemptionWeightAgeBps`, `_redemptionWeightSizeBps`: Weight configuration (basis points, sum ≤ 10000)
+  - `_redemptionMinAgeDays`, `_redemptionSizeBoostThreshold`: Threshold configuration
+  - Governance setters with proper validation and events
+  - Events: `RedemptionWeightSet`, `RedemptionThresholdSet`
+
+- **RedemptionQueueView**: Core priority scoring contract
+  - `calculatePriorityScore`: Main scoring function with risk, age, and size components
+  - Integration with existing tranche risk system via TrancheReadFacade
+  - Telemetry flags and reason bits for debugging and monitoring
+  - Deterministic scoring with proper bounds and capping
+  - Helper functions: `getRedemptionWeights`, `getRedemptionThresholds`
+
+- **MockTrancheRiskOracleAdapter**: Testing support
+  - Mock adapter for testing tranche risk integration
+  - Configurable risk values and timestamps
+
+### Technical Details
+- **Priority Score**: Weighted combination of risk, age, and size scores (0-10000 scale)
+- **Risk Score**: Based on tranche risk adjustment, normalized to max APY
+- **Age Score**: Linear boost for requests older than minimum age (capped at 30 days)
+- **Size Score**: Logarithmic boost for amounts above threshold
+- **Reason Bits**: Bit flags indicating priority factors (risk high, size large, age old, cap pressure)
+- **Telemetry**: Integration with existing tranche telemetry system
+
+### Test Coverage
+- **21 Comprehensive Tests**: All passing
+  - Basic functionality (3 tests): Priority calculation, weight/threshold retrieval
+  - Risk score calculation (2 tests): Risk-based scoring, high risk flags
+  - Age score calculation (4 tests): Age-based scoring, capping, old request flags
+  - Size score calculation (3 tests): Size-based scoring, large amount flags
+  - Configuration integration (3 tests): Custom weights and thresholds
+  - Edge cases (4 tests): Zero amounts, very old requests, very large amounts, cap pressure
+  - Deterministic behavior (2 tests): Consistent results, monotonicity
+
+### Governance Parameters
+- **Weights**: Risk (33.33%), Age (33.33%), Size (33.34%) - configurable
+- **Thresholds**: Min age (7 days), Size boost (1000 tokens) - configurable
+- **Access**: `GOV_ROLE` only
+- **Events**: Monitoring for weight and threshold changes
+
+### Acceptance Criteria Met
+- ✅ Deterministic priority scoring based on risk, age, and size factors
+- ✅ Integration with existing tranche risk system
+- ✅ Governance-gated configuration with proper validation
+- ✅ Comprehensive telemetry and reason bit system
+- ✅ Full test coverage (21 tests passing)
+- ✅ Gas-efficient implementation
+- ✅ Backward compatible with existing systems
+
+### Next Steps
+- Integrate with existing redemption flow contracts
+- Add monitoring and alerting for queue pressure
+- Implement queue processing logic
+- Consider additional prioritization factors based on usage data
+
+---
+
+### 2025-08-14 15:30:00Z — P2-4 Redemption Queue completed
+- Short SHA: `207e4c9`
+- Notes: Redemption queue prioritization system + comprehensive tests
+
+---
+
+### 2025-08-14 16:45:00Z — Release Validation fix completed
+- Short SHA: `01395c0`
+- Notes: Fixed CEI rollback test with MockNAVOracleV3 + setNAV/failNext functions
 ### 2025-08-13 17:46:32Z — v0.2.1 tagged
 - Short SHA: `ba8670d`
 - Artifacts: ABI/storage locks + audit bundle updated

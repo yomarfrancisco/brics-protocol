@@ -15,6 +15,8 @@ function randInt(r: () => number, lo: number, hi: number) {
 
 describe("Property: quote verification", () => {
   it("accepts valid signatures, rejects mutated ones (deterministic)", async () => {
+    let validCount = 0;
+    let invalidCount = 0;
     const [gov, buyer, seller] = await ethers.getSigners();
 
     const Engine = await ethers.getContractFactory("CdsSwapEngine");
@@ -42,7 +44,7 @@ describe("Property: quote verification", () => {
     const seed = Number(process.env.FIXTURE_SEED ?? 42);
     const r = rand(seed);
 
-    const trials = 8; // Reduced for faster execution
+    const trials = Number(process.env.PROP_TRIALS ?? 32); // Environment-gated trial count
     for (let i = 0; i < trials; i++) {
       // Create a new swap for each trial with future start time
       const now = await time.latest();
@@ -85,6 +87,7 @@ describe("Property: quote verification", () => {
         digest,
         signature: sig
       })).to.emit(engine, "SwapSettled");
+      validCount++;
 
       // Test with mutated digest (should revert)
       const badDigest = ("0x" + (BigInt(digest) ^ 1n).toString(16).padStart(64,"0")) as `0x${string}`;
@@ -117,6 +120,12 @@ describe("Property: quote verification", () => {
         digest: badDigest,
         signature: sig
       })).to.be.reverted;
+      invalidCount++;
     }
+    
+    // Light distribution check
+    console.log(`📊 Property test distribution: ${validCount} valid, ${invalidCount} invalid`);
+    expect(validCount).to.be.greaterThan(0);
+    expect(invalidCount).to.be.greaterThan(0);
   });
 });

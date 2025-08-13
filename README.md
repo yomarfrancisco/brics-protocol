@@ -95,6 +95,7 @@ Bank Equity (0-5% first loss)
 - [Economics Parameters](docs/ECONOMICS.md)
 - [Release Process](docs/RELEASE.md)
 - [Audit Trails](docs/AUDIT_TRAILS.md)
+- [Observability](docs/OBSERVABILITY.md) - Gas trends, audit bundles, CI artifacts
 - [Replay Reproduction](CONTRIBUTING.md#reproducing-a-replay-locally)
 - [Risk API Safety Endpoints](docs/APIs.md#safety--policy-v1)
 - Dev Bootstrap: `scripts/dev/bootstrap.sh` or `yarn hardhat dev:bootstrap`

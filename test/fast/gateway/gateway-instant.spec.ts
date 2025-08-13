@@ -69,8 +69,40 @@ describe("NASASAGateway: instant lane integration", () => {
     const accessController = await MockAccessController.deploy();
     await accessController.waitForDeployment();
 
+    // Deploy mock oracle and adapter for RedemptionQueueView
+    const MockTrancheRiskOracle = await ethers.getContractFactory("MockTrancheRiskOracle");
+    const mockOracle = await MockTrancheRiskOracle.deploy();
+    await mockOracle.waitForDeployment();
+
+    const MockTrancheRiskOracleAdapter = await ethers.getContractFactory("MockTrancheRiskOracleAdapter");
+    const mockRiskAdapter = await MockTrancheRiskOracleAdapter.deploy();
+    await mockRiskAdapter.waitForDeployment();
+
+    // Deploy TrancheReadFacade
+    const TrancheReadFacade = await ethers.getContractFactory("TrancheReadFacade");
+    const trancheFacade = await TrancheReadFacade.deploy(
+      mockOracle,
+      configRegistry,
+      mockRiskAdapter,
+      true // enableTrancheRisk
+    );
+    await trancheFacade.waitForDeployment();
+
+    // Deploy RedemptionQueueView
+    const RedemptionQueueView = await ethers.getContractFactory("RedemptionQueueView");
+    const redemptionQueueView = await RedemptionQueueView.deploy(
+      configRegistry,
+      trancheFacade
+    );
+    await redemptionQueueView.waitForDeployment();
+
+    // Deploy RedemptionQueue with all required parameters
     const RedemptionQueue = await ethers.getContractFactory("RedemptionQueue");
-    const redemptionQueue = await RedemptionQueue.deploy(await accessController.getAddress(), await configRegistry.getAddress());
+    const redemptionQueue = await RedemptionQueue.deploy(
+      accessController,
+      configRegistry,
+      redemptionQueueView
+    );
     await redemptionQueue.waitForDeployment();
 
     const NASASAGateway = await ethers.getContractFactory("NASASAGateway");

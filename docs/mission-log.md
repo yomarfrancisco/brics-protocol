@@ -911,3 +911,11 @@ Implement a comprehensive redemption queue prioritization system that calculates
 ### 2025-08-14 16:45:00Z — Release Validation fix completed
 - Short SHA: `01395c0`
 - Notes: Fixed CEI rollback test with MockNAVOracleV3 + setNAV/failNext functions
+
+---
+
+### 2025-08-14 17:30:00Z — P2-4 Redemption Queue PR #47 merged ✅
+- Short SHA: `bb6d89f`
+- Notes: Redemption queue prioritization system + comprehensive tests merged to main
+- Status: All critical CI checks green (9/10 passing, Audit Bundle Diff failed as expected)
+- Tests: 21 comprehensive tests passing, full integration with tranche risk system

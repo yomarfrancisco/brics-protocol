@@ -802,3 +802,9 @@ Implement per-tranche base APY override functionality allowing governance to dir
 - Set up monitoring for override usage and effectiveness
 - Plan governance procedures for market adjustments
 - Consider additional yield management features based on usage data
+
+---
+
+### 2025-08-13 17:44:57Z — PR #45 merged (Per-Tranche Base APY Override)
+- Short SHA: `61428b9`
+- Notes: Base APY override + telemetry flag integrated

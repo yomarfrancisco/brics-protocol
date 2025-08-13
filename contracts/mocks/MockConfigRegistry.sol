@@ -85,27 +85,49 @@ contract MockConfigRegistry is IConfigRegistry {
     }
 
     // Add missing functions for RedemptionQueue compatibility
-    function redemptionPriorityEnabled() external pure returns (bool) {
-        return false; // Default to disabled
-    }
-
-    function redemptionWeightRiskBps() external pure returns (uint16) {
-        return 3333;
-    }
-
-    function redemptionWeightAgeBps() external pure returns (uint16) {
-        return 3333;
-    }
-
-    function redemptionWeightSizeBps() external pure returns (uint16) {
-        return 3334;
-    }
-
     function redemptionMinAgeDays() external pure returns (uint256) {
         return 7;
     }
 
     function redemptionSizeBoostThreshold() external pure returns (uint256) {
         return 1000 * 1e18;
+    }
+
+    // Add setter functions for testing
+    function setRedemptionPriorityEnabled(bool enabled) external {
+        // Mock implementation - store in configValues
+        configValues[keccak256("redemption.priority.enabled")] = enabled ? 1 : 0;
+    }
+
+    function setRedemptionWeightRiskBps(uint16 weight) external {
+        configValues[keccak256("redemption.weight.risk.bps")] = weight;
+    }
+
+    function setRedemptionWeightAgeBps(uint16 weight) external {
+        configValues[keccak256("redemption.weight.age.bps")] = weight;
+    }
+
+    function setRedemptionWeightSizeBps(uint16 weight) external {
+        configValues[keccak256("redemption.weight.size.bps")] = weight;
+    }
+
+    // Override getters to use configValues
+    function redemptionPriorityEnabled() external view returns (bool) {
+        return configValues[keccak256("redemption.priority.enabled")] == 1;
+    }
+
+    function redemptionWeightRiskBps() external view returns (uint16) {
+        uint256 stored = configValues[keccak256("redemption.weight.risk.bps")];
+        return stored == 0 ? 3333 : uint16(stored);
+    }
+
+    function redemptionWeightAgeBps() external view returns (uint16) {
+        uint256 stored = configValues[keccak256("redemption.weight.age.bps")];
+        return stored == 0 ? 3333 : uint16(stored);
+    }
+
+    function redemptionWeightSizeBps() external view returns (uint16) {
+        uint256 stored = configValues[keccak256("redemption.weight.size.bps")];
+        return stored == 0 ? 3334 : uint16(stored);
     }
 }

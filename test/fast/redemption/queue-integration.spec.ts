@@ -119,8 +119,23 @@ describe("RedemptionQueue Priority Integration", function () {
         });
 
         it("should process higher priority claims first when enabled", async function () {
-            // Skip this test for now - focus on basic functionality
-            this.skip();
+            // Enable priority processing
+            await configRegistry.setRedemptionPriorityEnabled(true);
+
+            // Set up high risk for user2 (should get higher priority)
+            await configRegistry.setRedemptionWeightRiskBps(10000); // 100% weight on risk
+            await configRegistry.setRedemptionWeightAgeBps(0);
+            await configRegistry.setRedemptionWeightSizeBps(0);
+
+            // Enqueue claims
+            await redemptionQueue.enqueue(await user1.getAddress(), ethers.parseEther("1000"), 1);
+            await redemptionQueue.enqueue(await user2.getAddress(), ethers.parseEther("2000"), 1);
+            await redemptionQueue.enqueue(await user3.getAddress(), ethers.parseEther("500"), 1);
+
+            // Check next claim (should be highest priority)
+            const [claimId, priorityScore, reasonBits] = await redemptionQueue.viewNextClaim();
+            expect(claimId).to.not.equal(0);
+            expect(priorityScore).to.be.gt(0);
         });
     });
 

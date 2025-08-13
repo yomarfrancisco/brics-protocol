@@ -29,6 +29,8 @@
     "audit:events": "hardhat compile && ts-node --transpile-only scripts/audit/events-docs.ts",
     "audit:bundle": "ts-node --transpile-only scripts/audit/bundle.ts",
     "audit:diff": "ts-node --transpile-only scripts/audit/diff.ts",
+    "audit:abi": "hardhat compile && ts-node --transpile-only scripts/audit/abi-freeze.ts",
+    "audit:abi:check": "yarn audit:abi && git diff --exit-code dist/audit/*.lock || (echo 'ABI/Storage changed. Set CHANGES_ACCEPTED=true to update.' && exit 1)",
     "coverage": "COVERAGE=1 hardhat coverage --solcoverjs ./.solcover.js",
     "coverage:heavy": "COVERAGE=1 COVERAGE_HEAVY=1 hardhat coverage --solcoverjs ./.solcover.js",
     "slither": "slither . --config .slither.json --print human-summary",
@@ -48,6 +50,8 @@
     "fixtures:hashcheck": "ts-node scripts/verify-fixture-hash.ts",
     "fixtures:summary": "ts-node scripts/print-fixture-summary.ts",
     "smoke:dev": "ts-node --transpile-only scripts/smoke-dev.ts",
+    "demo:settlement": "hardhat swap:settle-demo --obligor ACME-LLC --tenor 30 --asof 1600000000 --notional 1000000 --fixedSpread 80 --elapsedDays 15 --outputPath dist/demo/demo_settlement.json",
+    "test:settlement:e2e": "hardhat test -g \"settlement demo\"",
     "lint:sol": "solhint 'contracts/**/*.sol'",
     "lint:ts": "eslint . --ext .ts",
     "prepare": "husky install"

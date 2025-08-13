@@ -107,3 +107,37 @@ denominator = 10_000 * 30 = 300_000
 pnl = round_half_up(10_800_000_000 / 300_000) = round_half_up(36_000) = 36_000 (smallest units)
 
 = **0.036000 USDC**, seller pays buyer.
+
+## 10. Demo
+
+Run the settlement demo to see ACCOUNTING and TRANSFERS modes in action:
+
+```bash
+yarn demo:settlement
+cat dist/demo/demo_settlement.json | jq .
+```
+
+The demo will:
+1. Deploy contracts and mint USDC to buyer/seller
+2. Create and activate a CDS swap
+3. Settle in ACCOUNTING mode (no transfers, events only)
+4. Settle in TRANSFERS mode (with SafeERC20 transfers)
+5. Output detailed balance changes and gas usage
+
+Example output:
+```json
+{
+  "swapId": "0x...",
+  "mode1": "ACCOUNTING",
+  "mode2": "TRANSFERS", 
+  "pnlSmallest": "36000000000",
+  "balances": {
+    "before": { "buyer": "1000000000", "seller": "1000000000" },
+    "afterAccounting": { "buyer": "1000000000", "seller": "1000000000" },
+    "afterTransfers": { "buyer": "1036000000", "seller": "964000000" }
+  },
+  "gas": { "settleAccounting": "45000", "settleTransfers": "89358" }
+}
+```
+
+Note that ACCOUNTING mode shows no balance changes, while TRANSFERS mode shows the seller paying the buyer 36 USDC.

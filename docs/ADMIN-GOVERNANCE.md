@@ -38,6 +38,11 @@ The following parameters can be modified by `GOV_ROLE` holders:
 - **Level 2 (Red)**: ±0.25% price bounds
 - **Level 3+ (Disabled)**: Most restrictive bounds
 
+#### Issuance Caps
+- `issuanceCapBufferBps`: Issuance cap buffer (0-10,000 bps)
+- **Default**: 500 bps (5% buffer)
+- **Calculation**: `maxIssuable = capacity * (10000 - bufferBps) / 10000`
+
 ### Treasury Parameters
 - `bufferTargetBps`: Target buffer size in basis points
 
@@ -68,6 +73,47 @@ await treasury.setBufferTargetBps(1500); // 15%
 - [ ] Monitor protocol behavior
 - [ ] Check for any unexpected side effects
 - [ ] Update documentation
+
+## Adjusting Issuance Buffer & Swapping Capacity Oracle
+
+### Issuance Buffer Adjustment
+
+The issuance buffer controls how much below the oracle-reported capacity the protocol will issue:
+
+```solidity
+// Example: Set 10% buffer (more conservative)
+await configRegistry.setIssuanceCapBufferBps(1000); // 10%
+
+// Example: Set 2% buffer (less conservative)
+await configRegistry.setIssuanceCapBufferBps(200); // 2%
+```
+
+### Capacity Oracle Management
+
+When swapping capacity oracles:
+
+1. **Pre-swap Checklist**:
+   - [ ] Verify new oracle implements `ISovereignCapacityOracle`
+   - [ ] Test oracle integration on staging
+   - [ ] Ensure oracle provides capacity in correct units (USDC 6dp)
+   - [ ] Verify oracle timestamp freshness
+
+2. **Oracle Swap Process**:
+   ```solidity
+   // Update oracle address in relevant contracts
+   await issuanceController.setCapacityOracle(newOracleAddress);
+   
+   // Verify oracle is working
+   (uint256 capacity, uint64 asOf) = await newOracle.latestCapacity();
+   require(capacity > 0, "Invalid capacity");
+   require(asOf > block.timestamp - 3600, "Stale data");
+   ```
+
+3. **Post-swap Verification**:
+   - [ ] Monitor issuance cap enforcement
+   - [ ] Verify capacity updates are timely
+   - [ ] Check for any issuance failures
+   - [ ] Update oracle documentation
 
 ## Emergency Procedures
 

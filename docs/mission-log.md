@@ -408,3 +408,4 @@ PR #17 is finalized with all critical CI jobs green. Follow-up issues created fo
 ### P2 Kickoff — Full Economic Integration (planning)
 - P2-1: Surface lane price bounds & PMM params in ConfigRegistry; integrate into InstantLane checks; tests + gas.
 - P2-2: Add sovereign capacity feed + issuance caps; enforce caps in issuance paths; tests + docs.
+- P2-1/2 merged to PR — starting P2-3: tranche APY & risk (read-only).

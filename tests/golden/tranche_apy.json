@@ -1,0 +1,58 @@
+[
+  {
+    "name": "normal case - base higher than risk",
+    "baseApyBps": 800,
+    "riskAdjBps": 200,
+    "maxApyBps": 1000,
+    "expectedEffectiveApyBps": 600
+  },
+  {
+    "name": "risk equals base - zero effective",
+    "baseApyBps": 500,
+    "riskAdjBps": 500,
+    "maxApyBps": 1000,
+    "expectedEffectiveApyBps": 0
+  },
+  {
+    "name": "risk higher than base - zero effective",
+    "baseApyBps": 300,
+    "riskAdjBps": 600,
+    "maxApyBps": 1000,
+    "expectedEffectiveApyBps": 0
+  },
+  {
+    "name": "clamped to max - exceeds maximum",
+    "baseApyBps": 1200,
+    "riskAdjBps": 100,
+    "maxApyBps": 1000,
+    "expectedEffectiveApyBps": 1000
+  },
+  {
+    "name": "edge case - zero base",
+    "baseApyBps": 0,
+    "riskAdjBps": 100,
+    "maxApyBps": 1000,
+    "expectedEffectiveApyBps": 0
+  },
+  {
+    "name": "edge case - zero risk",
+    "baseApyBps": 800,
+    "riskAdjBps": 0,
+    "maxApyBps": 1000,
+    "expectedEffectiveApyBps": 800
+  },
+  {
+    "name": "edge case - zero max",
+    "baseApyBps": 800,
+    "riskAdjBps": 200,
+    "maxApyBps": 0,
+    "expectedEffectiveApyBps": 0
+  },
+  {
+    "name": "high precision case",
+    "baseApyBps": 1234,
+    "riskAdjBps": 567,
+    "maxApyBps": 2000,
+    "expectedEffectiveApyBps": 667
+  }
+]

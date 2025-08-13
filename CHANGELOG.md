@@ -84,3 +84,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixtures/Replay refreshed; E2E settlement stable
 ## v0.2.2+1 — Hotfix CEI validation
 - Test-only: MockNAVOracleV3 + CEI rollback repair
+## v0.2.3 — Redemption Queue View (read-only)
+- P2-4: Priority scoring view + tests
+- Docs append-only; artifacts regenerated

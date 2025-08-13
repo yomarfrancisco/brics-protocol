@@ -91,3 +91,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## v0.2.3+1 — Test-only: NASASAGateway ctor wiring
 - Fix: update NASASAGateway integration tests to new RedemptionQueue ctor (3 args)
 - Mocks: extend MockConfigRegistry for queue compat
+
+## v0.2.3+2 — CI stability (InstantLane ctor)
+- Tests: align InstantLane deployments with current ABI (add gov)
+- CI: Release Validation green on main before tagging

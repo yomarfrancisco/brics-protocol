@@ -18,21 +18,21 @@ interface IConfigRegistryLike {
 
 interface IRedemptionQueueViewLike {
     function calculatePriorityScore(
+        uint256 trancheId,
         address account,
         uint256 amount,
-        uint64 asOf,
-        uint16 telemetryFlags
-    ) external view returns (uint256 priorityScore, uint16 reasonBits);
+        uint64 asOf
+    ) external view returns (uint256 priorityScore, uint16 reasonBits, uint16 telemetryFlags, bytes memory components);
 }
 
 contract RedemptionQueue {
     // --- Roles/Config (optional hooks; no revert if unset) ---
     IAccessControllerLike public access;
     IConfigRegistryLike  public config;
-    IRedemptionQueueViewLike public queueView;
+    address public queueView;
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
 
-    constructor(IAccessControllerLike _access, IConfigRegistryLike _config, IRedemptionQueueViewLike _queueView) {
+    constructor(IAccessControllerLike _access, IConfigRegistryLike _config, address _queueView) {
         access = _access;
         config = _config;
         queueView = _queueView;
@@ -84,11 +84,13 @@ contract RedemptionQueue {
         // Calculate priority score if enabled
         if (address(config) != address(0) && config.redemptionPriorityEnabled()) {
             if (address(queueView) != address(0)) {
-                (priorityScore, reasonBits) = queueView.calculatePriorityScore(
+                // Cast to RedemptionQueueView contract
+                IRedemptionQueueViewLike queueViewContract = IRedemptionQueueViewLike(queueView);
+                (priorityScore, reasonBits, , ) = queueViewContract.calculatePriorityScore(
+                    uint256(1), // trancheId (using default tranche 1)
                     member,
                     amountTokens,
-                    enqueuedAt,
-                    0 // telemetryFlags
+                    uint64(enqueuedAt)
                 );
             }
         }

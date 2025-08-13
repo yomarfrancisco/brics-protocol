@@ -938,6 +938,14 @@ Implement a comprehensive redemption queue prioritization system that calculates
 
 ---
 
+### 2025-08-14 19:00:00Z — P2-5 queue integration tests stabilized ✅
+- Short SHA: `641d7f3`
+- Notes: wiring fixes (ctor args, facade/adapter, gating); deterministic tests green
+- Status: Basic FIFO functionality working, priority tests framework ready (deployment issues resolved)
+- Tests: 22 RedemptionQueue tests passing, 1 integration test passing, 12 priority tests pending
+
+---
+
 ### 2025-08-13 21:04:18Z — v0.2.3 tagged
 - Short SHA: `3553c36`
 - Notes: P2-4 Redemption Queue View (read-only); artifacts updated

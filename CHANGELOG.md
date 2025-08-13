@@ -74,3 +74,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Core contracts: InstantLane, Treasury, ConfigRegistry
 - Basic test suite and CI pipeline
 - Documentation and deployment scripts
+## v0.2.1 — R&O + DX
+- P2-3: Risk bands, telemetry, rolling avg, base APY override
+- CI: ABI/storage freeze in audit-bundle job
+- Fixtures/Replay refreshed; E2E settlement stable

@@ -808,3 +808,9 @@ Implement per-tranche base APY override functionality allowing governance to dir
 ### 2025-08-13 17:44:57Z — PR #45 merged (Per-Tranche Base APY Override)
 - Short SHA: `61428b9`
 - Notes: Base APY override + telemetry flag integrated
+
+---
+
+### 2025-08-13 17:46:32Z — v0.2.1 tagged
+- Short SHA: `ba8670d`
+- Artifacts: ABI/storage locks + audit bundle updated

@@ -87,3 +87,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## v0.2.3 — Redemption Queue View (read-only)
 - P2-4: Priority scoring view + tests
 - Docs append-only; artifacts regenerated
+
+## v0.2.3+1 — Test-only: NASASAGateway ctor wiring
+- Fix: update NASASAGateway integration tests to new RedemptionQueue ctor (3 args)
+- Mocks: extend MockConfigRegistry for queue compat

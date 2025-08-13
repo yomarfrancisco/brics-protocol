@@ -364,6 +364,82 @@ curl "http://localhost:8000/api/v1/economics/history"
 3. **Communication**: Communicate parameter changes to users
 4. **Monitoring**: Monitor impact of emergency parameter changes
 
+## Telemetry and Observability
+
+### Tranche Telemetry Function
+
+The `TrancheReadFacade` provides a comprehensive telemetry function that returns detailed information about the decision path taken for risk calculations:
+
+```solidity
+function viewTrancheTelemetry(uint256 trancheId) external view returns (
+    uint16 baseApyBps,           // Base APY from oracle
+    uint16 oracleRiskAdjBps,     // Original risk adjustment from oracle
+    uint16 overrideRiskAdjBps,   // Override risk adjustment (0 if not set)
+    uint16 adapterRiskAdjBps,    // Adapter risk adjustment (0 if not used)
+    uint16 finalRiskAdjBps,      // Final risk adjustment after all logic
+    uint16 effectiveApyBps,      // Effective APY in basis points
+    uint16 maxApyBps,            // Maximum allowed APY
+    uint16 floorBps,             // Risk floor from confidence bands
+    uint16 ceilBps,              // Risk ceiling from confidence bands
+    uint64 asOf,                 // Timestamp when data was last updated
+    uint8 telemetryFlags         // Bit flags indicating decision path
+);
+```
+
+### Telemetry Flags
+
+The `telemetryFlags` field uses bit flags to indicate which decision path was taken:
+
+| Flag | Value | Description |
+|------|-------|-------------|
+| `FLAG_OVERRIDE_USED` | 0x01 | Per-tranche override was applied |
+| `FLAG_ADAPTER_USED` | 0x02 | Risk adapter was used (instead of oracle direct) |
+| `FLAG_ORACLE_DIRECT` | 0x04 | Oracle data used directly (no adapter) |
+| `FLAG_BANDS_ENABLED` | 0x08 | Risk confidence bands are enabled |
+| `FLAG_FLOOR_CLAMPED` | 0x10 | Risk was clamped to floor value |
+| `FLAG_CEIL_CLAMPED` | 0x20 | Risk was clamped to ceiling value |
+
+### Decision Path Precedence
+
+The risk calculation follows this precedence order:
+
+1. **Override Check**: If `overrideRiskAdjBps > 0`, use override value
+2. **Adapter Check**: If adapter enabled and available, use adapter value
+3. **Oracle Direct**: Otherwise, use oracle value directly
+4. **Bands Clamping**: Apply confidence band clamping if enabled
+
+### Example Usage
+
+```solidity
+// Get comprehensive telemetry for tranche 1
+(uint16 base, uint16 oracleRisk, uint16 override, uint16 adapter, 
+ uint16 final, uint16 effective, uint16 max, uint16 floor, 
+ uint16 ceil, uint64 asOf, uint8 flags) = facade.viewTrancheTelemetry(1);
+
+// Check if override was used
+if (flags & 0x01 != 0) {
+    // Override was applied
+}
+
+// Check if adapter was used
+if (flags & 0x02 != 0) {
+    // Adapter was used
+}
+
+// Check if bands were applied
+if (flags & 0x08 != 0) {
+    // Confidence bands were enabled
+}
+```
+
+### Monitoring Use Cases
+
+1. **Decision Path Analysis**: Understand which risk source is being used
+2. **Override Monitoring**: Track when overrides are applied
+3. **Band Clamping**: Monitor when risk values are clamped
+4. **Adapter Health**: Verify adapter is functioning correctly
+5. **Data Freshness**: Check timestamp of last data update
+
 ## Future Enhancements
 
 - **Dynamic Fees**: Automatic fee adjustment based on market conditions

@@ -115,6 +115,78 @@ contract TrancheReadFacade {
     }
 
     /**
+     * @notice Get comprehensive telemetry data for tranche risk calculations
+     * @param trancheId The tranche identifier
+     * @return baseApyBps Base APY in basis points
+     * @return oracleRiskAdjBps Original risk adjustment from oracle
+     * @return overrideRiskAdjBps Override risk adjustment (0 if not set)
+     * @return adapterRiskAdjBps Adapter risk adjustment (0 if not used)
+     * @return finalRiskAdjBps Final risk adjustment after all logic
+     * @return effectiveApyBps Effective APY in basis points
+     * @return maxApyBps Maximum allowed APY in basis points
+     * @return floorBps Risk floor from confidence bands (0 if disabled)
+     * @return ceilBps Risk ceiling from confidence bands (0 if disabled)
+     * @return asOf Timestamp when the data was last updated
+     * @return telemetryFlags Bit flags indicating decision path taken
+     */
+    function viewTrancheTelemetry(uint256 trancheId) external view returns (
+        uint16 baseApyBps,
+        uint16 oracleRiskAdjBps,
+        uint16 overrideRiskAdjBps,
+        uint16 adapterRiskAdjBps,
+        uint16 finalRiskAdjBps,
+        uint16 effectiveApyBps,
+        uint16 maxApyBps,
+        uint16 floorBps,
+        uint16 ceilBps,
+        uint64 asOf,
+        uint8 telemetryFlags
+    ) {
+        // Get base data from oracle
+        (baseApyBps, oracleRiskAdjBps, asOf) = oracle.latestTrancheRisk(trancheId);
+        
+        // Initialize telemetry flags and adapter risk
+        telemetryFlags = 0;
+        adapterRiskAdjBps = 0;
+        
+        // Check for per-tranche override
+        overrideRiskAdjBps = IConfigRegistryLike(config).trancheRiskAdjOverrideBps(trancheId);
+        if (overrideRiskAdjBps > 0) {
+            finalRiskAdjBps = overrideRiskAdjBps;
+            telemetryFlags |= 0x01; // FLAG_OVERRIDE_USED
+        } else {
+            // Use adapter for risk adjustment if enabled
+            if (enableTrancheRisk && address(riskAdapter) != address(0)) {
+                uint64 adapterTs;
+                (adapterRiskAdjBps, adapterTs) = riskAdapter.latestRisk(trancheId);
+                finalRiskAdjBps = adapterRiskAdjBps;
+                asOf = adapterTs;
+                telemetryFlags |= 0x02; // FLAG_ADAPTER_USED
+            } else {
+                finalRiskAdjBps = oracleRiskAdjBps;
+                telemetryFlags |= 0x04; // FLAG_ORACLE_DIRECT
+            }
+        }
+        
+        // Apply risk confidence bands
+        floorBps = IConfigRegistryLike(config).trancheRiskFloorBps(trancheId);
+        ceilBps = IConfigRegistryLike(config).trancheRiskCeilBps(trancheId);
+        if (ceilBps > 0) { // Bands enabled
+            telemetryFlags |= 0x08; // FLAG_BANDS_ENABLED
+            if (finalRiskAdjBps < floorBps) {
+                finalRiskAdjBps = floorBps;
+                telemetryFlags |= 0x10; // FLAG_FLOOR_CLAMPED
+            } else if (finalRiskAdjBps > ceilBps) {
+                finalRiskAdjBps = ceilBps;
+                telemetryFlags |= 0x20; // FLAG_CEIL_CLAMPED
+            }
+        }
+        
+        maxApyBps = _getMaxApyBps();
+        effectiveApyBps = TrancheMath.effectiveApyBps(baseApyBps, finalRiskAdjBps, maxApyBps);
+    }
+
+    /**
      * @notice Internal function to get max APY from config
      * @return maxApyBps Maximum APY in basis points
      */

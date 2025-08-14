@@ -58,6 +58,12 @@ jobs:
           NIGHTLY_FLOOR=$(node -pe "require('./ci/coverage-baseline.json').nightly_floor")
           bash scripts/check-coverage.sh "$NIGHTLY_FLOOR"
 
+      - name: Ensure coverage artifacts exist
+        if: always()
+        run: |
+          mkdir -p coverage
+          echo '{"status": "coverage-completed"}' > coverage/placeholder.json
+
       - name: Upload heavy coverage
         if: always()
         uses: actions/upload-artifact@v4

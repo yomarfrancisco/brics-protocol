@@ -98,4 +98,13 @@ contract MockNAVOracle is INAVOracleV3 {
         lastNavRay = navRay;
         _navRay = navRay;
     }
+
+    // Additional functions required by IssuanceControllerV3
+    function getDegradationLevel() external view returns (uint8) {
+        return 0; // No degradation by default
+    }
+
+    function getCurrentHaircutBps() external view returns (uint256) {
+        return 0; // No haircut by default
+    }
 }

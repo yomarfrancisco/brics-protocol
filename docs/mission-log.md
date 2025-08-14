@@ -1061,3 +1061,9 @@ Implement a comprehensive redemption queue prioritization system that calculates
 ### Thu Aug 14 08:07:21 UTC 2025 — Coverage optimization completed
 - Short SHA: `7b2e0cb`
 - Notes: All contracts in skipFiles can be safely unskipped (no YulException)
+
+---
+
+### 2025-08-14 08:40:23Z — v0.2.3+9 tagged
+- Short SHA: `55e8c09`
+- Notes: Release Validation green

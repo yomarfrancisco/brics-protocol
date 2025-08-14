@@ -1031,3 +1031,9 @@ Implement a comprehensive redemption queue prioritization system that calculates
 ### Thu Aug 14 05:54:51 UTC 2025 — Stabilize CDS parity under full suite
 - Short SHA: `697c8f1`
 - Notes: Fixtures + deterministic timestamps; EIP-191 helper everywhere; suite order independent
+
+---
+
+### Thu Aug 14 06:20:41 UTC 2025 — v0.2.3+5 tagged
+- Short SHA: `d8917f3`
+- Notes: CDS parity stabilized (order-independent)

@@ -108,3 +108,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Defensive fixture loading with graceful skips
 ## v0.2.3+8 — Settlement timestamp stabilization
 - Fixture isolation + deterministic time
+## v0.2.3+9 — verify-quote stabilized
+- Fixture isolation + EIP-191 parity

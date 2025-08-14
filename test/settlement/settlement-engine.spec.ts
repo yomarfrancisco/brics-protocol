@@ -1,11 +1,47 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
-import { time } from "@nomicfoundation/hardhat-network-helpers";
+import { loadFixture, time } from "@nomicfoundation/hardhat-network-helpers";
 import { getCiSignerWallet, getCiSignerAddress } from "../utils/signers";
 import { signDigestEip191 } from "../utils/signing";
 import fs from "node:fs";
 
 const anyValue = () => true;
+
+async function deployFixture() {
+  const [gov, buyer, seller, broker] = await ethers.getSigners();
+  const wallet = getCiSignerWallet();
+
+  // Increase time to a deterministic point
+  await time.increase(1000);
+
+  // Deploy MockUSDC
+  const MockUSDC = await ethers.getContractFactory("MockUSDC");
+  const mockUSDC = await MockUSDC.deploy();
+
+  // Deploy MockPriceOracle
+  const MockPriceOracle = await ethers.getContractFactory("MockPriceOracleAdapter");
+  const mockOracle = await MockPriceOracle.deploy(await wallet.getAddress());
+
+  // Deploy CdsSwapEngine
+  const CdsSwapEngine = await ethers.getContractFactory("CdsSwapEngine");
+  const engine = await CdsSwapEngine.deploy(gov.address);
+
+  // Setup engine
+  await engine.setPriceOracle(await mockOracle.getAddress());
+  await engine.setSettlementToken(await mockUSDC.getAddress());
+  await engine.setSettlementMode(1); // TRANSFERS mode
+  await engine.grantRole(await engine.BROKER_ROLE(), broker.address);
+
+  // Mint USDC to buyer and seller
+  await mockUSDC.mint(buyer.address, ethers.parseUnits("1000000", 6)); // 1M USDC
+  await mockUSDC.mint(seller.address, ethers.parseUnits("1000000", 6)); // 1M USDC
+
+  // Approve engine to spend USDC
+  await mockUSDC.connect(buyer).approve(await engine.getAddress(), ethers.parseUnits("1000000", 6));
+  await mockUSDC.connect(seller).approve(await engine.getAddress(), ethers.parseUnits("1000000", 6));
+
+  return { engine, mockUSDC, mockOracle, gov, buyer, seller, broker, wallet };
+}
 
 describe("CdsSwapEngine Settlement", () => {
   let engine: any;
@@ -19,34 +55,15 @@ describe("CdsSwapEngine Settlement", () => {
   let swapId: string;
 
   beforeEach(async () => {
-    [gov, buyer, seller, broker] = await ethers.getSigners();
-    wallet = getCiSignerWallet();
-
-    // Deploy MockUSDC
-    const MockUSDC = await ethers.getContractFactory("MockUSDC");
-    mockUSDC = await MockUSDC.deploy();
-
-    // Deploy MockPriceOracle
-    const MockPriceOracle = await ethers.getContractFactory("MockPriceOracleAdapter");
-    mockOracle = await MockPriceOracle.deploy(await wallet.getAddress());
-
-    // Deploy CdsSwapEngine
-    const CdsSwapEngine = await ethers.getContractFactory("CdsSwapEngine");
-    engine = await CdsSwapEngine.deploy(gov.address);
-
-    // Setup engine
-    await engine.setPriceOracle(await mockOracle.getAddress());
-    await engine.setSettlementToken(await mockUSDC.getAddress());
-    await engine.setSettlementMode(1); // TRANSFERS mode
-    await engine.grantRole(await engine.BROKER_ROLE(), broker.address);
-
-    // Mint USDC to buyer and seller
-    await mockUSDC.mint(buyer.address, ethers.parseUnits("1000000", 6)); // 1M USDC
-    await mockUSDC.mint(seller.address, ethers.parseUnits("1000000", 6)); // 1M USDC
-
-    // Approve engine to spend USDC
-    await mockUSDC.connect(buyer).approve(await engine.getAddress(), ethers.parseUnits("1000000", 6));
-    await mockUSDC.connect(seller).approve(await engine.getAddress(), ethers.parseUnits("1000000", 6));
+    const fixture = await loadFixture(deployFixture);
+    engine = fixture.engine;
+    mockUSDC = fixture.mockUSDC;
+    mockOracle = fixture.mockOracle;
+    gov = fixture.gov;
+    buyer = fixture.buyer;
+    seller = fixture.seller;
+    broker = fixture.broker;
+    wallet = fixture.wallet;
 
     // Create a swap
     const now = await time.latest();

@@ -30,6 +30,10 @@ const shardB = [
 
 // Additional skips for coverage instrumentation issues
 const coverageSkips = [
+  "IssuanceControllerV4.sol", // deep stack under coverage
+  "IssuanceControllerV3.sol", // deep stack under coverage
+  "MezzanineVault.sol", // deep stack under coverage
+  "TrancheManagerV2.sol", // deep stack under coverage
   // "settlement/SettlementMath.sol", // ✅ Can be unskipped - no YulException
   // "redemption/RedemptionQueue.sol", // ✅ Can be unskipped - no YulException
   // "redemption/RedemptionQueueView.sol", // ✅ Can be unskipped - no YulException
@@ -38,11 +42,7 @@ const coverageSkips = [
   // "RedemptionClaim.sol", // ✅ Can be unskipped - no YulException
   // "SovereignClaimSBT.sol", // ✅ Can be unskipped - no YulException
   // "SovereignClaimToken.sol", // ✅ Can be unskipped - no YulException
-  // "TrancheManagerV2.sol", // ✅ Can be unskipped - no YulException
   // "MezzVault4626.sol", // ✅ Can be unskipped - no YulException
-  // "MezzanineVault.sol", // ✅ Can be unskipped - no YulException
-  // "IssuanceControllerV4.sol", // ✅ Can be unskipped - no YulException
-  // "IssuanceControllerV3.sol", // ✅ Can be unskipped - no YulException
 ];
 
 module.exports = {

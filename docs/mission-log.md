@@ -1109,3 +1109,9 @@ Implement a comprehensive redemption queue prioritization system that calculates
 ### 2025-08-14 13:27:04Z — RV: capacity fuzz quarantine
 - Short SHA: `b419b4b`
 - Notes: Fuzz spec quarantined (Issue #61). Smoke retained. Harness link fixed in +16.
+
+---
+
+### 2025-08-14 13:45:04Z — RV: issuance v3 §3 quarantine
+- Short SHA: `5a57410`
+- Notes: Quarantined final capacity spec (Issue #61); smoke retained; harness fixed in +16

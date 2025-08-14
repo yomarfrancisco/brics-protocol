@@ -3,6 +3,7 @@ import { ethers } from "hardhat";
 import { AbiCoder, keccak256, toUtf8Bytes, getBytes, Wallet } from "ethers";
 import { time } from "@nomicfoundation/hardhat-network-helpers";
 import { getCiSignerAddress } from "../utils/signers";
+import { signDigestEip191 } from "../utils/signing";
 
 describe("Invariant: settlement requires oracle signer", () => {
   it("reverts when signature is from non-oracle signer", async () => {
@@ -30,7 +31,9 @@ describe("Invariant: settlement requires oracle signer", () => {
     const tx = await engine.proposeSwap({
       portfolioId: keccak256(toUtf8Bytes("ACME-LLC")),
       protectionBuyer:  { counterparty: buyer.address,  notional, spreadBps: 80, start: BigInt(START), maturity: BigInt(MATURITY) },
+
       protectionSeller: { counterparty: seller.address, notional, spreadBps: 80, start: BigInt(START), maturity: BigInt(MATURITY) },
+
       correlationBps: 2000
     });
     const receipt = await tx.wait();
@@ -49,24 +52,43 @@ describe("Invariant: settlement requires oracle signer", () => {
     const modelIdHash = keccak256(toUtf8Bytes("MODEL-V1"));
     const featuresHash = keccak256(toUtf8Bytes("{}"));
 
+    // Create payload and digest using RiskSignalLib format
+    const payload = {
+      portfolioId,
+      asOf: BigInt(asOf),
+      riskScore: risk,
+      correlationBps: corr,
+      spreadBps: fair,
+      modelIdHash,
+      featuresHash
+    };
+
     const digest = keccak256(coder.encode(
       ["bytes32","uint64","uint256","uint16","uint16","bytes32","bytes32"],
-      [portfolioId, asOf, risk, corr, fair, modelIdHash, featuresHash]
+      [payload.portfolioId, payload.asOf, payload.riskScore, payload.correlationBps, payload.spreadBps, payload.modelIdHash, payload.featuresHash]
     ));
 
+    // Sign with a NON-oracle signer (bad signer)
     const bad = Wallet.createRandom().connect(ethers.provider);
-    const badSig = await bad.signMessage(getBytes(digest));
+    const badSig = await signDigestEip191(bad, digest);
 
-    await expect(engine.settleSwap(swapId, {
+    // Calculate elapsed and tenor days
+    const elapsedDays = 1; // 1 day after start
+    const tenorDays = 30; // 30 day swap
+
+    // Create PriceQuote struct with proper fields
+    const quote = {
       fairSpreadBps: fair,
       correlationBps: corr,
-      asOf,
+      asOf: BigInt(asOf),
       riskScore: risk,
       modelIdHash,
       featuresHash,
       digest,
       signature: badSig
-    })).to.be.reverted;
+    };
+
+    await expect(engine.settleSwap(swapId, quote, elapsedDays, tenorDays)).to.be.reverted;
   });
 });
 

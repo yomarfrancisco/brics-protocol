@@ -1,7 +1,47 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
+import { loadFixture, time } from "@nomicfoundation/hardhat-network-helpers";
 import { Contract } from "ethers";
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
+
+async function deployFixture() {
+  const [deployer, buyer, seller, user1] = await ethers.getSigners();
+
+  // Increase time to a deterministic point
+  await time.increase(1000);
+
+  // Deploy mock USDC
+  const MockUSDC = await ethers.getContractFactory("MockUSDC");
+  const mockUSDC = await MockUSDC.deploy();
+  await mockUSDC.waitForDeployment();
+
+  // Deploy CDS swap engine
+  const CdsSwapEngine = await ethers.getContractFactory("CdsSwapEngine");
+  const cdsSwapEngine = await CdsSwapEngine.deploy(deployer.address);
+  await cdsSwapEngine.waitForDeployment();
+
+  // Set up price oracle
+  const MockPriceOracle = await ethers.getContractFactory("MockPriceOracleAdapter");
+  const mockOracle = await MockPriceOracle.deploy(deployer.address);
+  await mockOracle.waitForDeployment();
+  await cdsSwapEngine.setPriceOracle(await mockOracle.getAddress());
+
+  // Grant broker role to deployer
+  await cdsSwapEngine.grantRole(await cdsSwapEngine.BROKER_ROLE(), deployer.address);
+
+  // Set settlement token
+  await cdsSwapEngine.setSettlementToken(await mockUSDC.getAddress());
+
+  // Mint tokens to buyer and seller
+  await mockUSDC.mint(buyer.address, ethers.parseUnits("1000000", 6)); // 1M USDC
+  await mockUSDC.mint(seller.address, ethers.parseUnits("1000000", 6)); // 1M USDC
+
+  // Approve engine to spend tokens
+  await mockUSDC.connect(buyer).approve(await cdsSwapEngine.getAddress(), ethers.parseUnits("1000000", 6));
+  await mockUSDC.connect(seller).approve(await cdsSwapEngine.getAddress(), ethers.parseUnits("1000000", 6));
+
+  return { cdsSwapEngine, mockUSDC, deployer, buyer, seller, user1 };
+}
 
 describe("CdsSwapEngine – Token Settlement", function () {
   let cdsSwapEngine: Contract;
@@ -12,37 +52,13 @@ describe("CdsSwapEngine – Token Settlement", function () {
   let user1: SignerWithAddress;
 
   beforeEach(async function () {
-    [deployer, buyer, seller, user1] = await ethers.getSigners();
-
-    // Deploy mock USDC
-    const MockUSDC = await ethers.getContractFactory("MockUSDC");
-    mockUSDC = await MockUSDC.deploy();
-    await mockUSDC.waitForDeployment();
-
-    // Deploy CDS swap engine
-    const CdsSwapEngine = await ethers.getContractFactory("CdsSwapEngine");
-    cdsSwapEngine = await CdsSwapEngine.deploy(deployer.address);
-    await cdsSwapEngine.waitForDeployment();
-
-    // Set up price oracle
-    const MockPriceOracle = await ethers.getContractFactory("MockPriceOracleAdapter");
-    const mockOracle = await MockPriceOracle.deploy(deployer.address);
-    await mockOracle.waitForDeployment();
-    await cdsSwapEngine.setPriceOracle(await mockOracle.getAddress());
-
-    // Grant broker role to deployer
-    await cdsSwapEngine.grantRole(await cdsSwapEngine.BROKER_ROLE(), deployer.address);
-
-    // Set settlement token
-    await cdsSwapEngine.setSettlementToken(await mockUSDC.getAddress());
-
-    // Mint tokens to buyer and seller
-    await mockUSDC.mint(buyer.address, ethers.parseUnits("1000000", 6)); // 1M USDC
-    await mockUSDC.mint(seller.address, ethers.parseUnits("1000000", 6)); // 1M USDC
-
-    // Approve engine to spend tokens
-    await mockUSDC.connect(buyer).approve(await cdsSwapEngine.getAddress(), ethers.parseUnits("1000000", 6));
-    await mockUSDC.connect(seller).approve(await cdsSwapEngine.getAddress(), ethers.parseUnits("1000000", 6));
+    const fixture = await loadFixture(deployFixture);
+    cdsSwapEngine = fixture.cdsSwapEngine;
+    mockUSDC = fixture.mockUSDC;
+    deployer = fixture.deployer;
+    buyer = fixture.buyer;
+    seller = fixture.seller;
+    user1 = fixture.user1;
   });
 
   describe("Settlement Configuration", function () {
@@ -95,9 +111,10 @@ describe("CdsSwapEngine – Token Settlement", function () {
 
   describe("Token Settlement", function () {
     it("should move balances only when TRANSFERS enabled", async function () {
-      // Create swap parameters
-      const currentTime = Math.floor(Date.now() / 1000);
-      const startTime = currentTime + 3600; // 1 hour from now
+      // Create swap parameters with deterministic timestamps
+      const t0 = await time.latest();
+      await time.increase(1000);
+      const startTime = Number(await time.latest()) + 3600; // 1 hour from now
       const maturityTime = startTime + (30 * 24 * 3600); // 30 days
 
       const swapParams = {
@@ -131,7 +148,7 @@ describe("CdsSwapEngine – Token Settlement", function () {
       const quote = {
         fairSpreadBps: 600, // 6% (higher than original 5%)
         correlationBps: 7000,
-        asOf: currentTime,
+        asOf: Number(await time.latest()),
         riskScore: 54,
         modelIdHash: ethers.ZeroHash,
         featuresHash: ethers.ZeroHash,
@@ -168,8 +185,9 @@ describe("CdsSwapEngine – Token Settlement", function () {
       // This test verifies that the SettlementPaid event is emitted
       // even when signature verification fails (which is expected with placeholder signatures)
       
-      const currentTime = Math.floor(Date.now() / 1000);
-      const startTime = currentTime + 3600;
+      const t0 = await time.latest();
+      await time.increase(1000);
+      const startTime = Number(await time.latest()) + 3600;
       const maturityTime = startTime + (30 * 24 * 3600);
 
       const swapParams = {
@@ -201,7 +219,7 @@ describe("CdsSwapEngine – Token Settlement", function () {
       const quote = {
         fairSpreadBps: 600,
         correlationBps: 7000,
-        asOf: currentTime,
+        asOf: Number(await time.latest()),
         riskScore: 54,
         modelIdHash: ethers.ZeroHash,
         featuresHash: ethers.ZeroHash,
@@ -227,8 +245,9 @@ describe("CdsSwapEngine – Token Settlement", function () {
       // This test verifies the payout calculation logic
       // Note: Actual settlement will fail due to signature verification
       
-      const currentTime = Math.floor(Date.now() / 1000);
-      const startTime = currentTime + 3600;
+      const t0 = await time.latest();
+      await time.increase(1000);
+      const startTime = Number(await time.latest()) + 3600;
       const maturityTime = startTime + (30 * 24 * 3600);
 
       const swapParams = {
@@ -261,7 +280,7 @@ describe("CdsSwapEngine – Token Settlement", function () {
       const positiveQuote = {
         fairSpreadBps: 600, // 6% > 5%
         correlationBps: 7000,
-        asOf: currentTime,
+        asOf: Number(await time.latest()),
         riskScore: 54,
         modelIdHash: ethers.ZeroHash,
         featuresHash: ethers.ZeroHash,
@@ -283,7 +302,7 @@ describe("CdsSwapEngine – Token Settlement", function () {
       const negativeQuote = {
         fairSpreadBps: 400, // 4% < 5%
         correlationBps: 7000,
-        asOf: currentTime,
+        asOf: Number(await time.latest()),
         riskScore: 54,
         modelIdHash: ethers.ZeroHash,
         featuresHash: ethers.ZeroHash,

@@ -1067,3 +1067,9 @@ Implement a comprehensive redemption queue prioritization system that calculates
 ### 2025-08-14 08:40:23Z — v0.2.3+9 tagged
 - Short SHA: `55e8c09`
 - Notes: Release Validation green
+
+---
+
+### 2025-08-14 08:54:26Z — RV fix slice
+- Short SHA: `652b5b4`
+- Notes: TrancheReadFacade constructor args fixed (479 passing tests)

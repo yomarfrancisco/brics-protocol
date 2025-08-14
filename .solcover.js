@@ -30,19 +30,19 @@ const shardB = [
 
 // Additional skips for coverage instrumentation issues
 const coverageSkips = [
-  "settlement/SettlementMath.sol",
-  "redemption/RedemptionQueue.sol",
-  "redemption/RedemptionQueueView.sol",
-  "swap/CdsSwapEngine.sol",
-  "swap/CdsSwapRegistry.sol",
-  "RedemptionClaim.sol",
-  "SovereignClaimSBT.sol",
-  "SovereignClaimToken.sol",
-  "TrancheManagerV2.sol",
-  "MezzVault4626.sol",
-  "MezzanineVault.sol",
-  "IssuanceControllerV4.sol",
-  "IssuanceControllerV3.sol",
+  // "settlement/SettlementMath.sol", // ✅ Can be unskipped - no YulException
+  // "redemption/RedemptionQueue.sol", // ✅ Can be unskipped - no YulException
+  // "redemption/RedemptionQueueView.sol", // ✅ Can be unskipped - no YulException
+  // "swap/CdsSwapEngine.sol", // ✅ Can be unskipped - no YulException
+  // "swap/CdsSwapRegistry.sol", // ✅ Can be unskipped - no YulException
+  // "RedemptionClaim.sol", // ✅ Can be unskipped - no YulException
+  // "SovereignClaimSBT.sol", // ✅ Can be unskipped - no YulException
+  // "SovereignClaimToken.sol", // ✅ Can be unskipped - no YulException
+  // "TrancheManagerV2.sol", // ✅ Can be unskipped - no YulException
+  // "MezzVault4626.sol", // ✅ Can be unskipped - no YulException
+  // "MezzanineVault.sol", // ✅ Can be unskipped - no YulException
+  // "IssuanceControllerV4.sol", // ✅ Can be unskipped - no YulException
+  // "IssuanceControllerV3.sol", // ✅ Can be unskipped - no YulException
 ];
 
 module.exports = {

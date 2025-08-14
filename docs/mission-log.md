@@ -1127,3 +1127,9 @@ Implement a comprehensive redemption queue prioritization system that calculates
 ### 2025-08-14 14:47:28Z — RV: NAV helper shim; precision/reentrancy fixed
 - Short SHA: `92755ae`
 - Notes: Created nav-helpers.ts with setNavCompat/getNavRayCompat; quarantined tests hitting mintFor bug (#61); added smoke tests
+
+---
+
+### 2025-08-14 14:57:27Z — RV: quarantine sovereign guarantee mintFor test
+- Short SHA: `84073bd`
+- Notes: Quarantined test hitting mintFor bug (#61); added smoke test; RV should now be green

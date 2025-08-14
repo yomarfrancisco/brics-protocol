@@ -1085,3 +1085,9 @@ Implement a comprehensive redemption queue prioritization system that calculates
 ### 2025-08-14 09:46:21Z — RV telemetry flags fix
 - Short SHA: `0ef796c`
 - Notes: Synced flag bits; fixture+time; conditional 'USED' assertion
+
+---
+
+### 2025-08-14 10:05:45Z — RV settlement oracle-signer fix
+- Short SHA: `f734569`
+- Notes: Fixed spec to pass (Payload, sig). Removed digest/signature from tuple; EIP-191 helper used

@@ -100,3 +100,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tests: stabilize mint role requirement (dynamic role id; correct revert)
 ## v0.2.3+4 — Swap E2E fix
 - Align settle call with ABI; tests green
+## v0.2.3+5 — Parity stabilization
+- Fixture isolation and deterministic time for CDS suite

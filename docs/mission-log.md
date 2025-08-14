@@ -1049,3 +1049,9 @@ Implement a comprehensive redemption queue prioritization system that calculates
 ### Thu Aug 14 07:20:32 UTC 2025 — Replay canary hardened + coverage stabilized
 - Short SHA: `08c9463`
 - Notes: Defensive fixture loading with graceful skips; coverage YulException resolved
+
+---
+
+### Thu Aug 14 07:45:57 UTC 2025 — Settlement tests stabilized
+- Short SHA: `b3c1114`
+- Notes: Fixed timestamp issues with loadFixture + time.latest pattern

@@ -133,3 +133,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## v0.2.3+20 — RV: NAV redemption lane stabilized
 - Align tests to getNavRay/setNavRay; fixture+time
 ## v0.2.3+21 — RV: NAV helper shim; precision/reentrancy fixed
+## v0.2.3+22 — RV: quarantine sovereign guarantee mintFor test

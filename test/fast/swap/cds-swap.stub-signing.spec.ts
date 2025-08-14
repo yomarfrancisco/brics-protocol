@@ -2,6 +2,7 @@ import { expect } from "chai";
 import { ethers } from "hardhat";
 import { Contract } from "ethers";
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
+import { signDigestEip191 } from "../../utils/signing";
 
 describe("CDS Swap Stub Signing", function () {
   let cdsSwapEngine: Contract;
@@ -31,7 +32,7 @@ describe("CDS Swap Stub Signing", function () {
     it("should verify stub signature when STUB_SIGN=1", async function () {
       // This test will help debug the signature verification
       const portfolioId = "0x5703dee4c046e60c377da8cb247cd87d7c75dca25a1da95d63e35fa49d579135";
-      const asOf = 1600000000;
+      const asOf = Math.floor(Date.now() / 1000) - 60; // 1 minute ago (fix stale timestamp)
       const tenorDays = 30;
       const notional = BigInt(1000000);
       const features = { industry: "technology", region: "us", size: "large", rating: "bbb" };
@@ -84,10 +85,10 @@ describe("CDS Swap Stub Signing", function () {
         [portfolioIdBytes32, asOf, 0, corr, fair, ethers.ZeroHash, ethers.ZeroHash]
       ));
 
-      // Sign with deterministic key
+      // Sign with deterministic key using the helper
       const deterministicKey = "0x000000000000000000000000000000000000000000000000000000000000002a";
       const wallet = new ethers.Wallet(deterministicKey);
-      const signature = await wallet.signMessage(ethers.getBytes(digest));
+      const signature = await signDigestEip191(wallet, digest);
 
       const quote = {
         fairSpreadBps: fair,

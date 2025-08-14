@@ -1013,3 +1013,15 @@ Implement a comprehensive redemption queue prioritization system that calculates
 ### 2025-08-13 23:44:01Z — Fix CDS Swap Parity (EIP-191)
 - Short SHA: `13f8d41`
 - Notes: Test now signs EIP-191 prefixed digest; contract adds same prefix; addresses match
+
+---
+
+###  — Global signer parity (EIP-191)
+- Short SHA: `b6ea983`
+- Notes: Tests sign raw bytes via signMessage; contract adds EIP-191; suite deterministic
+
+---
+
+### Thu Aug 14 00:01:27 UTC 2025 — Global signer parity (EIP-191)
+- Short SHA: `b6ea983`
+- Notes: Tests sign raw bytes via signMessage; contract adds EIP-191; suite deterministic

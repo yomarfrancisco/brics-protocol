@@ -2,6 +2,7 @@ import { expect } from "chai";
 import { ethers } from "hardhat";
 import { time } from "@nomicfoundation/hardhat-network-helpers";
 import { getCiSignerWallet, getCiSignerAddress } from "../utils/signers";
+import { signDigestEip191 } from "../utils/signing";
 import fs from "node:fs";
 
 const anyValue = () => true;
@@ -114,7 +115,7 @@ describe("CdsSwapEngine Settlement", () => {
         [payload.portfolioId, payload.asOf, payload.riskScore, payload.correlationBps, payload.spreadBps, payload.modelIdHash, payload.featuresHash]
       );
       const digest = keccak256(packed);
-      const signature = await wallet.signMessage(getBytes(digest));
+      const signature = await signDigestEip191(wallet, digest);
 
       const quote = {
         fairSpreadBps: fairSpreadBps,

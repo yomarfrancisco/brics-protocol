@@ -2,6 +2,7 @@ import { expect } from "chai";
 import { ethers } from "hardhat";
 import { Contract } from "ethers";
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
+import { signDigestEip191 } from "../../utils/signing";
 
 describe("CDS Swap Parity Test", function () {
   let cdsSwapEngine: Contract;
@@ -49,10 +50,8 @@ describe("CDS Swap Parity Test", function () {
       [portfolioIdBytes32, asOf, riskScore, corr, fair, modelIdHash, featuresHash]
     ));
 
-    // Sign the EIP-191 prefixed digest (contract adds the same prefix)
-    const ethHash = ethers.hashMessage(ethers.getBytes(digest));
-    const signatureObj = await wallet.signingKey.sign(ethHash);
-    const signature = signatureObj.serialized;
+    // Sign the digest with EIP-191 prefix using the helper
+    const signature = await signDigestEip191(wallet, digest);
 
     const quote = {
       fairSpreadBps: fair,

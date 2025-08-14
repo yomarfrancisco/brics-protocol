@@ -1,34 +1,49 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
+import { loadFixture, time } from "@nomicfoundation/hardhat-network-helpers";
 import { Contract } from "ethers";
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
+import { signDigestEip191 } from "../../utils/signing";
+
+async function deployFixture() {
+  const [deployer] = await ethers.getSigners();
+
+  // Increase time to a deterministic point (avoid timestamp conflicts)
+  await time.increase(1000); // Increase by 1000 seconds
+
+  // Deploy CDS swap engine
+  const CdsSwapEngine = await ethers.getContractFactory("CdsSwapEngine");
+  const cdsSwapEngine = await CdsSwapEngine.deploy(deployer.address);
+  await cdsSwapEngine.waitForDeployment();
+
+  // Set up price oracle with the deterministic key
+  const MockPriceOracle = await ethers.getContractFactory("MockPriceOracleAdapter");
+  const deterministicKey = "0x000000000000000000000000000000000000000000000000000000000000002a";
+  const deterministicWallet = new ethers.Wallet(deterministicKey);
+  const mockOracle = await MockPriceOracle.deploy(deterministicWallet.address);
+  await mockOracle.waitForDeployment();
+  await cdsSwapEngine.setPriceOracle(await mockOracle.getAddress());
+
+  return { cdsSwapEngine, deployer, deterministicWallet };
+}
 
 describe("CDS Swap Parity Test", function () {
   let cdsSwapEngine: Contract;
   let deployer: SignerWithAddress;
+  let deterministicWallet: ethers.Wallet;
 
   beforeEach(async function () {
-    [deployer] = await ethers.getSigners();
-
-    // Deploy CDS swap engine
-    const CdsSwapEngine = await ethers.getContractFactory("CdsSwapEngine");
-    cdsSwapEngine = await CdsSwapEngine.deploy(deployer.address);
-    await cdsSwapEngine.waitForDeployment();
-
-    // Set up price oracle with the deterministic key
-    const MockPriceOracle = await ethers.getContractFactory("MockPriceOracleAdapter");
-    const deterministicKey = "0x000000000000000000000000000000000000000000000000000000000000002a";
-    const deterministicWallet = new ethers.Wallet(deterministicKey);
-    const mockOracle = await MockPriceOracle.deploy(deterministicWallet.address);
-    await mockOracle.waitForDeployment();
-    await cdsSwapEngine.setPriceOracle(await mockOracle.getAddress());
+    const fixture = await loadFixture(deployFixture);
+    cdsSwapEngine = fixture.cdsSwapEngine;
+    deployer = fixture.deployer;
+    deterministicWallet = fixture.deterministicWallet;
   });
 
   it("should verify quote signature and print recovered address", async function () {
     const portfolioId = "0x5703dee4c046e60c377da8cb247cd87d7c75dca25a1da95d63e35fa49d579135";
-    const asOf = Math.floor(Date.now() / 1000) - 60; // 1 minute ago
-    const deterministicKey = "0x000000000000000000000000000000000000000000000000000000000000002a";
-    const wallet = new ethers.Wallet(deterministicKey);
+    const currentTime = await time.latest();
+    const asOf = currentTime - 60; // 1 minute before the current time
+    const wallet = deterministicWallet;
 
     // Create deterministic values
     const h = require("crypto").createHash("sha256")
@@ -49,8 +64,8 @@ describe("CDS Swap Parity Test", function () {
       [portfolioIdBytes32, asOf, riskScore, corr, fair, modelIdHash, featuresHash]
     ));
 
-    // Sign with deterministic key
-    const signature = await wallet.signMessage(ethers.getBytes(digest));
+    // Sign the digest with EIP-191 prefix using the helper
+    const signature = await signDigestEip191(wallet, digest);
 
     const quote = {
       fairSpreadBps: fair,

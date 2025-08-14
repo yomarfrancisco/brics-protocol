@@ -1,8 +1,23 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
-import { time } from "@nomicfoundation/hardhat-network-helpers";
+import { loadFixture, time } from "@nomicfoundation/hardhat-network-helpers";
 import { Contract } from "ethers";
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
+
+async function deployFixture() {
+  const [deployer, user1] = await ethers.getSigners();
+
+  // Increase time to a deterministic point (avoid timestamp conflicts)
+  await time.increase(1000); // Increase by 1000 seconds
+
+  const CdsSwapEngine = await ethers.getContractFactory("CdsSwapEngine");
+  const cdsSwapEngine = await CdsSwapEngine.deploy(deployer.address);
+
+  // Grant broker role to deployer
+  await cdsSwapEngine.grantRole(await cdsSwapEngine.BROKER_ROLE(), deployer.address);
+
+  return { cdsSwapEngine, deployer, user1 };
+}
 
 describe("CDS Swap E2E Demo", function () {
   let cdsSwapEngine: Contract;
@@ -10,13 +25,10 @@ describe("CDS Swap E2E Demo", function () {
   let user1: SignerWithAddress;
 
   beforeEach(async function () {
-    [deployer, user1] = await ethers.getSigners();
-
-    const CdsSwapEngine = await ethers.getContractFactory("CdsSwapEngine");
-    cdsSwapEngine = await CdsSwapEngine.deploy(deployer.address);
-
-    // Grant broker role to deployer
-    await cdsSwapEngine.grantRole(await cdsSwapEngine.BROKER_ROLE(), deployer.address);
+    const fixture = await loadFixture(deployFixture);
+    cdsSwapEngine = fixture.cdsSwapEngine;
+    deployer = fixture.deployer;
+    user1 = fixture.user1;
   });
 
   describe("Deterministic E2E Demo", function () {
@@ -27,30 +39,30 @@ describe("CDS Swap E2E Demo", function () {
       const notional = 1000000;
       const fixedSpread = 80;
 
-      // Dynamic timestamps - auto-regenerate each run
+      // Use deterministic timestamps based on the current time after increase
       const now = await time.latest();
-      const START = Number(now) + 60;                // start 1 min in the future
-      const AS_OF = START - 30;                      // asOf within freshness window
+      const START = now + 60;                // start 1 min in the future
+      const AS_OF = START - 30;              // asOf within freshness window
       const MATURITY = START + tenor * 24 * 60 * 60;
 
-             const swapParams = {
-         portfolioId: ethers.keccak256(ethers.toUtf8Bytes("demo-portfolio")),
-         protectionBuyer: {
-           counterparty: deployer.address,
-           notional: ethers.parseUnits(notional.toString(), 6),
-           spreadBps: fixedSpread,
-           start: START,
-           maturity: MATURITY,
-         },
-         protectionSeller: {
-           counterparty: "0x" + "1".repeat(40),
-           notional: ethers.parseUnits(notional.toString(), 6),
-           spreadBps: fixedSpread,
-           start: START,
-           maturity: MATURITY,
-         },
-         correlationBps: 7000,
-       };
+      const swapParams = {
+        portfolioId: ethers.keccak256(ethers.toUtf8Bytes("demo-portfolio")),
+        protectionBuyer: {
+          counterparty: deployer.address,
+          notional: ethers.parseUnits(notional.toString(), 6),
+          spreadBps: fixedSpread,
+          start: START,
+          maturity: MATURITY,
+        },
+        protectionSeller: {
+          counterparty: "0x" + "1".repeat(40),
+          notional: ethers.parseUnits(notional.toString(), 6),
+          spreadBps: fixedSpread,
+          start: START,
+          maturity: MATURITY,
+        },
+        correlationBps: 7000,
+      };
 
       // Step 1: Propose swap
       const proposeTx = await cdsSwapEngine.proposeSwap(swapParams);
@@ -69,14 +81,14 @@ describe("CDS Swap E2E Demo", function () {
       const swapStatus = await cdsSwapEngine.getSwapStatus(swapId);
       expect(swapStatus).to.equal(1); // Active
 
-             // Step 3: Create deterministic quote (simplified for demo)
-       const fairSpreadBps = fixedSpread + Math.floor(tenor / 10); // 83 bps (80 + 3)
-       const correlationBps = 7000;
+      // Step 3: Create deterministic quote (simplified for demo)
+      const fairSpreadBps = fixedSpread + Math.floor(tenor / 10); // 83 bps (80 + 3)
+      const correlationBps = 7000;
       
       const quote = {
         fairSpreadBps: fairSpreadBps,
         correlationBps: correlationBps,
-        asOf: AS_OF, // Use dynamic AS_OF for digest/signature
+        asOf: AS_OF, // Use deterministic AS_OF for digest/signature
         riskScore: 54,
         modelIdHash: ethers.ZeroHash,
         featuresHash: ethers.ZeroHash,
@@ -94,10 +106,10 @@ describe("CDS Swap E2E Demo", function () {
         cdsSwapEngine.settleSwap(swapId, quote, elapsedDays, tenorDays)
       ).to.be.revertedWithCustomError(cdsSwapEngine, "InvalidParams");
 
-             // Verify the quote structure is correct
-       expect(quote.fairSpreadBps).to.equal(83);
-       expect(quote.correlationBps).to.equal(7000);
-       expect(quote.asOf).to.be.a('number');
+      // Verify the quote structure is correct
+      expect(quote.fairSpreadBps).to.equal(83);
+      expect(quote.correlationBps).to.equal(7000);
+      expect(quote.asOf).to.be.a('number');
     });
 
     it("should demonstrate payout calculation logic", async function () {

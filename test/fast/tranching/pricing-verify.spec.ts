@@ -1,9 +1,11 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
+import { loadFixture } from "@nomicfoundation/hardhat-toolbox/network-helpers";
 import { AdaptiveTranchingOracleAdapter } from "../../../typechain-types";
 import { TrancheManagerV2 } from "../../../typechain-types";
-import { RiskSignalLib } from "../../../typechain-types";
 import { MockRiskSignalLib } from "../../../typechain-types";
+import { RiskSignalLib } from "../../../typechain-types";
+import { signDigestEip191 } from "../../utils/signing";
 
 describe("Pricing Verification Fast Tests", function () {
   let adapter: AdaptiveTranchingOracleAdapter;
@@ -68,7 +70,7 @@ describe("Pricing Verification Fast Tests", function () {
   // Helper function to sign a payload with the current risk oracle
   async function signPayload(payload: RiskSignalLib.PayloadStruct) {
     const digest = await mockRiskSignalLib.digest(payload);
-    const signature = await riskOracle.signMessage(ethers.getBytes(digest));
+    const signature = await signDigestEip191(riskOracle, digest);
     
     // Guard assertion: verify the signature is valid
     const recovered = await mockRiskSignalLib.recoverSigner(payload, signature);
@@ -100,7 +102,7 @@ describe("Pricing Verification Fast Tests", function () {
     });
 
     it("should reject signal with wrong signer", async function () {
-      const wrongSignature = await user.signMessage(ethers.getBytes(await mockRiskSignalLib.digest(validPayload)));
+      const wrongSignature = await signDigestEip191(user, await mockRiskSignalLib.digest(validPayload));
       
       await expect(
         adapter.submitSignedRiskSignal(validPayload, wrongSignature)

@@ -1,6 +1,7 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import { AbiCoder, keccak256, toUtf8Bytes, getBytes } from "ethers";
+import { signDigestEip191, verifyDigestEip191 } from "../../utils/signing";
 
 const coder = new AbiCoder();
 
@@ -41,10 +42,10 @@ describe("RiskSignal parity — TS vs Solidity digest + sign", () => {
     const offchain = tsDigest(p);
     expect(onchain).to.equal(offchain);
 
-    const sig = await oracle.signMessage(getBytes(offchain));
+    const sig = await signDigestEip191(oracle, offchain);
     // Now call engine.verifyQuote via your existing public function OR
     // recover off-chain and compare
-    const rec = ethers.verifyMessage(getBytes(offchain), sig);
+    const rec = verifyDigestEip191(offchain, sig);
     expect(rec.toLowerCase()).to.equal((await oracle.getAddress()).toLowerCase());
   });
 });

@@ -114,3 +114,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixture isolation + deterministic time + EIP-191 parity + ABI tuple alignment
 ## v0.2.3+11 — RV: tranche rolling avg stabilized
 - Fixture time + scaled samples + min-sample policy
+## v0.2.3+12 — RV: telemetry flags stabilized
+- Flag bit sync + conditional assertions; fixture time

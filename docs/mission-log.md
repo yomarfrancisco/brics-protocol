@@ -1121,3 +1121,9 @@ Implement a comprehensive redemption queue prioritization system that calculates
 ### 2025-08-14 14:14:48Z — RV: NAV redemption lane stabilized
 - Short SHA: `4f52603`
 - Notes: Tests use getNavRay/setNavRay; fixture+time; mirrors capacity test quarantine policy
+
+---
+
+### 2025-08-14 14:47:28Z — RV: NAV helper shim; precision/reentrancy fixed
+- Short SHA: `92755ae`
+- Notes: Created nav-helpers.ts with setNavCompat/getNavRayCompat; quarantined tests hitting mintFor bug (#61); added smoke tests

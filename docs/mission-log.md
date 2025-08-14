@@ -1091,3 +1091,9 @@ Implement a comprehensive redemption queue prioritization system that calculates
 ### 2025-08-14 10:05:45Z — RV settlement oracle-signer fix
 - Short SHA: `f734569`
 - Notes: Fixed spec to pass (Payload, sig). Removed digest/signature from tuple; EIP-191 helper used
+
+---
+
+### 2025-08-14 12:44:19Z — Issuance harness linking fix
+- Short SHA: `34e4d27`
+- Notes: Removed invalid library linking (artifact linkReferences empty); RV hotfix

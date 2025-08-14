@@ -126,3 +126,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Remove invalid library linking based on artifact linkReferences
 ## v0.2.3+17 — RV close-out
 - Deterministic tests, ABI/flags parity; quarantine only for tracked contract bug
+## v0.2.3+18 — RV: quarantine capacity fuzz
+- Mirrors boundary quarantine for Issue #61; smoke retained

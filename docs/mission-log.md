@@ -1073,3 +1073,9 @@ Implement a comprehensive redemption queue prioritization system that calculates
 ### 2025-08-14 08:54:26Z — RV fix slice
 - Short SHA: `652b5b4`
 - Notes: TrancheReadFacade constructor args fixed (479 passing tests)
+
+---
+
+### 2025-08-14 09:14:59Z — RV tranche rolling avg fix
+- Short SHA: `a1ad074`
+- Notes: Rolling average test stabilized (fixture+time+flags); 497 passing tests

@@ -102,3 +102,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Align settle call with ABI; tests green
 ## v0.2.3+5 — Parity stabilization
 - Fixture isolation and deterministic time for CDS suite
+## v0.2.3+6 — RBAC stabilization
+- Fixture isolation and deterministic time for RBAC suite

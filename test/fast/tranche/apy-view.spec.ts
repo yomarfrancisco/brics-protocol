@@ -22,11 +22,13 @@ describe("Tranche APY View Tests", () => {
     const MockTrancheRiskOracle = await ethers.getContractFactory("MockTrancheRiskOracle");
     oracle = await MockTrancheRiskOracle.deploy();
 
-    // Deploy TrancheReadFacade
+    // Deploy TrancheReadFacade with all required constructor arguments
     const TrancheReadFacade = await ethers.getContractFactory("TrancheReadFacade");
     facade = await TrancheReadFacade.deploy(
       await oracle.getAddress(),
-      await config.getAddress()
+      await config.getAddress(),
+      ethers.ZeroAddress, // riskAdapter (null address)
+      false // enableTrancheRisk
     );
   });
 

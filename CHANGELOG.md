@@ -110,3 +110,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixture isolation + deterministic time
 ## v0.2.3+9 — verify-quote stabilized
 - Fixture isolation + EIP-191 parity
+## v0.2.3+10 — RV stabilization
+- Fixture isolation + deterministic time + EIP-191 parity + ABI tuple alignment

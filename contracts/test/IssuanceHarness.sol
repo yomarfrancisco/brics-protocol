@@ -1,29 +1,15 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.24;
 
-import {IssuanceGuard} from "../libraries/IssuanceGuard.sol";
-import {ISovereignCapacityOracle} from "../oracle/ISovereignCapacityOracle.sol";
+interface IIssuanceControllerV3 {
+  function mintFor(address to, uint256 usdcAmt, uint256 tailCorrPpm, uint256 sovUtilBps, bytes32 sovereignCode) external;
+}
 
-/**
- * @title IssuanceHarness
- * @notice Test harness for issuance cap functionality
- */
 contract IssuanceHarness {
-    using IssuanceGuard for *;
-    
-    ISovereignCapacityOracle public oracle;
-    address public config;
-    
-    constructor(ISovereignCapacityOracle _oracle, address _config) {
-        oracle = _oracle;
-        config = _config;
-    }
-    
-    function testIssuance(uint256 totalOutstanding, uint256 requested, uint256 maxAge) external view {
-        IssuanceGuard.checkIssuanceCap(oracle, config, totalOutstanding, requested, maxAge);
-    }
-    
-    function getMaxIssuable(uint256 capacity) external view returns (uint256) {
-        return IssuanceGuard.getMaxIssuable(config, capacity);
-    }
+  event Seen(address to, uint256 usdcAmt, uint256 tailCorrPpm, uint256 sovUtilBps, bytes32 sovereignCode);
+  
+  function proxyMint(IIssuanceControllerV3 ctrl, address to, uint256 usdcAmt, uint256 tailCorrPpm, uint256 sovUtilBps, bytes32 sovereignCode) external {
+    emit Seen(to, usdcAmt, tailCorrPpm, sovUtilBps, sovereignCode);
+    ctrl.mintFor(to, usdcAmt, tailCorrPpm, sovUtilBps, sovereignCode);
+  }
 }

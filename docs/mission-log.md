@@ -1055,3 +1055,9 @@ Implement a comprehensive redemption queue prioritization system that calculates
 ### Thu Aug 14 07:45:57 UTC 2025 — Settlement tests stabilized
 - Short SHA: `b3c1114`
 - Notes: Fixed timestamp issues with loadFixture + time.latest pattern
+
+---
+
+### Thu Aug 14 08:07:21 UTC 2025 — Coverage optimization completed
+- Short SHA: `7b2e0cb`
+- Notes: All contracts in skipFiles can be safely unskipped (no YulException)

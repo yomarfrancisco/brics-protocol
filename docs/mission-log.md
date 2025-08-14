@@ -1097,3 +1097,9 @@ Implement a comprehensive redemption queue prioritization system that calculates
 ### 2025-08-14 12:44:19Z — Issuance harness linking fix
 - Short SHA: `34e4d27`
 - Notes: Removed invalid library linking (artifact linkReferences empty); RV hotfix
+
+---
+
+### 2025-08-14 13:05:43Z — RV close-out
+- Short SHA: `f199d0c`
+- Notes: Spec fixes (fixture/time/ABI/flags); minimal quarantine for tracked issue; harness link fixed in +16

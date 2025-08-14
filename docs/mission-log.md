@@ -1115,3 +1115,9 @@ Implement a comprehensive redemption queue prioritization system that calculates
 ### 2025-08-14 13:45:04Z — RV: issuance v3 §3 quarantine
 - Short SHA: `5a57410`
 - Notes: Quarantined final capacity spec (Issue #61); smoke retained; harness fixed in +16
+
+---
+
+### 2025-08-14 14:14:48Z — RV: NAV redemption lane stabilized
+- Short SHA: `4f52603`
+- Notes: Tests use getNavRay/setNavRay; fixture+time; mirrors capacity test quarantine policy

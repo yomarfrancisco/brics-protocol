@@ -1,52 +1,72 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import { Contract, Signer } from "ethers";
-import { time } from "@nomicfoundation/hardhat-network-helpers";
+import { loadFixture, time } from "@nomicfoundation/hardhat-toolbox/network-helpers";
+
+async function deployFixture() {
+  // deterministic anchor
+  await time.increase(1000);
+  const t0 = await time.latest();
+
+  const [owner] = await ethers.getSigners();
+  const ownerAddr = await owner.getAddress();
+
+  // Deploy ConfigRegistry
+  const ConfigRegistry = await ethers.getContractFactory("ConfigRegistry");
+  const config = await ConfigRegistry.deploy(ownerAddr);
+
+  // Deploy MockTrancheRiskOracle
+  const MockTrancheRiskOracle = await ethers.getContractFactory("MockTrancheRiskOracle");
+  const oracle = await MockTrancheRiskOracle.deploy();
+
+  // Deploy TrancheRiskOracleAdapter
+  const TrancheRiskOracleAdapter = await ethers.getContractFactory("TrancheRiskOracleAdapter");
+  const adapter = await TrancheRiskOracleAdapter.deploy(
+    await oracle.getAddress(),
+    3600 // 1 hour max age
+  );
+
+  // Deploy TrancheReadFacade with adapter enabled
+  const TrancheReadFacade = await ethers.getContractFactory("TrancheReadFacade");
+  const facade = await TrancheReadFacade.deploy(
+    await oracle.getAddress(),
+    await config.getAddress(),
+    await adapter.getAddress(),
+    true // enableTrancheRisk
+  );
+
+  return { t0, config, oracle, adapter, facade, owner, ownerAddr };
+}
 
 describe("Tranche Telemetry Tests", () => {
   let config: Contract;
   let oracle: Contract;
   let adapter: Contract;
   let facade: Contract;
-
   let owner: Signer;
   let ownerAddr: string;
+  let t0: number;
 
-  // Telemetry flag constants
-  const FLAG_OVERRIDE_USED = 0x01;
-  const FLAG_ADAPTER_USED = 0x02;
-  const FLAG_ORACLE_DIRECT = 0x04;
-  const FLAG_BANDS_ENABLED = 0x08;
-  const FLAG_FLOOR_CLAMPED = 0x10;
-  const FLAG_CEIL_CLAMPED = 0x20;
+  // Telemetry flag constants - synced with contract values
+  const FLAG_BASE_APY_OVERRIDE_USED = 0x01;
+  const FLAG_RISK_OVERRIDE_USED = 0x02;
+  const FLAG_ADAPTER_USED = 0x04;
+  const FLAG_ORACLE_DIRECT = 0x08; // Fixed: matches contract value
+  const FLAG_ROLLING_AVG_ENABLED = 0x10;
+  const FLAG_ROLLING_AVG_USED = 0x20;
+  const FLAG_BANDS_ENABLED = 0x40;
+  const FLAG_FLOOR_CLAMPED = 0x80;
+  const FLAG_CEIL_CLAMPED = 0x100;
 
-  beforeEach(async () => {
-    [owner] = await ethers.getSigners();
-    ownerAddr = await owner.getAddress();
-
-    // Deploy ConfigRegistry
-    const ConfigRegistry = await ethers.getContractFactory("ConfigRegistry");
-    config = await ConfigRegistry.deploy(ownerAddr);
-
-    // Deploy MockTrancheRiskOracle
-    const MockTrancheRiskOracle = await ethers.getContractFactory("MockTrancheRiskOracle");
-    oracle = await MockTrancheRiskOracle.deploy();
-
-    // Deploy TrancheRiskOracleAdapter
-    const TrancheRiskOracleAdapter = await ethers.getContractFactory("TrancheRiskOracleAdapter");
-    adapter = await TrancheRiskOracleAdapter.deploy(
-      await oracle.getAddress(),
-      3600 // 1 hour max age
-    );
-
-    // Deploy TrancheReadFacade with adapter enabled
-    const TrancheReadFacade = await ethers.getContractFactory("TrancheReadFacade");
-    facade = await TrancheReadFacade.deploy(
-      await oracle.getAddress(),
-      await config.getAddress(),
-      await adapter.getAddress(),
-      true // enableTrancheRisk
-    );
+  beforeEach(async function () {
+    const fixture = await loadFixture(deployFixture);
+    config = fixture.config;
+    oracle = fixture.oracle;
+    adapter = fixture.adapter;
+    facade = fixture.facade;
+    owner = fixture.owner;
+    ownerAddr = fixture.ownerAddr;
+    t0 = fixture.t0;
   });
 
   describe("Oracle Direct Path", () => {
@@ -143,7 +163,7 @@ describe("Tranche Telemetry Tests", () => {
       expect(telemetry.floorBps).to.equal(0);
       expect(telemetry.ceilBps).to.equal(0);
       expect(telemetry.asOf).to.be.gt(0);
-      expect(telemetry.telemetryFlags).to.equal(FLAG_OVERRIDE_USED);
+      expect(telemetry.telemetryFlags).to.equal(FLAG_RISK_OVERRIDE_USED);
     });
   });
 
@@ -271,7 +291,7 @@ describe("Tranche Telemetry Tests", () => {
       expect(telemetry.floorBps).to.equal(floorBps);
       expect(telemetry.ceilBps).to.equal(ceilBps);
       expect(telemetry.asOf).to.be.gt(0);
-      expect(telemetry.telemetryFlags).to.equal(FLAG_OVERRIDE_USED | FLAG_BANDS_ENABLED | FLAG_FLOOR_CLAMPED);
+      expect(telemetry.telemetryFlags).to.equal(FLAG_RISK_OVERRIDE_USED | FLAG_BANDS_ENABLED | FLAG_FLOOR_CLAMPED);
     });
 
     it("should handle adapter with bands enabled", async () => {
@@ -334,7 +354,7 @@ describe("Tranche Telemetry Tests", () => {
           adapterRisk: 0,
           floor: 0,
           ceil: 0,
-          expectedFlags: FLAG_OVERRIDE_USED
+          expectedFlags: FLAG_RISK_OVERRIDE_USED
         },
         {
           name: "oracle with bands",

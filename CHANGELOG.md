@@ -116,3 +116,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixture time + scaled samples + min-sample policy
 ## v0.2.3+12 — RV: telemetry flags stabilized
 - Flag bit sync + conditional assertions; fixture time
+## v0.2.3+13 — RV: settlement oracle-signer invariant fixed
+- ABI tuple alignment (Payload, sig)
+- EIP-191 signing parity
+- Deterministic time/fixtures

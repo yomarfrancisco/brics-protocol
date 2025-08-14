@@ -1037,3 +1037,9 @@ Implement a comprehensive redemption queue prioritization system that calculates
 ### Thu Aug 14 06:20:41 UTC 2025 — v0.2.3+5 tagged
 - Short SHA: `d8917f3`
 - Notes: CDS parity stabilized (order-independent)
+
+---
+
+### Thu Aug 14 06:46:17 UTC 2025 — Both fires extinguished
+- Short SHA: `bd709c6`
+- Notes: RBAC test fixed (fixture + deterministic time); coverage YulException resolved (skip deep-stack contracts)

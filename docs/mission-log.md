@@ -1103,3 +1103,9 @@ Implement a comprehensive redemption queue prioritization system that calculates
 ### 2025-08-14 13:05:43Z — RV close-out
 - Short SHA: `f199d0c`
 - Notes: Spec fixes (fixture/time/ABI/flags); minimal quarantine for tracked issue; harness link fixed in +16
+
+---
+
+### 2025-08-14 13:27:04Z — RV: capacity fuzz quarantine
+- Short SHA: `b419b4b`
+- Notes: Fuzz spec quarantined (Issue #61). Smoke retained. Harness link fixed in +16.

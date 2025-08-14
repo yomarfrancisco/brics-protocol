@@ -17,14 +17,17 @@ describe("Issuance Harness Tests", () => {
     // Deploy ConfigRegistry
     const ConfigRegistry = await ethers.getContractFactory("ConfigRegistry");
     config = await ConfigRegistry.deploy(ownerAddr);
+    await config.waitForDeployment();
 
     // Deploy MockSovereignCapacityOracle
     const MockSovereignCapacityOracle = await ethers.getContractFactory("MockSovereignCapacityOracle");
     oracle = await MockSovereignCapacityOracle.deploy(ethers.parseUnits("1000000", 6)); // 1M USDC capacity
+    await oracle.waitForDeployment();
 
     // Deploy IssuanceGuard library first
     const IssuanceGuard = await ethers.getContractFactory("IssuanceGuard");
     const issuanceGuard = await IssuanceGuard.deploy();
+    await issuanceGuard.waitForDeployment();
 
     // Deploy IssuanceHarness with library linking
     const IssuanceHarness = await ethers.getContractFactory("IssuanceHarness", {
@@ -36,6 +39,7 @@ describe("Issuance Harness Tests", () => {
       await oracle.getAddress(),
       await config.getAddress()
     );
+    await harness.waitForDeployment();
   });
 
   describe("Happy Path", () => {

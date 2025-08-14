@@ -1,8 +1,23 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
-import { time } from "@nomicfoundation/hardhat-network-helpers";
+import { loadFixture, time } from "@nomicfoundation/hardhat-network-helpers";
 import { Contract } from "ethers";
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
+
+async function deployFixture() {
+  const [deployer, broker, user1, user2, user3] = await ethers.getSigners();
+
+  // Increase time to a deterministic point (avoid timestamp conflicts)
+  await time.increase(1000); // Increase by 1000 seconds
+
+  const CdsSwapEngine = await ethers.getContractFactory("CdsSwapEngine");
+  const cdsSwapEngine = await CdsSwapEngine.deploy(deployer.address);
+
+  // Grant broker role to broker
+  await cdsSwapEngine.grantRole(await cdsSwapEngine.BROKER_ROLE(), broker.address);
+
+  return { cdsSwapEngine, deployer, broker, user1, user2, user3 };
+}
 
 describe("CDS Swap Lifecycle", function () {
   let cdsSwapEngine: Contract;
@@ -16,13 +31,13 @@ describe("CDS Swap Lifecycle", function () {
   const ZERO_BYTES32 = ethers.ZeroHash;
 
   beforeEach(async function () {
-    [deployer, broker, user1, user2, user3] = await ethers.getSigners();
-
-    const CdsSwapEngine = await ethers.getContractFactory("CdsSwapEngine");
-    cdsSwapEngine = await CdsSwapEngine.deploy(deployer.address);
-
-    // Grant broker role to broker
-    await cdsSwapEngine.grantRole(await cdsSwapEngine.BROKER_ROLE(), broker.address);
+    const fixture = await loadFixture(deployFixture);
+    cdsSwapEngine = fixture.cdsSwapEngine;
+    deployer = fixture.deployer;
+    broker = fixture.broker;
+    user1 = fixture.user1;
+    user2 = fixture.user2;
+    user3 = fixture.user3;
   });
 
   describe("Complete Swap Lifecycle", function () {
@@ -52,9 +67,9 @@ describe("CDS Swap Lifecycle", function () {
       expect(activateEvent.args.activator).to.equal(broker.address);
       expect(await cdsSwapEngine.getSwapStatus(swapId)).to.equal(1); // Active
       
-      // Advance time to be within quote validity window
+      // Use deterministic timestamps based on the current time after increase
       const now = await time.latest();
-      const START = Number(now) + 60; // 1 minute in the future
+      const START = now + 60; // 1 minute in the future
       await time.increaseTo(START + 24 * 60 * 60); // 1 day after start
       
       // Step 3: Settle swap (with mock quote)

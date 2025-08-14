@@ -1025,3 +1025,9 @@ Implement a comprehensive redemption queue prioritization system that calculates
 ### Thu Aug 14 00:01:27 UTC 2025 — Global signer parity (EIP-191)
 - Short SHA: `b6ea983`
 - Notes: Tests sign raw bytes via signMessage; contract adds EIP-191; suite deterministic
+
+---
+
+### Thu Aug 14 05:54:51 UTC 2025 — Stabilize CDS parity under full suite
+- Short SHA: `697c8f1`
+- Notes: Fixtures + deterministic timestamps; EIP-191 helper everywhere; suite order independent

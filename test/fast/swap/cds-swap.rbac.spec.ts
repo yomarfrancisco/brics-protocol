@@ -1,7 +1,23 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
+import { loadFixture, time } from "@nomicfoundation/hardhat-network-helpers";
 import { Contract } from "ethers";
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
+
+async function deployFixture() {
+  const [deployer, broker, user1, user2, user3] = await ethers.getSigners();
+
+  // Increase time to a deterministic point (avoid timestamp conflicts)
+  await time.increase(1000); // Increase by 1000 seconds
+
+  const CdsSwapEngine = await ethers.getContractFactory("CdsSwapEngine");
+  const cdsSwapEngine = await CdsSwapEngine.deploy(deployer.address);
+
+  // Grant broker role to broker
+  await cdsSwapEngine.grantRole(await cdsSwapEngine.BROKER_ROLE(), broker.address);
+
+  return { cdsSwapEngine, deployer, broker, user1, user2, user3 };
+}
 
 describe("CDS Swap RBAC", function () {
   let cdsSwapEngine: Contract;
@@ -15,13 +31,13 @@ describe("CDS Swap RBAC", function () {
   const ZERO_BYTES32 = ethers.ZeroHash;
 
   beforeEach(async function () {
-    [deployer, broker, user1, user2, user3] = await ethers.getSigners();
-
-    const CdsSwapEngine = await ethers.getContractFactory("CdsSwapEngine");
-    cdsSwapEngine = await CdsSwapEngine.deploy(deployer.address);
-
-    // Grant broker role to broker
-    await cdsSwapEngine.grantRole(await cdsSwapEngine.BROKER_ROLE(), broker.address);
+    const fixture = await loadFixture(deployFixture);
+    cdsSwapEngine = fixture.cdsSwapEngine;
+    deployer = fixture.deployer;
+    broker = fixture.broker;
+    user1 = fixture.user1;
+    user2 = fixture.user2;
+    user3 = fixture.user3;
   });
 
   describe("Role Management", function () {
@@ -61,7 +77,7 @@ describe("CDS Swap RBAC", function () {
 
   describe("Swap Proposal Access", function () {
     it("should allow any user to propose swap", async function () {
-      const swapParams = createValidSwapParams(user1.address, user2.address);
+      const swapParams = await createValidSwapParams(user1.address, user2.address);
       
       await expect(
         cdsSwapEngine.connect(user3).proposeSwap(swapParams)
@@ -69,7 +85,7 @@ describe("CDS Swap RBAC", function () {
     });
 
     it("should emit SwapProposed event", async function () {
-      const swapParams = createValidSwapParams(user1.address, user2.address);
+      const swapParams = await createValidSwapParams(user1.address, user2.address);
       
       const tx = await cdsSwapEngine.connect(user3).proposeSwap(swapParams);
       const receipt = await tx.wait();
@@ -87,7 +103,7 @@ describe("CDS Swap RBAC", function () {
     let swapId: string;
 
     beforeEach(async function () {
-      const swapParams = createValidSwapParams(user1.address, user2.address);
+      const swapParams = await createValidSwapParams(user1.address, user2.address);
       const tx = await cdsSwapEngine.connect(user3).proposeSwap(swapParams);
       const receipt = await tx.wait();
       const event = receipt.logs.find((log: any) => 
@@ -139,7 +155,7 @@ describe("CDS Swap RBAC", function () {
     let swapId: string;
 
     beforeEach(async function () {
-      const swapParams = createValidSwapParams(user1.address, user2.address);
+      const swapParams = await createValidSwapParams(user1.address, user2.address);
       const tx = await cdsSwapEngine.connect(user3).proposeSwap(swapParams);
       const receipt = await tx.wait();
       const event = receipt.logs.find((log: any) => 
@@ -205,7 +221,7 @@ describe("CDS Swap RBAC", function () {
     let swapId: string;
 
     beforeEach(async function () {
-      const swapParams = createValidSwapParams(user1.address, user2.address);
+      const swapParams = await createValidSwapParams(user1.address, user2.address);
       const tx = await cdsSwapEngine.connect(user3).proposeSwap(swapParams);
       const receipt = await tx.wait();
       const event = receipt.logs.find((log: any) => 
@@ -275,7 +291,7 @@ describe("CDS Swap RBAC", function () {
     });
 
     it("should prevent settling proposed swap", async function () {
-      const swapParams = createValidSwapParams(user1.address, user2.address);
+      const swapParams = await createValidSwapParams(user1.address, user2.address);
       const tx = await cdsSwapEngine.connect(user3).proposeSwap(swapParams);
       const receipt = await tx.wait();
       const event = receipt.logs.find((log: any) => 
@@ -302,22 +318,27 @@ describe("CDS Swap RBAC", function () {
     });
   });
 
-  function createValidSwapParams(buyer: string, seller: string) {
+  async function createValidSwapParams(buyer: string, seller: string) {
+    // Dynamic timestamps - ensure we're in the future
+    const now = await time.latest();
+    const START = Number(now) + 60; // 1 minute in the future
+    const MATURITY = START + 86400 * 365; // 1 year from start
+    
     return {
       portfolioId: ethers.keccak256(ethers.toUtf8Bytes("test-portfolio")),
       protectionBuyer: {
         counterparty: buyer,
         notional: ethers.parseEther("1000000"), // 1M USDC
         spreadBps: 500, // 5%
-        start: Math.floor(Date.now() / 1000) + 3600, // 1 hour from now
-        maturity: Math.floor(Date.now() / 1000) + 86400 * 365, // 1 year from now
+        start: START,
+        maturity: MATURITY,
       },
       protectionSeller: {
         counterparty: seller,
         notional: ethers.parseEther("1000000"), // 1M USDC
         spreadBps: 500, // 5%
-        start: Math.floor(Date.now() / 1000) + 3600, // 1 hour from now
-        maturity: Math.floor(Date.now() / 1000) + 86400 * 365, // 1 year from now
+        start: START,
+        maturity: MATURITY,
       },
       correlationBps: 7000, // 70%
     };

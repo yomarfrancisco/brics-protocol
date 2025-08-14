@@ -1079,3 +1079,9 @@ Implement a comprehensive redemption queue prioritization system that calculates
 ### 2025-08-14 09:14:59Z — RV tranche rolling avg fix
 - Short SHA: `a1ad074`
 - Notes: Rolling average test stabilized (fixture+time+flags); 497 passing tests
+
+---
+
+### 2025-08-14 09:46:21Z — RV telemetry flags fix
+- Short SHA: `0ef796c`
+- Notes: Synced flag bits; fixture+time; conditional 'USED' assertion

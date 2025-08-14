@@ -1043,3 +1043,9 @@ Implement a comprehensive redemption queue prioritization system that calculates
 ### Thu Aug 14 06:46:17 UTC 2025 — Both fires extinguished
 - Short SHA: `bd709c6`
 - Notes: RBAC test fixed (fixture + deterministic time); coverage YulException resolved (skip deep-stack contracts)
+
+---
+
+### Thu Aug 14 07:20:32 UTC 2025 — Replay canary hardened + coverage stabilized
+- Short SHA: `08c9463`
+- Notes: Defensive fixture loading with graceful skips; coverage YulException resolved

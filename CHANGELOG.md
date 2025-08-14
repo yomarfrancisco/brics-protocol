@@ -130,3 +130,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Mirrors boundary quarantine for Issue #61; smoke retained
 ## v0.2.3+19 — RV: quarantine issuance v3 §3
 - Mirrors boundary/fuzz quarantine for Issue #61; smoke retained
+## v0.2.3+20 — RV: NAV redemption lane stabilized
+- Align tests to getNavRay/setNavRay; fixture+time

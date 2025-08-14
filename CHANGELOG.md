@@ -122,3 +122,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Deterministic time/fixtures
 ## v0.2.3+14 — RV: capacity boundary stabilized
 - Use NAV mock with setNAV; fixture+time
+## v0.2.3+16 — RV: issuance harness linking fix
+- Remove invalid library linking based on artifact linkReferences

@@ -132,6 +132,9 @@ describe("CdsSwapEngine – Token Settlement", function () {
         fairSpreadBps: 600, // 6% (higher than original 5%)
         correlationBps: 7000,
         asOf: currentTime,
+        riskScore: 54,
+        modelIdHash: ethers.ZeroHash,
+        featuresHash: ethers.ZeroHash,
         digest: ethers.ZeroHash, // Placeholder for test
         signature: "0x" + "00".repeat(65) // 65-byte signature placeholder
       };
@@ -144,7 +147,9 @@ describe("CdsSwapEngine – Token Settlement", function () {
       
       // This will fail due to signature verification, but we can test the structure
       try {
-        await cdsSwapEngine.settleSwap(swapId, quote);
+        const elapsedDays = 1; // 1 day elapsed
+        const tenorDays = 30; // 30 days total tenor
+        await cdsSwapEngine.settleSwap(swapId, quote, elapsedDays, tenorDays);
         expect.fail("Expected transaction to revert");
       } catch (error: any) {
         // Accept either InvalidParams or ECDSAInvalidSignature errors
@@ -197,13 +202,18 @@ describe("CdsSwapEngine – Token Settlement", function () {
         fairSpreadBps: 600,
         correlationBps: 7000,
         asOf: currentTime,
+        riskScore: 54,
+        modelIdHash: ethers.ZeroHash,
+        featuresHash: ethers.ZeroHash,
         digest: ethers.ZeroHash,
         signature: "0x" + "00".repeat(65) // 65-byte signature placeholder
       };
 
       // Test that the function structure is correct (will fail due to signature, but that's expected)
       try {
-        await cdsSwapEngine.settleSwap(swapId, quote);
+        const elapsedDays = 1; // 1 day elapsed
+        const tenorDays = 30; // 30 days total tenor
+        await cdsSwapEngine.settleSwap(swapId, quote, elapsedDays, tenorDays);
         expect.fail("Expected transaction to revert");
       } catch (error: any) {
         // Accept either InvalidParams or ECDSAInvalidSignature errors
@@ -252,12 +262,17 @@ describe("CdsSwapEngine – Token Settlement", function () {
         fairSpreadBps: 600, // 6% > 5%
         correlationBps: 7000,
         asOf: currentTime,
+        riskScore: 54,
+        modelIdHash: ethers.ZeroHash,
+        featuresHash: ethers.ZeroHash,
         digest: ethers.ZeroHash,
         signature: "0x" + "00".repeat(65) // 65-byte signature placeholder
       };
 
       try {
-        await cdsSwapEngine.settleSwap(swapId, positiveQuote);
+        const elapsedDays = 1; // 1 day elapsed
+        const tenorDays = 30; // 30 days total tenor
+        await cdsSwapEngine.settleSwap(swapId, positiveQuote, elapsedDays, tenorDays);
         expect.fail("Expected transaction to revert");
       } catch (error: any) {
         // Accept either InvalidParams or ECDSAInvalidSignature errors
@@ -269,12 +284,17 @@ describe("CdsSwapEngine – Token Settlement", function () {
         fairSpreadBps: 400, // 4% < 5%
         correlationBps: 7000,
         asOf: currentTime,
+        riskScore: 54,
+        modelIdHash: ethers.ZeroHash,
+        featuresHash: ethers.ZeroHash,
         digest: ethers.ZeroHash,
         signature: "0x" + "00".repeat(65) // 65-byte signature placeholder
       };
 
       try {
-        await cdsSwapEngine.settleSwap(swapId, negativeQuote);
+        const elapsedDays = 1; // 1 day elapsed
+        const tenorDays = 30; // 30 days total tenor
+        await cdsSwapEngine.settleSwap(swapId, negativeQuote, elapsedDays, tenorDays);
         expect.fail("Expected transaction to revert");
       } catch (error: any) {
         // Accept either InvalidParams or ECDSAInvalidSignature errors

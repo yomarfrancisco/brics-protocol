@@ -1001,3 +1001,33 @@ Implement a comprehensive redemption queue prioritization system that calculates
 ### 2025-08-13 23:08:09Z — v0.2.3+4 tagged
 - Short SHA: `2235d4d`
 - Notes: Release Validation green (CDS Swap E2E)
+
+---
+
+### 2025-08-13 23:15:02Z — Fix CDS Swap E2E ABI drift
+- Short SHA: `155daeb`
+- Notes: Align test call with current ABI (name/tuple/types); deterministic
+
+---
+
+### 2025-08-13 23:44:01Z — Fix CDS Swap Parity (EIP-191)
+- Short SHA: `13f8d41`
+- Notes: Test now signs EIP-191 prefixed digest; contract adds same prefix; addresses match
+
+---
+
+###  — Global signer parity (EIP-191)
+- Short SHA: `b6ea983`
+- Notes: Tests sign raw bytes via signMessage; contract adds EIP-191; suite deterministic
+
+---
+
+### Thu Aug 14 00:01:27 UTC 2025 — Global signer parity (EIP-191)
+- Short SHA: `b6ea983`
+- Notes: Tests sign raw bytes via signMessage; contract adds EIP-191; suite deterministic
+
+---
+
+### Thu Aug 14 05:54:51 UTC 2025 — Stabilize CDS parity under full suite
+- Short SHA: `697c8f1`
+- Notes: Fixtures + deterministic timestamps; EIP-191 helper everywhere; suite order independent

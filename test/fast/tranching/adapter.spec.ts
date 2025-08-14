@@ -4,6 +4,8 @@ import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { Wallet, getBytes } from "ethers";
 import { AdaptiveTranchingOracleAdapter } from "../../../typechain-types";
 import { TrancheManagerV2 } from "../../../typechain-types";
+import { MockRiskSignalLib } from "../../../typechain-types";
+import { signDigestEip191, verifyDigestEip191 } from "../../utils/signing";
 
 const ORACLE_PK = "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d";
 
@@ -46,8 +48,8 @@ async function deployFixture() {
 async function signPayload(mockLib: any, payload: any, oracleWallet: any) {
   const digest = await mockLib.digest(payload);
   
-  // Sign the raw digest with EIP-191 prefixing (signMessage adds prefix once)
-  const signature = await oracleWallet.signMessage(getBytes(digest));
+  // Sign the digest with EIP-191 prefix using the helper
+  const signature = await signDigestEip191(oracleWallet, digest);
   
   // Debug logging for CI
   if (process.env.CI) {
@@ -56,10 +58,8 @@ async function signPayload(mockLib: any, payload: any, oracleWallet: any) {
     console.log("Debug - digest:", digest);
     console.log("Debug - signature:", signature);
     
-    // Test manual recovery using ethers with same logic as RiskSignalLib
-    const ethers = require("ethers");
-    const ethSigned = ethers.hashMessage(getBytes(digest));
-    const manualRecovered = ethers.recoverAddress(ethSigned, signature);
+    // Test manual recovery using the helper
+    const manualRecovered = verifyDigestEip191(digest, signature);
     console.log("Debug - manual recovered:", manualRecovered);
   }
   
@@ -316,7 +316,7 @@ describe("AdaptiveTranchingOracleAdapter Fast Tests", function () {
       const digest = await mockRiskSignalLib.digest(payload);
       // Use a different signer
       const wrongSigner = new ethers.Wallet("0x1234567890123456789012345678901234567890123456789012345678901234", ethers.provider);
-      const signature = await wrongSigner.signMessage(ethers.getBytes(digest));
+      const signature = await signDigestEip191(wrongSigner, digest);
 
       await expect(adapter.submitSignedRiskSignal(payload, signature))
         .to.be.revertedWith("bad-signer");

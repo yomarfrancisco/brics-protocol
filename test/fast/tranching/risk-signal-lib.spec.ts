@@ -1,7 +1,9 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
+import { loadFixture } from "@nomicfoundation/hardhat-toolbox/network-helpers";
 import { MockRiskSignalLib } from "../../../typechain-types";
 import { RiskSignalLib } from "../../../typechain-types";
+import { signDigestEip191 } from "../../utils/signing";
 
 describe("RiskSignalLib Fast Tests", function () {
   let mockRiskSignalLib: MockRiskSignalLib;
@@ -143,7 +145,7 @@ describe("RiskSignalLib Fast Tests", function () {
       };
 
       const digest = await mockRiskSignalLib.digest(payload);
-      const signature = await riskOracle.signMessage(ethers.getBytes(digest));
+      const signature = await signDigestEip191(riskOracle, digest);
       const recoveredSigner = await mockRiskSignalLib.recoverSigner(payload, signature);
       
       expect(recoveredSigner).to.equal(await riskOracle.getAddress());
@@ -161,7 +163,7 @@ describe("RiskSignalLib Fast Tests", function () {
       };
 
       const digest = await mockRiskSignalLib.digest(payload);
-      const signature = await riskOracle.signMessage(ethers.getBytes(digest));
+      const signature = await signDigestEip191(riskOracle, digest);
       
       // Tamper with the payload to create a different digest
       const tamperedPayload = { ...payload, riskScore: 999999999 };

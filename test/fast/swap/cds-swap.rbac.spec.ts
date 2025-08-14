@@ -220,13 +220,18 @@ describe("CDS Swap RBAC", function () {
         fairSpreadBps: 600,
         correlationBps: 7000,
         asOf: Math.floor(Date.now() / 1000),
+        riskScore: 54,
+        modelIdHash: ethers.ZeroHash,
+        featuresHash: ethers.ZeroHash,
         digest: ethers.ZeroHash,
         signature: "0x"
       };
       
       // This will fail due to invalid signature, but we can test the function signature
+      const elapsedDays = 1; // 1 day elapsed
+      const tenorDays = 365; // 1 year total tenor
       await expect(
-        cdsSwapEngine.connect(user1).settleSwap(swapId, mockQuote)
+        cdsSwapEngine.connect(user1).settleSwap(swapId, mockQuote, elapsedDays, tenorDays)
       ).to.be.revertedWithCustomError(cdsSwapEngine, "InvalidParams");
     });
 
@@ -235,13 +240,18 @@ describe("CDS Swap RBAC", function () {
         fairSpreadBps: 600,
         correlationBps: 7000,
         asOf: Math.floor(Date.now() / 1000),
+        riskScore: 54,
+        modelIdHash: ethers.ZeroHash,
+        featuresHash: ethers.ZeroHash,
         digest: ethers.ZeroHash,
         signature: "0x"
       };
       
       // This will fail due to invalid signature, but we can test the function signature
+      const elapsedDays = 1; // 1 day elapsed
+      const tenorDays = 365; // 1 year total tenor
       await expect(
-        cdsSwapEngine.connect(user1).settleSwap(swapId, mockQuote)
+        cdsSwapEngine.connect(user1).settleSwap(swapId, mockQuote, elapsedDays, tenorDays)
       ).to.be.revertedWithCustomError(cdsSwapEngine, "InvalidParams");
     });
 
@@ -250,12 +260,17 @@ describe("CDS Swap RBAC", function () {
         fairSpreadBps: 600,
         correlationBps: 7000,
         asOf: Math.floor(Date.now() / 1000),
+        riskScore: 54,
+        modelIdHash: ethers.ZeroHash,
+        featuresHash: ethers.ZeroHash,
         digest: ethers.ZeroHash,
         signature: "0x"
       };
       
+      const elapsedDays = 1; // 1 day elapsed
+      const tenorDays = 365; // 1 year total tenor
       await expect(
-        cdsSwapEngine.connect(user1).settleSwap(ZERO_BYTES32, mockQuote)
+        cdsSwapEngine.connect(user1).settleSwap(ZERO_BYTES32, mockQuote, elapsedDays, tenorDays)
       ).to.be.revertedWithCustomError(cdsSwapEngine, "NotFound");
     });
 
@@ -272,12 +287,17 @@ describe("CDS Swap RBAC", function () {
         fairSpreadBps: 600,
         correlationBps: 7000,
         asOf: Math.floor(Date.now() / 1000),
+        riskScore: 54,
+        modelIdHash: ethers.ZeroHash,
+        featuresHash: ethers.ZeroHash,
         digest: ethers.ZeroHash,
         signature: "0x"
       };
       
+      const elapsedDays = 1; // 1 day elapsed
+      const tenorDays = 365; // 1 year total tenor
       await expect(
-        cdsSwapEngine.connect(user1).settleSwap(proposedSwapId, mockQuote)
+        cdsSwapEngine.connect(user1).settleSwap(proposedSwapId, mockQuote, elapsedDays, tenorDays)
       ).to.be.revertedWithCustomError(cdsSwapEngine, "InvalidParams");
     });
   });

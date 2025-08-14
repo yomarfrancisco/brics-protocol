@@ -106,3 +106,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixture isolation and deterministic time for RBAC suite
 ## v0.2.3+7 — Replay canary hardened
 - Defensive fixture loading with graceful skips
+## v0.2.3+8 — Settlement timestamp stabilization
+- Fixture isolation + deterministic time

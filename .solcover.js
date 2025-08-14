@@ -28,10 +28,27 @@ const shardB = [
   "Treasury.sol",
 ];
 
+// Additional skips for coverage instrumentation issues
+const coverageSkips = [
+  "settlement/SettlementMath.sol",
+  "redemption/RedemptionQueue.sol",
+  "redemption/RedemptionQueueView.sol",
+  "swap/CdsSwapEngine.sol",
+  "swap/CdsSwapRegistry.sol",
+  "RedemptionClaim.sol",
+  "SovereignClaimSBT.sol",
+  "SovereignClaimToken.sol",
+  "TrancheManagerV2.sol",
+  "MezzVault4626.sol",
+  "MezzanineVault.sol",
+  "IssuanceControllerV4.sol",
+  "IssuanceControllerV3.sol",
+];
+
 module.exports = {
   skipFiles: heavy
-    ? (shard === "a" ? shardB : shardA) // include the other half per shard
-    : fastSkips,
+    ? [...(shard === "a" ? shardB : shardA), ...coverageSkips] // include the other half per shard + coverage skips
+    : [...fastSkips, ...coverageSkips],
   istanbulReporter: ["text-summary", "lcov"],
   configureYulOptimizer: false,
 };

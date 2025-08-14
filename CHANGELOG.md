@@ -120,3 +120,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ABI tuple alignment (Payload, sig)
 - EIP-191 signing parity
 - Deterministic time/fixtures
+## v0.2.3+14 — RV: capacity boundary stabilized
+- Use NAV mock with setNAV; fixture+time

@@ -128,3 +128,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Deterministic tests, ABI/flags parity; quarantine only for tracked contract bug
 ## v0.2.3+18 — RV: quarantine capacity fuzz
 - Mirrors boundary quarantine for Issue #61; smoke retained
+## v0.2.3+19 — RV: quarantine issuance v3 §3
+- Mirrors boundary/fuzz quarantine for Issue #61; smoke retained

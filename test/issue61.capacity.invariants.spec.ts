@@ -1,3 +1,6 @@
+/* Ensure bootstrap runs in local too */ 
+import './bootstrap';
+
 import { expect } from "chai";
 import { loadFixture } from "@nomicfoundation/hardhat-toolbox/network-helpers";
 import { USDC } from "./utils/units";

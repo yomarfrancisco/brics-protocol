@@ -75,7 +75,8 @@ const config: HardhatUserConfig = {
     // No reporter override here - let hardhat-gas-reporter plugin handle it
     timeout: 60000,
     retries: 1,
-    bail: true
+    bail: true,
+    require: ["test/bootstrap.ts"]
   }
 };
 

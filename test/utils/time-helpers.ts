@@ -1,15 +1,15 @@
 import { time } from "@nomicfoundation/hardhat-network-helpers";
 
 /** Jumps forward in time but never backwards. Accepts number or bigint. */
-export async function safeIncreaseTo(targetTs: number | bigint) {
+export async function safeIncreaseTo(targetTs: number | bigint): Promise<void> {
   const latest = await time.latest();
-  const next = Number(typeof targetTs === "bigint" ? targetTs : targetTs);
+  const next = Number(targetTs);
   await time.increaseTo(Math.max(next, latest + 1));
 }
 
-/** Convenience: returns a strictly-forward "now" usable for comparisons. */
-export async function safeNow(): Promise<number> {
+/** Convenience: returns a strictly-forward "now" as bigint. */
+export async function safeNow(provider: any): Promise<bigint> {
   const latest = await time.latest();
   await time.increaseTo(latest + 1);
-  return latest + 1;
+  return BigInt(latest + 1);
 }

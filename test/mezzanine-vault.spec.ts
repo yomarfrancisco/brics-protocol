@@ -162,7 +162,7 @@ describe("MezzanineVault", function () {
       }
       
       // Advance time past reinvestUntil using safe helper
-      await safeIncreaseTo(Number(reinvestUntil) + 1);
+      await safeIncreaseTo(Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60 + 1);
       
       // AFTER: expect success (or at least not the 'reinvest lock' error)
       await expect(

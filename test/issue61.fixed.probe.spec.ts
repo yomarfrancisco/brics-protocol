@@ -1,6 +1,7 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import { USDC } from "./utils/units";
+import { setNavCompat } from "./utils/nav-helpers";
 
 describe("Issue #61 fixed – probe next failing branch", () => {
   it("mintFor no longer hits AmountZero; asserts the next specific custom error", async () => {
@@ -57,7 +58,7 @@ describe("Issue #61 fixed – probe next failing branch", () => {
     await controller.connect(ops).grantRole(await controller.OPS_ROLE(), ops.address);
     
     // Set up NAV oracle
-    await oracle.setNavRay(ethers.parseEther("1.0") * 10n ** 9n); // 1.0 NAV in ray format
+    await setNavCompat(oracle, ethers.parseEther("1.0") * 10n ** 9n); // 1.0 NAV in ray format
     
     // Set up sovereign configuration
     const SOVEREIGN_CODE = ethers.encodeBytes32String("TEST");

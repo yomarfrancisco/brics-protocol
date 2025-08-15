@@ -1,7 +1,8 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import { loadFixture } from "@nomicfoundation/hardhat-toolbox/network-helpers";
-import { setNavCompat, getNavRayCompat } from "../utils/nav-helpers";
+import { setNavCompat, getNavRayCompat, toUSDCfromTokens, RAY } from "../utils/nav-helpers";
+import { safeNow, safeIncreaseTo } from "../utils/time-helpers";
 import { MalUSDC } from "../../contracts/malicious/MalUSDC";
 import { MalRedemptionClaim } from "../../contracts/malicious/MalRedemptionClaim";
 
@@ -81,7 +82,7 @@ describe("Security: Reentrancy Protection", function () {
         await memberRegistry.setMember(user1.address, true);
 
         // Setup NAV
-        await setNavCompat(navOracle, ethers.parseEther("1.0"));
+        await setNavCompat(navOracle, ethers.parseUnits("1.0", 6) * 10n ** 21n); // 1.0 NAV in RAY format
 
         // Setup sovereign configuration
         await configRegistry.connect(gov).addSovereign(
@@ -134,7 +135,7 @@ describe("Security: Reentrancy Protection", function () {
 
             // Verify NAV was set correctly
             const navRay = await getNavRayCompat(navOracle);
-            expect(navRay).to.equal(ethers.parseEther("1.0") * 10n ** 9n); // 1.0 NAV in ray format
+            expect(navRay).to.equal(ethers.parseUnits("1.0", 6) * 10n ** 21n); // 1.0 NAV in ray format
         });
 
         it("should prevent reentrancy in mintFor with malicious USDC", async function () {

@@ -164,23 +164,13 @@ describe("Security: Precision Loss Protection", function () {
             const usdcOut = tokensToUSDC(oneToken, price);
             const tokenBack = usdcToTokens(usdcOut, price);
 
-            // If (oneToken * price) is divisible by (1e21), equality is strict.
-            // Otherwise allow a 1-unit USDC rounding envelope on the first leg.
-            const num = oneToken * price;
-            const denom = RAY / USDC_ONE;
-            const remainder = num % denom;
-
-            if (remainder === 0n) {
-                expect(tokenBack.toString()).to.equal(oneToken.toString());
-            } else {
-                // Check the USDC leg is within ±1 and the round-trip is within 1 wei
-                const idealUsdc = num / denom;
-                const deltaUsdc = (usdcOut > idealUsdc) ? (usdcOut - idealUsdc) : (idealUsdc - usdcOut);
-                expect(deltaUsdc <= 1n, "USDC rounding beyond 1 unit").to.equal(true);
-
-                const deltaBack = (tokenBack > oneToken) ? (tokenBack - oneToken) : (oneToken - tokenBack);
-                expect(deltaBack <= 1n, "Token round-trip drift beyond 1 wei").to.equal(true);
-            }
+            // With the new conversion logic, 1 token at NAV 1.05 should equal 1.05 USDC
+            // and converting back should give us 1 token (within rounding tolerance)
+            expect(usdcOut).to.equal(ethers.parseUnits("1.05", 6)); // 1.05 USDC
+            
+            // Round-trip should be exact (within 1 wei tolerance)
+            const deltaBack = (tokenBack > oneToken) ? (tokenBack - oneToken) : (oneToken - tokenBack);
+            expect(deltaBack <= 1n, "Token round-trip drift beyond 1 wei").to.equal(true);
         });
 
         it("should maintain precision across different NAV values", async function () {

@@ -53,10 +53,16 @@ export async function setNavCompat(oracle: any, navRay: bigint, ts?: number) {
 // Token (WAD) -> USDC using NAV ray (1e27)
 export function tokensToUSDC(tokenAmountWad: bigint, navRay: bigint): bigint {
   // token WAD * price(RAY) -> scale to USDC (1e6)
-  // amountUSDC = round((token * nav) / (1e27 / 1e6)) = round(token * nav / 1e21)
+  // Divide by ray to clear 1e27, then by 1e12 (WAD/USDC) to go 1e18 → 1e6
+  // Combined single division by 1e39:
   const num = tokenAmountWad * navRay;         // up to 1e45
-  const denom = RAY / USDC_ONE;                // 1e21
+  const denom = RAY * (WAD / USDC_ONE);        // 1e39
   return divRoundHalfUp(num, denom);
+}
+
+// Alias for consistency with requirements
+export function toUSDCfromTokens(tokens: bigint, navRay: bigint): bigint {
+  return tokensToUSDC(tokens, navRay);
 }
 
 // USDC -> Token (WAD) using NAV ray (1e27)

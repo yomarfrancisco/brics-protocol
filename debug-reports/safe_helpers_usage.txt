@@ -1,0 +1,96 @@
+test//issuance.v3.spec.ts:169:      await setNavCompat(fx.navOracle, navRayFor1to1);
+test//issuance.v3.spec.ts:180:      const nav = await getNavRayCompat(fx.navOracle);
+test//issuance.v3.spec.ts:213:      await setNavCompat(fx.navOracle, navRayFor1to1);
+test//issuance.v3.spec.ts:220:      const nav = await getNavRayCompat(fx.navOracle);
+test//issuance.v3.spec.ts:245:      await setNavCompat(fx.navOracle, navRayFor1to1);
+test//issuance.v3.spec.ts:252:      const nav = await getNavRayCompat(fx.navOracle);
+test//issuance.v3.spec.ts:274:      await setNavCompat(fx.navOracle, navRayFor1to1);
+test//issuance.v3.spec.ts:304:      const nav = await getNavRayCompat(fx.navOracle);
+test//issuance.v3.spec.ts:365:      const nav = await getNavRayCompat(fx.navOracle);
+test//helpers.ts:17:  await safeIncreaseTo(ts);
+test//nav.redemption.spec.ts:107:        await setNavCompat(navOracle, ethers.parseEther("1.0") * 10n ** 9n); // 1.0 NAV in ray format
+test//nav.redemption.spec.ts:202:            const nav = await getNavRayCompat(navOracle);
+test//nav.redemption.spec.ts:214:        expect(await getNavRayCompat(navOracle)).to.equal(ethers.parseEther("1.0") * 10n ** 9n);
+test//security/reentrancy.spec.ts:85:        await setNavCompat(navOracle, ethers.parseUnits("1.0", 6) * 10n ** 21n); // 1.0 NAV in RAY format
+test//security/reentrancy.spec.ts:137:            const navRay = await getNavRayCompat(navOracle);
+test//security/precision.spec.ts:77:        await setNavCompat(navOracle, ethers.parseEther("1.0") * 10n ** 9n); // Convert to RAY format
+test//security/precision.spec.ts:116:            await setNavCompat(navOracle, ethers.parseEther("1.0")); // 1.0 NAV
+test//security/precision.spec.ts:126:            await setNavCompat(navOracle, ethers.parseEther("1000.0")); // 1000 NAV
+test//security/precision.spec.ts:136:            await setNavCompat(navOracle, 0n);
+test//security/precision.spec.ts:150:            await setNavCompat(navOracle, ethers.parseEther("1.0") * 10n ** 9n); // Convert to RAY format
+test//security/precision.spec.ts:151:            const navRay = await getNavRayCompat(navOracle);
+test//security/precision.spec.ts:155:            await setNavCompat(navOracle, ethers.parseEther("1.05") * 10n ** 9n); // Convert to RAY format
+test//security/precision.spec.ts:156:            const navRay2 = await getNavRayCompat(navOracle);
+test//security/precision.spec.ts:161:            const price = await getNavRayCompat(navOracle);
+test//security/precision.spec.ts:204:                await setNavCompat(navOracle, nav);
+test//security/precision.spec.ts:222:            await setNavCompat(navOracle, ethers.MaxUint256);
+test//security/precision.spec.ts:270:                await setNavCompat(navOracle, nav);
+test//security/precision.spec.ts:294:                await setNavCompat(navOracle, navRay);
+test//security/precision.spec.ts:320:                await setNavCompat(navOracle, navRay);
+test//security/precision.spec.ts:347:                await setNavCompat(navOracle, navRay);
+test//mezzanine-vault.spec.ts:165:      await safeIncreaseTo(Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60 + 1);
+test//mezzanine-vault.spec.ts:181:      await safeIncreaseTo(Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60 + 1);
+test//mezzanine-vault.spec.ts:213:      await safeIncreaseTo(Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60 + 1);
+test//mezzanine-vault.spec.ts:249:      await safeIncreaseTo(Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60 + 1);
+test//mezzanine-vault.spec.ts:272:      await safeIncreaseTo(Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60 + 1);
+test//fast/oracle/nav-sanity.spec.ts:16:    await expect(setNavCompat(mockOracle, ethers.parseUnits("1", 27)))
+test//fast/oracle/nav-sanity.spec.ts:19:    expect(await getNavRayCompat(mockOracle)).to.equal(ethers.parseUnits("1", 27));
+test//fast/oracle/nav-sanity.spec.ts:24:    await setNavCompat(mockOracle, ethers.parseUnits("1", 27));
+test//fast/oracle/nav-sanity.spec.ts:28:    await expect(setNavCompat(mockOracle, smallChange))
+test//fast/oracle/nav-sanity.spec.ts:31:    expect(await getNavRayCompat(mockOracle)).to.equal(smallChange);
+test//fast/oracle/nav-sanity.spec.ts:36:    await setNavCompat(mockOracle, ethers.parseUnits("1", 27));
+test//fast/oracle/nav-sanity.spec.ts:40:    await expect(setNavCompat(mockOracle, largeJump))
+test//fast/oracle/nav-sanity.spec.ts:46:    await setNavCompat(mockOracle, ethers.parseUnits("1", 27));
+test//fast/oracle/nav-sanity.spec.ts:53:    await expect(setNavCompat(mockOracle, largeJump))
+test//fast/oracle/nav-sanity.spec.ts:56:    expect(await getNavRayCompat(mockOracle)).to.equal(largeJump);
+test//fast/oracle/nav-sanity.spec.ts:61:    await setNavCompat(mockOracle, ethers.parseUnits("1", 27));
+test//fast/oracle/nav-sanity.spec.ts:68:    await expect(setNavCompat(mockOracle, threePercentChange))
+test//fast/oracle/nav-sanity.spec.ts:73:    await expect(setNavCompat(mockOracle, onePercentChange))
+test//fast/oracle/nav-sanity.spec.ts:79:    await setNavCompat(mockOracle, ethers.parseUnits("1", 27));
+test//fast/oracle/nav-sanity.spec.ts:83:    await expect(setNavCompat(mockOracle, largeNegativeJump))
+test//fast/oracle/nav-sanity.spec.ts:88:    await expect(setNavCompat(mockOracle, smallNegativeChange))
+test//fast/oracle/nav-sanity.spec.ts:112:    await setNavCompat(mockOracle, ethers.parseUnits("1", 27));
+test//fast/oracle/nav-sanity.spec.ts:116:    await setNavCompat(mockOracle, ethers.parseUnits("1.02", 27));
+test//fast/governance/pause.spec.ts:32:    await setNavCompat(navOracle, ethers.parseUnits("1", 27)); // 1.0 RAY
+test//fast/redemption/queue-view.spec.ts:64:    await safeIncreaseTo(FIXED_TIMESTAMP);
+test//fast/redemption/queue-integration.spec.ts:76:        await safeIncreaseTo(FIXED_TIMESTAMP);
+test//fast/gateway/nasasa-gateway.spec.ts:82:    await setNavCompat(navOracle, ethers.parseUnits("1", 27)); // NAV = 1.00
+test//fast/gateway/nasasa-gateway.spec.ts:114:    await setNavCompat(navOracle, navRay);
+test//fast/gateway/nasasa-gateway.spec.ts:271:    await setNavCompat(navOracle, ethers.parseUnits("1", 27));
+test//fast/gateway/nasasa-gateway.spec.ts:294:    await setNavCompat(navOracle, ethers.parseUnits("1", 27));
+test//utils/time-helpers.ts:4:export async function safeIncreaseTo(targetTs: number | bigint): Promise<void> {
+test//utils/nav-helpers.ts:17:export async function getNavRayCompat(oracle: any): Promise<bigint> {
+test//utils/nav-helpers.ts:33:export async function setNavCompat(oracle: any, navRay: bigint, ts?: number) {
+test//utils/nav-helpers.ts:81:export async function safeIncreaseTo(ts: number | bigint) {
+test//nav.redemption.simple.spec.ts:97:        expect(await getNavRayCompat(fx.navOracle)).to.equal(ethers.parseEther("1.0") * 10n ** 9n); // 1.0 NAV in ray format (1e27)
+test//issue61.fixed.probe.spec.ts:61:    await setNavCompat(oracle, ethers.parseEther("1.0") * 10n ** 9n); // 1.0 NAV in ray format
+test//issuance.capacity.boundary.spec.ts:27:  await setNavCompat(oracle, navRayFor1to1); // NAV = 1e15 for 1:1 USDC to BRICS conversion
+test//issuance.capacity.boundary.spec.ts:119:    const nav = await getNavRayCompat(fx.oracle);
+test//issue61.capacity.invariants.spec.ts:21:    await setNavCompat(fx.navOracle, navRayFor1to1);
+test//issue61.capacity.invariants.spec.ts:28:    const nav = await getNavRayCompat(fx.navOracle);
+test//cei.rollback.spec.ts:37:    await setNavCompat(oracle, ethers.parseEther("1"));
+test//cei.rollback.spec.ts:97:    await safeIncreaseTo(closeTs + 1);
+test//cei.rollback.spec.ts:105:    await safeIncreaseTo(settleTs);
+test//issue61.happy.spec.ts:18:    const debugNav = await getNavRayCompat(oracle);
+test//issue61.happy.spec.ts:35:    await setNavCompat(oracle, navRayFor1to1);
+test//issue61.happy.spec.ts:39:    const nav = await getNavRayCompat(oracle);
+test//issuance.capacity.fuzz.spec.ts:35:      await setNavCompat(oracle, ethers.parseEther("1")); // Use setNavRay, not setNAV
+test//sovereign.guarantee.spec.ts:348:      await setNavCompat(oracle, navRayFor1to1);
+test//sovereign.guarantee.spec.ts:364:      const nav = await getNavRayCompat(oracle);
+test//replay/oracle-degradation.spec.ts:47:      expect(await getNavRayCompat(oracle)).to.equal(navRay);
+test//replay/oracle-degradation.spec.ts:132:      expect(await getNavRayCompat(oracle)).to.equal(navRay2);
+test//replay/oracle-degradation.spec.ts:151:      expect(await getNavRayCompat(oracle)).to.equal(navRay);
+test//replay/oracle-degradation.spec.ts:172:      expect(await getNavRayCompat(oracle)).to.equal(navRay);
+test//replay/oracle-degradation.spec.ts:183:      expect(await getNavRayCompat(oracle)).to.equal(emergencyNavRay);
+test//replay/oracle-degradation.spec.ts:200:      expect(await getNavRayCompat(oracle)).to.equal(navRay);
+test//replay/oracle-degradation.spec.ts:212:      expect(await getNavRayCompat(oracle)).to.equal(ethers.parseUnits("1", 27)); // Initial NAV
+test//replay/oracle-degradation.spec.ts:234:      expect(await getNavRayCompat(oracle)).to.equal(navRay);
+test//issue61.no-shadow.spec.ts:61:    await setNavCompat(oracle, ethers.parseEther("1.0") * 10n ** 9n); // 1.0 NAV in ray format
+test//issuance.mintForSigned.spec.ts:17:    await setNavCompat(fx.oracle, navRayFor1to1);
+test//issuance.mintForSigned.spec.ts:49:    const nav = await getNavRayCompat(fx.oracle);
+test//issuance.mintForSigned.spec.ts:69:    await setNavCompat(fx.oracle, navRayFor1to1);
+test//issuance.mintForSigned.spec.ts:119:    await setNavCompat(fx.oracle, navRayFor1to1);
+test//issuance.mintForSigned.spec.ts:184:    await setNavCompat(fx.oracle, navRayFor1to1);
+test//helpers/spec3.fixture.ts:97:  await setNavCompat(navOracle, navRayFor1to1);
+test//helpers/mint-happy.fixture.ts:76:  await setNavCompat(oracle, ethers.parseUnits("1.00", 27));
+test//tranche-manager-v2-comprehensive.spec.ts:735:      await setNavCompat(mockOracle, await getNavRayCompat(mockOracle));

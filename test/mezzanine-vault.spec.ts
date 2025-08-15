@@ -157,7 +157,7 @@ describe("MezzanineVault", function () {
       }
       
       // Advance time past reinvestUntil
-      await ethers.provider.send("evm_setNextBlockTimestamp", [reinvestUntil + 1]);
+      await ethers.provider.send("evm_setNextBlockTimestamp", [Number(reinvestUntil) + 1]);
       await ethers.provider.send("evm_mine", []);
       
       // AFTER: expect success (or at least not the 'reinvest lock' error)

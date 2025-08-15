@@ -7,7 +7,7 @@ echo "📦 Enabling corepack..."
 corepack enable
 
 echo "📦 Installing dependencies..."
-yarn install --frozen-lockfile
+yarn install --immutable
 
 echo "🔧 Running bootstrap..."
 make bootstrap

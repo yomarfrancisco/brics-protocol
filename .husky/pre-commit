@@ -26,4 +26,7 @@ if git diff --cached --name-only | grep -q "pricing-fixtures/ACME-LLC-30-frozen.
   fi
 fi
 
+# Check USDC/parseEther hygiene in issuance tests
+bash scripts/check-usdc-ether.sh
+
 echo "✅ Pre-commit checks passed"

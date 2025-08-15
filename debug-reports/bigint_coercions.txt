@@ -1,0 +1,16 @@
+test//property/quote-verify.property.spec.ts:68:      const asOf = Number(await time.latest());
+test//property/quote-verify.property.spec.ts:137:      const asOf2 = Number(await time.latest());
+test//fast/swap/cds-swap.verify-quote.spec.ts:47:      const asOf = Number(await time.latest()) - 60; // 1 minute ago from current time
+test//fast/swap/cds-swap.stub-signing.spec.ts:49:      const asOf = Number(await time.latest()) - 60; // 1 minute ago (fix stale timestamp)
+test//fast/swap/cds-swap.stub-signing.spec.ts:58:      const startTime = Number(await time.latest()) + 3600;
+test//fast/swap/cds-swap.settlement.token.spec.ts:117:      const startTime = Number(await time.latest()) + 3600; // 1 hour from now
+test//fast/swap/cds-swap.settlement.token.spec.ts:151:        asOf: Number(await time.latest()),
+test//fast/swap/cds-swap.settlement.token.spec.ts:190:      const startTime = Number(await time.latest()) + 3600;
+test//fast/swap/cds-swap.settlement.token.spec.ts:222:        asOf: Number(await time.latest()),
+test//fast/swap/cds-swap.settlement.token.spec.ts:250:      const startTime = Number(await time.latest()) + 3600;
+test//fast/swap/cds-swap.settlement.token.spec.ts:283:        asOf: Number(await time.latest()),
+test//fast/swap/cds-swap.settlement.token.spec.ts:305:        asOf: Number(await time.latest()),
+test//invariants/settlement-oracle-signer.spec.ts:48:    const asOf = Number(await time.latest());
+test//issuance.capacity.fuzz.spec.ts:106:      const t0 = Number(await time.latest());
+test//issuance.capacity.fuzz.spec.ts:108:      const asOf = Number(await time.latest());
+test//replay/cds-swap.e2e-replay.spec.ts:69:    const asOf = Number(await time.latest()); // fresh to avoid staleness

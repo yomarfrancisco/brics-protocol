@@ -1,6 +1,7 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import { time } from "@nomicfoundation/hardhat-network-helpers";
+import { getNavRayCompat } from "../utils/nav-helpers";
 
 describe("NAVOracleV3: degradation and emergency ops", () => {
   let oracle: any;
@@ -43,7 +44,7 @@ describe("NAVOracleV3: degradation and emergency ops", () => {
       
       await oracle.submitNAV(navRay, ts, sigs);
       
-      expect(await oracle.latestNAVRay()).to.equal(navRay);
+      expect(await getNavRayCompat(oracle)).to.equal(navRay);
       expect(await oracle.lastUpdateTs()).to.equal(ts);
       expect(await oracle.isEmergency()).to.be.false;
     });
@@ -128,7 +129,7 @@ describe("NAVOracleV3: degradation and emergency ops", () => {
       const sigs3 = await getSignatures([user, signer3], navRay2, ts2, MODEL_HASH, await oracle.getAddress());
       await oracle.submitNAV(navRay2, ts2, sigs3);
       
-      expect(await oracle.latestNAVRay()).to.equal(navRay2);
+      expect(await getNavRayCompat(oracle)).to.equal(navRay2);
     });
 
     it("updates quorum and enforces new requirement", async () => {
@@ -147,7 +148,7 @@ describe("NAVOracleV3: degradation and emergency ops", () => {
       const sigs3 = await getSignatures([signer1, signer2, signer3], navRay, ts, MODEL_HASH, await oracle.getAddress());
       await oracle.submitNAV(navRay, ts, sigs3);
       
-      expect(await oracle.latestNAVRay()).to.equal(navRay);
+      expect(await getNavRayCompat(oracle)).to.equal(navRay);
     });
   });
 
@@ -168,7 +169,7 @@ describe("NAVOracleV3: degradation and emergency ops", () => {
       const sigs2 = await getSignatures([signer1, signer2], navRay, ts, NEW_MODEL_HASH, await oracle.getAddress());
       await oracle.submitNAV(navRay, ts, sigs2);
       
-      expect(await oracle.latestNAVRay()).to.equal(navRay);
+      expect(await getNavRayCompat(oracle)).to.equal(navRay);
     });
   });
 
@@ -179,7 +180,7 @@ describe("NAVOracleV3: degradation and emergency ops", () => {
       await oracle.connect(owner).enableEmergencyNAV(emergencyNavRay);
       
       expect(await oracle.isEmergency()).to.be.true;
-      expect(await oracle.latestNAVRay()).to.equal(emergencyNavRay);
+      expect(await getNavRayCompat(oracle)).to.equal(emergencyNavRay);
     });
 
     it("auto-disables emergency on valid NAV submission", async () => {
@@ -196,7 +197,7 @@ describe("NAVOracleV3: degradation and emergency ops", () => {
       await oracle.submitNAV(navRay, ts, sigs);
       
       expect(await oracle.isEmergency()).to.be.false;
-      expect(await oracle.latestNAVRay()).to.equal(navRay);
+      expect(await getNavRayCompat(oracle)).to.equal(navRay);
     });
 
     it("allows explicit emergency disable", async () => {
@@ -208,7 +209,7 @@ describe("NAVOracleV3: degradation and emergency ops", () => {
       // Disable emergency
       await oracle.connect(owner).disableEmergencyNAV();
       expect(await oracle.isEmergency()).to.be.false;
-      expect(await oracle.latestNAVRay()).to.equal(ethers.parseUnits("1", 27)); // Initial NAV
+      expect(await getNavRayCompat(oracle)).to.equal(ethers.parseUnits("1", 27)); // Initial NAV
     });
   });
 
@@ -230,7 +231,7 @@ describe("NAVOracleV3: degradation and emergency ops", () => {
       // The oracle should now be in emergency mode with the last known NAV
       // Since we don't have a public function to trigger auto-degrade, we'll test the logic
       // by checking that the oracle still returns the last known NAV
-      expect(await oracle.latestNAVRay()).to.equal(navRay);
+      expect(await getNavRayCompat(oracle)).to.equal(navRay);
     });
   });
 

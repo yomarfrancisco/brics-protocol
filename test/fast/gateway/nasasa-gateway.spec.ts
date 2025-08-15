@@ -3,6 +3,7 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import { time } from "@nomicfoundation/hardhat-network-helpers";
+import { setNavCompat } from "../../utils/nav-helpers";
 
 describe("NASASAGateway: redemption lifecycle", () => {
   let gateway: any;
@@ -78,7 +79,7 @@ describe("NASASAGateway: redemption lifecycle", () => {
     await accessController.grantRole(await queue.ADMIN_ROLE(), await gateway.getAddress());
 
     // Set up initial state
-    await navOracle.setNavRay(ethers.parseUnits("1", 27)); // NAV = 1.00
+    await setNavCompat(navOracle, ethers.parseUnits("1", 27)); // NAV = 1.00
     await usdc.mint(await gateway.getAddress(), ethers.parseUnits("1000000", 6)); // Fund gateway
   });
 
@@ -110,7 +111,7 @@ describe("NASASAGateway: redemption lifecycle", () => {
 
     // Month-end strike: moves claim to Struck with usdcOwed, but does not pay
     const navRay = ethers.parseUnits("1", 27);
-    await navOracle.setNavRay(navRay);
+    await setNavCompat(navOracle, navRay);
     await gateway.processMonthEndStrike([claimId]);
 
     const struckClaim = await queue.claims(claimId);
@@ -267,7 +268,7 @@ describe("NASASAGateway: redemption lifecycle", () => {
     });
     const claimId = event ? queue.interface.parseLog(event).args.claimId : 0;
 
-    await navOracle.setNavRay(ethers.parseUnits("1", 27));
+    await setNavCompat(navOracle, ethers.parseUnits("1", 27));
     await gateway.processMonthEndStrike([claimId]);
 
     // Advance time past 1 day window
@@ -290,7 +291,7 @@ describe("NASASAGateway: redemption lifecycle", () => {
     });
     const claimId = event ? queue.interface.parseLog(event).args.claimId : 0;
 
-    await navOracle.setNavRay(ethers.parseUnits("1", 27));
+    await setNavCompat(navOracle, ethers.parseUnits("1", 27));
     await gateway.processMonthEndStrike([claimId]);
 
     // Try to strike the same claim again

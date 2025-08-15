@@ -1,0 +1,6 @@
+node: v23.3.0
+yarn: 4.9.2
+hardhat: 
+packageManager: 
+branch: chore/mezzaninevault-ci-finalize
+commit: 3ac41a1

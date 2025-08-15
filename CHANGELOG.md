@@ -15,18 +15,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - BRICS token deployment and integration
 - Dev bootstrap system for local development
 - Replay pipeline hardening and deterministic fixtures
+- EIP-712 typed-data signing for mintForSigned with byte-for-byte contract compatibility
+- SPEC §3 mock infrastructure with TreasuryLiquidityMock and TrancheManagerV2Mock
 
 ### Changed
 - Enhanced ConfigRegistry with economics parameters
 - Improved InstantLane with pause functionality and access control
 - Updated Treasury with zero-address guards
 - Enhanced test suite with comprehensive coverage
+- _calculateEffectiveCapacity now returns remaining headroom instead of absolute capacity
 
 ### Fixed
 - CI artifact naming conflicts
 - Test stability with EVM snapshots
 - USDC funding helper improvements
 - Governance event emission consistency
+- SPEC §3 capacity math: remaining headroom fix; EIP-712 tests aligned; guardrails hardened
+- tests: SPEC §3 remaining-cap invariant added; guardrails block new .skip without TODO; hygiene complete
+
+### Tests/CI
+- chore(ci): finalize TypeScript bootstrap; guardrails clean; remove legacy support artifacts
 
 ## [0.2.0] - 2025-08-13
 

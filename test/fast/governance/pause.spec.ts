@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import { Contract, Signer } from "ethers";
-import { setNavCompat } from "../utils/nav-helpers";
+import { setNavCompat } from "../../utils/nav-helpers";
 
 describe("Pause Functionality", () => {
   let gov: Signer;

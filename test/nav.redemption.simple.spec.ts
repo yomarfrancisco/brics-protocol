@@ -94,7 +94,7 @@ describe("NAV Redemption Lane - Simple Test", function () {
 
         // Basic checks
         expect(await fx.mockUSDC.decimals()).to.equal(6);
-        expect(await getNavRayCompat(fx.navOracle)).to.equal(ethers.parseEther("1.0") * 10n ** 9n); // 1.0 NAV in ray format (1e27)
+        expect(await getNavRayCompat(fx.navOracle)).to.equal(ethers.parseUnits("1", 27)); // 1e27 RAY
 
         expect(await fx.configRegistry.emergencyLevel()).to.equal(0);
     });

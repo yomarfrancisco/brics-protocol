@@ -104,7 +104,7 @@ describe("NAV Redemption Lane (SPEC §4)", function () {
         await treasury.connect(gov).grantRole(await treasury.PAY_ROLE(), await issuanceController.getAddress());
 
         // Setup initial state
-        await setNavCompat(navOracle, ethers.parseEther("1.0") * 10n ** 9n); // 1.0 NAV in ray format
+        await setNavCompat(navOracle, ethers.parseUnits("1", 27)); // 1.0 NAV in ray format
         await mockUSDC.mint(await treasury.getAddress(), ethers.parseUnits("1000000", 6)); // 1M USDC
         await configRegistry.connect(gov).setEmergencyLevel(0, "normal operations"); // NORMAL
     });
@@ -211,7 +211,7 @@ describe("NAV Redemption Lane (SPEC §4)", function () {
 
     it('SMOKE: NAV redemption lane plumbing works (no mintFor calls)', async () => {
         // Basic smoke test to verify the redemption lane setup works
-        expect(await getNavRayCompat(navOracle)).to.equal(ethers.parseEther("1.0") * 10n ** 9n);
+        expect(await getNavRayCompat(navOracle)).to.equal(ethers.parseUnits("1", 27));
         expect(await configRegistry.emergencyLevel()).to.equal(0);
         expect(await mockUSDC.decimals()).to.equal(6);
         // Do not call requestRedeemOnBehalf or any mintFor-related functions here

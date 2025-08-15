@@ -2,6 +2,16 @@
 set -euo pipefail
 fail=0
 
+# Ignore commented lines when grepping
+filter_comments() { grep -v '^\s*#' || true; }
+
+staged_files=$(git diff --cached --name-only | filter_comments)
+
+# Skip checks if nothing staged
+if [[ -z "${staged_files}" ]]; then
+  exit 0
+fi
+
 # flag parseEther for USDC amounts in issuance tests (but allow BRICS token amounts)
 hits=$(git diff --cached --name-only \
   | grep -E '^test/issuance.*\.spec\.ts$' \
@@ -62,16 +72,16 @@ if [[ -n "$bad_flag" ]]; then
   fail=1
 fi
 
-# Block legacy Yarn v1 install flag (exclude this script itself)
-bad_frozen=$(git diff --cached --name-only | grep -v 'scripts/check-usdc-ether.sh' | xargs -I{} grep -nH -- '--frozen-lockfile' {} 2>/dev/null || true)
+# Block legacy Yarn v1 flag
+bad_frozen=$(echo "$staged_files" | xargs -I{} grep -nH -- '--frozen-lockfile' {} 2>/dev/null | grep -v 'scripts/check-usdc-ether\.sh' || true)
 if [[ -n "$bad_frozen" ]]; then
   echo "❌ Found '--frozen-lockfile' (use '--immutable' with Yarn 4):"
   echo "$bad_frozen"
   fail=1
 fi
 
-# Block Hardhat reporter CLI flag (HH305) (exclude this script itself)
-bad_reporter=$(git diff --cached --name-only | grep -v 'scripts/check-usdc-ether.sh' | xargs -I{} grep -nH -E 'yarn\s+test.*--reporter\s+min' {} 2>/dev/null || true)
+# Block CLI reporter flag (Hardhat HH305)
+bad_reporter=$(echo "$staged_files" | xargs -I{} grep -nH -E 'yarn\s+test.*--reporter\s+min' {} 2>/dev/null | grep -v 'scripts/check-usdc-ether\.sh' || true)
 if [[ -n "$bad_reporter" ]]; then
   echo "❌ Found 'yarn test --reporter min' (set reporter in hardhat.config.ts instead):"
   echo "$bad_reporter"

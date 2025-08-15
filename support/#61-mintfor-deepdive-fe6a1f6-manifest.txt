@@ -1,0 +1,73 @@
+# Issue #61 Bundle Manifest
+# Created: 2025-08-14T16:03:08.367Z
+# Bundle: #61-mintfor-deepdive-fe6a1f6
+# Location: /Users/ygorfrancisco/brics-protocol/support/#61-mintfor-deepdive-fe6a1f6
+
+FILE: .prettierrc (64 bytes, 6c30c03d)
+FILE: .solhint.json (198 bytes, 88dfa429)
+FILE: PR_AUDIT_FIXES.md (6598 bytes, a4bf355c)
+FILE: PR_BODY.md (6431 bytes, c112293b)
+DIR: _index/
+FILE: _index/README.txt (23639.7 MB - LARGE FILE SKIPPED)
+DIR: audit/
+FILE: audit/audit-triage.md (6573 bytes, d9ea87b2)
+FILE: audit/slither-highs.json (396246 bytes, 32f7b650)
+FILE: audit/slither-highs.md (5451 bytes, a522ae05)
+FILE: audit/slither-report-detailed.md (55443 bytes, 6fa861b3)
+FILE: audit/slither-report-final.md (50861 bytes, 06e38845)
+FILE: audit/slither-report-fixed-detailed.md (52569 bytes, 1ab9ef42)
+FILE: audit/slither.json (1582012 bytes, c83cacfd)
+FILE: build-issue61-bundle.sh (3434 bytes, ab1a46c5)
+DIR: contracts/
+FILE: contracts/ConfigRegistry.sol (22371 bytes, 41a218f8)
+FILE: contracts/IssuanceControllerV3.sol (41382 bytes, 5b18ec4f)
+DIR: contracts/interfaces/
+FILE: contracts/interfaces/IIssuanceControllerV3.sol (752 bytes, 4d2271d3)
+DIR: contracts/libraries/
+FILE: contracts/libraries/IssuanceGuard.sol (2857 bytes, a8874273)
+FILE: contracts/libraries/RiskSignalLib.sol (1126 bytes, 260efa8c)
+FILE: contracts/libraries/TrancheMath.sol (1013 bytes, e8c0a37a)
+DIR: contracts/mocks/
+FILE: contracts/mocks/MockIssuanceController.sol (935 bytes, 6cfc5855)
+FILE: contracts/mocks/MockNAVOracle.sol (3256 bytes, 281e7365)
+DIR: coverage/
+DIR: coverage/lcov-report/
+DIR: coverage/lcov-report/contracts/
+FILE: coverage/lcov-report/contracts/IssuanceControllerV3.sol.html (118398 bytes, 87f04161)
+DIR: coverage/lcov-report/contracts/interfaces/
+FILE: coverage/lcov-report/contracts/interfaces/IIssuanceControllerV3.sol.html (4652 bytes, 7eb2343c)
+DIR: coverage/lcov-report/contracts/mocks/
+FILE: coverage/lcov-report/contracts/mocks/MockIssuanceController.sol.html (5565 bytes, ee1eb4f2)
+DIR: docs/
+FILE: docs/AI_CONTEXT.md (23022 bytes, 21a164bc)
+FILE: docs/REPO_MAP.md (5937 bytes, 42a5ef41)
+FILE: hardhat.config.ts (2163 bytes, fccd6f28)
+FILE: package.json (5933 bytes, 289d528b)
+DIR: scripts/
+FILE: scripts/fixEmergencyState.ts (5145 bytes, aa299c83)
+FILE: scripts/fork-rehearsal.js (5561 bytes, 07d069e1)
+FILE: scripts/fork-rehearsal.ts (6353 bytes, 90e81304)
+FILE: scripts/smokeMint.ts (1770 bytes, 4c64373d)
+FILE: scripts/testFrontendError.ts (4070 bytes, eeff1ec7)
+FILE: scripts/testMint.ts (2936 bytes, 99e88509)
+FILE: slither.filtered.sarif (43995 bytes, 29ac26d1)
+FILE: slither.new.sarif (282041 bytes, 8974070e)
+FILE: slither.sarif (50905 bytes, 9aafb846)
+DIR: test/
+FILE: test/issuance.capacity.boundary.spec.ts (5361 bytes, 9d58b052)
+FILE: test/issuance.capacity.fuzz.spec.ts (5669 bytes, dc2e39ff)
+FILE: test/issuance.v3.spec.ts (13554 bytes, 75604f5c)
+DIR: test/security/
+FILE: test/security/precision.spec.ts (14939 bytes, 4f28d87f)
+FILE: test/security/reentrancy.spec.ts (14915 bytes, 6467b556)
+FILE: test/sovereign.guarantee.spec.ts (17669 bytes, c6123b30)
+DIR: test/utils/
+FILE: test/utils/addrs.ts (221 bytes, bcd46bb0)
+FILE: test/utils/cap.ts (751 bytes, 68d8445d)
+FILE: test/utils/fundBRICS.ts (3599 bytes, fada531c)
+FILE: test/utils/fundUSDC.ts (2843 bytes, 7a1deaa7)
+FILE: test/utils/nav-helpers.ts (827 bytes, c813350a)
+FILE: test/utils/signers.ts (913 bytes, 7709974b)
+FILE: test/utils/signing.ts (1323 bytes, bd1ea846)
+FILE: test.sarif (76272 bytes, f66b2a6e)
+FILE: yarn.lock (272458 bytes, 9af64e1d)

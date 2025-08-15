@@ -1,23 +1,16 @@
-export const WAD = 10n ** 18n;
+import { ethers } from "hardhat";
+
 export const RAY = 10n ** 27n;
 
-export function wadToRay(wad: bigint) { 
-    return wad * (RAY / WAD); 
+export async function getNavRayCompat(oracle: any): Promise<bigint> {
+  if (oracle.navRay) return BigInt(await oracle.navRay());
+  if (oracle.latestNAVRay) return BigInt(await oracle.latestNAVRay());
+  if (oracle.getNavRay) return BigInt(await oracle.getNavRay());
+  throw new Error("No NAV getter on oracle");
 }
 
-export async function setNavCompat(oracle: any, navWad: bigint) {
-    // Prefer setNAV(wad) if available, else setNavRay(ray)
-    if (typeof oracle?.setNAV === 'function') {
-        return oracle.setNAV(navWad);
-    }
-    const ray = wadToRay(navWad);
-    return oracle.setNavRay(ray);
-}
-
-export async function getNavRayCompat(oracle: any) {
-    // Some mocks use navRay(), some getNavRay()
-    if (typeof oracle?.navRay === 'function') return oracle.navRay();
-    if (typeof oracle?.getNavRay === 'function') return oracle.getNavRay();
-    if (typeof oracle?.latestNAVRay === 'function') return oracle.latestNAVRay();
-    throw new Error('Oracle has no navRay/getNavRay/latestNAVRay');
+export async function setNavCompat(oracle: any, navRay: bigint) {
+  if (oracle.setNavRay) return oracle.setNavRay(navRay);
+  if (oracle.setNAV)    return oracle.setNAV(navRay / (10n ** 9n)); // legacy 1e18 (if present)
+  throw new Error("No NAV setter on oracle");
 }

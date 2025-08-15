@@ -1,0 +1,16 @@
+name: tests
+on:
+  push:
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - run: yarn install --frozen-lockfile
+      # Guardrails: treat as CI gate, not just pre-commit
+      - run: bash scripts/check-usdc-ether.sh
+      # Fast lanes (env mirrors local runs)
+      - run: PRICING_PROVIDER=stub BANK_DATA_MODE=off yarn test --reporter min

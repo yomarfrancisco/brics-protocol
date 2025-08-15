@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-// compile-time guard against accidental shadowing in this file
-// (solc will error if a local shadows state or param names when enabled)
-// NOTE: we rely on code review + naming to prevent shadowing; also add unit test below.
-
 /**
  * @title IssuanceControllerV3
  * @dev Core mint/redeem logic with emergency controls and per-sovereign soft-cap damping
@@ -163,9 +159,6 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
     error SettlementTooEarly();
     error BatchTooLarge();
     error ClaimWindowMismatch();
-    error NavIsZero();
-    error SovereignGuaranteeUnavailable();
-    error IRBTooLowDetailed(uint256 irbBalance, uint256 irbTarget);
 
     // Enhanced governance with conditional extensions
     uint256 public lastRaiseTs;
@@ -642,55 +635,38 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
     }
 
     // SPEC §3: Per-sovereign soft-cap damping calculation
-    function _calculateEffectiveCapacity(bytes32 sovereignCode, uint256 requestedAmount)
-        internal
-        view
-        returns (uint256 remainingCapacityUSDC, bool canIssue)
-    {
-        (uint256 baseEffectiveCapBps, bool isEnabled) = cfg.getEffectiveCapacity(sovereignCode);
+    function _calculateEffectiveCapacity(bytes32 sovereignCode, uint256 requestedAmount) internal view returns (uint256 effectiveCap, bool canIssue) {
+        (uint256 baseEffectiveCap, bool isEnabled) = cfg.getEffectiveCapacity(sovereignCode);
         if (!isEnabled) return (0, false);
-
-        uint256 used = sovereignUtilization[sovereignCode];     // USDC 1e6
-        uint256 soft = sovereignSoftCap[sovereignCode];         // USDC 1e6
-        uint256 hard = sovereignHardCap[sovereignCode];         // USDC 1e6
-
-        // Guard hard-cap outright
-        if (used >= hard) return (0, false);
-        if (hard == 0) return (0, false); // defensive
-
-        // Compute base cap (as USDC) from soft cap and BPS
-        // This is the *absolute* allowance for this period before subtracting used.
-        uint256 capUSDC;
-
-        if (used <= soft) {
-            // Below soft-cap: full base cap applies
-            // capUSDC = soft * baseEffectiveCapBps / 10000
-            capUSDC = (soft * baseEffectiveCapBps) / 10000;
-        } else {
-            // Between soft and hard caps: damp linearly
-            uint256 range = hard - soft;
-            if (range == 0) return (0, false); // soft==hard => already handled by used>=hard above
-
-            // k in bps, current code stores in `dampingSlopeK` (e.g., 5000 = 50%)
-            uint256 over = used - soft;
-            uint256 dampingFactorBps = (dampingSlopeK * over) / range; // 0..10000
-            if (dampingFactorBps >= 10000) {
-                // Fully damped
-                capUSDC = 0;
-            } else {
-                // Damped cap = baseCap * (1 - damping)
-                uint256 dampedBps = (baseEffectiveCapBps * (10000 - dampingFactorBps)) / 10000;
-                capUSDC = (soft * dampedBps) / 10000;
-            }
+        
+        uint256 currentUtilization = sovereignUtilization[sovereignCode];
+        uint256 softCap = sovereignSoftCap[sovereignCode];
+        uint256 hardCap = sovereignHardCap[sovereignCode];
+        
+        // Convert basis points to USDC capacity (avoid divide-before-multiply)
+        uint256 effectiveCapUSDC = (softCap * baseEffectiveCap) / 10000;
+        
+        // If utilization is below soft cap, full capacity available
+        if (currentUtilization <= softCap) {
+            effectiveCap = effectiveCapUSDC;
+            canIssue = requestedAmount <= effectiveCap;
+            return (effectiveCap, canIssue);
         }
-
-        // Convert absolute cap to *remaining headroom* by subtracting current utilization
-        // Remaining can never exceed (hard - used) either.
-        uint256 absoluteHeadroom = capUSDC > used ? capUSDC - used : 0;
-        uint256 hardHeadroom     = hard   > used ? hard   - used : 0;
-
-        remainingCapacityUSDC = absoluteHeadroom < hardHeadroom ? absoluteHeadroom : hardHeadroom;
-        canIssue = requestedAmount <= remainingCapacityUSDC;
+        
+        // If utilization is above hard cap, no capacity available
+        if (currentUtilization >= hardCap) {
+            return (0, false);
+        }
+        
+        // Linear damping slope between softCap and hardCap
+        // effectiveCap = baseEffectiveCap * (1 - k * (utilization - softCap) / (hardCap - softCap))
+        uint256 dampingFactor = dampingSlopeK * (currentUtilization - softCap) / (hardCap - softCap);
+        if (dampingFactor >= 10000) return (0, false); // Fully damped
+        
+        uint256 dampedCapBps = baseEffectiveCap * (10000 - dampingFactor) / 10000;
+        effectiveCap = (softCap * dampedCapBps) / 10000; // Convert to USDC (avoid divide-before-multiply)
+        canIssue = requestedAmount <= effectiveCap;
+        return (effectiveCap, canIssue);
     }
 
     function canIssue(uint256 usdcAmt, uint256 tailCorrPpm, uint256 sovUtilBps, bytes32 sovereignCode) external view returns (bool) {
@@ -777,7 +753,7 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
         if (!_oracleOk()) revert OracleDegraded();
         
         (uint256 nav, uint8 degradationLevel, uint256 haircutBps) = _getNavWithDegradation();
-        if (nav == 0) revert NavIsZero();
+        require(nav > 0, "nav=0");
 
         out = (usdcAmt * 1e27) / nav;
         
@@ -796,7 +772,7 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
         // Check sovereign guarantee availability in crisis
         uint8 level = uint8(cfg.emergencyLevel());
         if (level == 3 && !claimRegistry.isSovereignGuaranteeAvailable()) {
-            revert SovereignGuaranteeUnavailable();
+            revert("No sovereign guarantee available");
         }
 
         // Per-address issuance daily cap
@@ -835,8 +811,7 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
         whenNotPaused
         returns (uint256 out)
     {
-        uint256 __param_usdcAmt = usdcAmt; // capture the calldata param defensively
-        if (__param_usdcAmt == 0) revert AmountZero();
+        if (usdcAmt == 0) revert AmountZero();
         ConfigRegistry.EmergencyParams memory params = cfg.getCurrentParams();
         
         if (params.maxIssuanceRateBps == 0) revert Halted();
@@ -845,16 +820,16 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
         if (sovUtilBps > cfg.maxSovUtilBps()) revert SovUtilExceeded();
 
         // SPEC §3: Check sovereign-specific capacity
-        (uint256 effectiveCap, bool canIssueSovereign) = _calculateEffectiveCapacity(sovereignCode, __param_usdcAmt);
+        (uint256 effectiveCap, bool canIssueSovereign) = _calculateEffectiveCapacity(sovereignCode, usdcAmt);
         if (!canIssueSovereign) revert SovereignCapExceeded(sovereignCode);
 
         // SPEC §5: Check oracle health and get NAV with degradation handling
         if (!_oracleOk()) revert OracleDegraded();
         
         (uint256 nav, uint8 degradationLevel, uint256 haircutBps) = _getNavWithDegradation();
-        if (nav == 0) revert NavIsZero();
+        require(nav > 0, "nav=0");
 
-        out = (__param_usdcAmt * 1e27) / nav;
+        out = (usdcAmt * 1e27) / nav;
         
         // Apply emergency issuance rate limit
         if (params.maxIssuanceRateBps < 10000) {
@@ -867,13 +842,12 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
 
         // Enhanced buffer check
         uint256 minIRB = (effectiveOutstanding * params.instantBufferBps) / 10_000;
-        uint256 irbBal = usdc.balanceOf(address(treasury));
-        if (irbBal < minIRB) revert IRBTooLowDetailed(irbBal, minIRB);
+        if (treasury.balance() < minIRB) revert IRBTooLow();
 
         // Check sovereign guarantee availability in crisis
         uint8 level = uint8(cfg.emergencyLevel());
         if (level == 3 && !claimRegistry.isSovereignGuaranteeAvailable()) {
-            revert SovereignGuaranteeUnavailable();
+            revert("No sovereign guarantee available");
         }
 
         // Per-address issuance daily cap
@@ -885,7 +859,7 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
         if (dailyIssuedBy[msg.sender] + out > dailyIssueCap) revert IssueCapExceeded();
 
         // SPEC §3: Update sovereign utilization
-        sovereignUtilization[sovereignCode] += __param_usdcAmt;
+        sovereignUtilization[sovereignCode] += usdcAmt;
         emit SovereignUtilizationUpdated(sovereignCode, sovereignUtilization[sovereignCode]);
 
         // SPEC §5: Emit degradation handling event if haircut was applied
@@ -894,17 +868,14 @@ contract IssuanceControllerV3 is AccessControl, ReentrancyGuard, Pausable {
             emit OracleDegradationHandled(degradationLevel, haircutBps, originalNav, nav);
         }
 
-        // Sanity check: ensure usdcAmt is still non-zero before transfer
-        if (__param_usdcAmt == 0) revert AmountZero();
-
-        usdc.safeTransferFrom(msg.sender, address(treasury), __param_usdcAmt);
+        usdc.safeTransferFrom(msg.sender, address(treasury), usdcAmt);
         
         // Update state variables BEFORE external call (reentrancy protection)
         totalIssued += out;
         dailyIssuedBy[msg.sender] += out;
         
         token.mint(to, out);
-        emit Minted(to, __param_usdcAmt, out);
+        emit Minted(to, usdcAmt, out);
     }
 
     // FINAL CHECKS: Access control & safety - Pausable functionality

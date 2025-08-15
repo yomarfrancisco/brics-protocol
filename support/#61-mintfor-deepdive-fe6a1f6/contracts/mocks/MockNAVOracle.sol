@@ -107,18 +107,4 @@ contract MockNAVOracle is INAVOracleV3 {
     function getCurrentHaircutBps() external view returns (uint256) {
         return 0; // No haircut by default
     }
-
-    // Alias for navRay() to match INAVOracleLike interface
-    function navRay() external view returns (uint256) {
-        return _navRay;
-    }
-
-    // Functions required by IOracleFresh interface
-    function lastTs() external view returns (uint256) {
-        return _lastUpdateTs;
-    }
-
-    function degradationMode() external view returns (bool) {
-        return false; // No degradation mode by default
-    }
 }

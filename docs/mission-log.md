@@ -99,6 +99,9 @@
 - **Mock Infrastructure**: Complete TreasuryLiquidityMock and TrancheManagerV2Mock for deterministic testing
 - **Guardrails**: Pre-commit hooks passing with no violations
 
+### Recent Achievements (2025-08-15)
+- **CI finalization**: bootstrap confirmed; guardrails green; support/ artifacts removed; all tests passing
+
 ### Latest Achievements (2025-08-14 UTC, f65f3d9)
 - **SPEC §3**: _calculateEffectiveCapacity returns remaining headroom (verified by boundary, damping, invariant)
 - **EIP-712**: replay = InvalidSignature (nonce not user-supplied); happy/expired/stale signer covered

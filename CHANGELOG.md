@@ -33,6 +33,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - SPEC §3 capacity math: remaining headroom fix; EIP-712 tests aligned; guardrails hardened
 - tests: SPEC §3 remaining-cap invariant added; guardrails block new .skip without TODO; hygiene complete
 
+### Tests/CI
+- chore(ci): finalize TypeScript bootstrap; guardrails clean; remove legacy support artifacts
+
 ## [0.2.0] - 2025-08-13
 
 ### Added

@@ -1,4 +1,6 @@
 import { ethers } from "hardhat";
+import { safeIncreaseTo } from "./utils/time-helpers";
+
 
 export async function chainNow() {
   return (await ethers.provider.getBlock("latest")).timestamp;
@@ -12,11 +14,10 @@ export async function openWindow(ic: any, minDays = 2) {
 }
 
 export async function fastForwardTo(ts: number) {
-  await ethers.provider.send("evm_setNextBlockTimestamp", [ts]);
-  await ethers.provider.send("evm_mine", []);
+  await safeIncreaseTo(ts);
 }
 
 export async function fastForwardBy(seconds: number) {
   await ethers.provider.send("evm_increaseTime", [seconds]);
-  await ethers.provider.send("evm_mine", []);
+
 }

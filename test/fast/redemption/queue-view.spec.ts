@@ -1,4 +1,6 @@
 import { expect } from "chai";
+import { safeIncreaseTo } from "../../utils/time-helpers";
+
 import { ethers } from "hardhat";
 import { Contract, Signer } from "ethers";
 
@@ -59,8 +61,7 @@ describe("RedemptionQueueView", function () {
     await mockRiskAdapter.setRisk(TRANCHE_ID, 500, FIXED_TIMESTAMP); // 5% risk adj
 
     // Set deterministic timestamp
-    await ethers.provider.send("evm_setNextBlockTimestamp", [FIXED_TIMESTAMP]);
-    await ethers.provider.send("evm_mine", []);
+    await safeIncreaseTo(FIXED_TIMESTAMP);
   });
 
   describe("Basic Functionality", function () {

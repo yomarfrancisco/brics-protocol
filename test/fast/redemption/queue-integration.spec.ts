@@ -1,4 +1,6 @@
 import { expect } from "chai";
+import { safeIncreaseTo } from "../../utils/time-helpers";
+
 import { ethers } from "hardhat";
 import { Contract, ContractFactory, Signer } from "ethers";
 import { loadFixture } from "@nomicfoundation/hardhat-toolbox/network-helpers";
@@ -71,8 +73,7 @@ describe("RedemptionQueue Priority Integration", function () {
         await mockRiskAdapter.setRisk(1, 500, FIXED_TIMESTAMP); // 5% risk adj
 
         // Set deterministic timestamp
-        await ethers.provider.send("evm_setNextBlockTimestamp", [FIXED_TIMESTAMP]);
-        await ethers.provider.send("evm_mine", []);
+        await safeIncreaseTo(FIXED_TIMESTAMP);
 
         return {
             configRegistry,

@@ -45,4 +45,13 @@ if [[ -n "$skipped" ]]; then
   fail=1
 fi
 
+# Block support/ directory additions (large artifacts)
+support_hits=$(git diff --cached --name-only | grep -E '^support/' || true)
+if [[ -n "$support_hits" ]]; then
+  echo "❌ Found support/ directory additions. These are large artifacts that should not be committed:"
+  echo "$support_hits"
+  echo "Please remove these files and add support/ to .gitignore if not already present."
+  fail=1
+fi
+
 exit $fail

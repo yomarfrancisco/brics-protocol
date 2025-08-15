@@ -1047,16 +1047,20 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [ -f dist/audit/diff.md ]; then
-            echo "📊 Audit Bundle Diff Report" > comment.md
-            echo "" >> comment.md
-            echo "Comparing audit bundles between base and head..." >> comment.md
-            echo "" >> comment.md
-            cat dist/audit/diff.md >> comment.md
-            echo "" >> comment.md
-            echo "---" >> comment.md
-            echo "*This comment will be updated on each push*" >> comment.md
-            
-            gh pr comment ${{ github.event.pull_request.number }} --body-file comment.md
+            if [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ github.event.pull_request.head.repo.fork }}" = "false" ]; then
+              echo "📊 Audit Bundle Diff Report" > comment.md
+              echo "" >> comment.md
+              echo "Comparing audit bundles between base and head..." >> comment.md
+              echo "" >> comment.md
+              cat dist/audit/diff.md >> comment.md
+              echo "" >> comment.md
+              echo "---" >> comment.md
+              echo "*This comment will be updated on each push*" >> comment.md
+              
+              gh pr comment ${{ github.event.pull_request.number }} --body-file comment.md
+            else
+              echo "Skipping PR comment: forked PR or insufficient permissions."
+            fi
           else
             echo "No diff report generated"
           fi

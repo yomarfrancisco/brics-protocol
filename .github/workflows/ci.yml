@@ -37,13 +37,37 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'yarn'
 
-      - name: Enable Corepack & pin Yarn 4
+      - name: Enable Corepack + pin Yarn 4.9.2
         run: |
           corepack enable
           corepack prepare yarn@4.9.2 --activate
           yarn --version
+      - name: Cache Yarn Berry artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            .yarn/cache
+            .yarn/unplugged
+            .yarn/patches
+            .yarn/build-state.yml
+            .pnp.cjs
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-
+
+      - name: Cache Yarn Berry artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            .yarn/cache
+            .yarn/unplugged
+            .yarn/patches
+            .yarn/build-state.yml
+            .pnp.cjs
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-
 
       - name: Provide CI signer key (secret or fallback)
         run: |
@@ -134,13 +158,24 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           # IMPORTANT: do not use yarn cache here, it triggers yarn 1.x before corepack
-          cache: 'npm'
 
-      - name: Enable Corepack & pin Yarn 4
+      - name: Enable Corepack + pin Yarn 4.9.2
         run: |
           corepack enable
           corepack prepare yarn@4.9.2 --activate
           yarn --version
+      - name: Cache Yarn Berry artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            .yarn/cache
+            .yarn/unplugged
+            .yarn/patches
+            .yarn/build-state.yml
+            .pnp.cjs
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-
 
       - name: Cache Hardhat & node_modules
         uses: actions/cache@v4
@@ -225,13 +260,24 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           # IMPORTANT: do not use yarn cache here, it triggers yarn 1.x before corepack
-          cache: 'npm'
 
-      - name: Enable Corepack & pin Yarn 4
+      - name: Enable Corepack + pin Yarn 4.9.2
         run: |
           corepack enable
           corepack prepare yarn@4.9.2 --activate
           yarn --version
+      - name: Cache Yarn Berry artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            .yarn/cache
+            .yarn/unplugged
+            .yarn/patches
+            .yarn/build-state.yml
+            .pnp.cjs
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-
 
       - name: Provide CI signer key (secret or fallback)
         run: |
@@ -623,13 +669,24 @@ jobs:
         with:
           node-version: '20.x'
           # IMPORTANT: do not use yarn cache here, it triggers yarn 1.x before corepack
-          cache: 'npm'
 
-      - name: Enable Corepack & pin Yarn 4
+      - name: Enable Corepack + pin Yarn 4.9.2
         run: |
           corepack enable
           corepack prepare yarn@4.9.2 --activate
           yarn --version
+      - name: Cache Yarn Berry artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            .yarn/cache
+            .yarn/unplugged
+            .yarn/patches
+            .yarn/build-state.yml
+            .pnp.cjs
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-
 
       - name: Provide CI signer key (secret or fallback)
         run: |
@@ -719,13 +776,24 @@ jobs:
         with:
           node-version: '20.x'
           # IMPORTANT: do not use yarn cache here, it triggers yarn 1.x before corepack
-          cache: 'npm'
 
-      - name: Enable Corepack & pin Yarn 4
+      - name: Enable Corepack + pin Yarn 4.9.2
         run: |
           corepack enable
           corepack prepare yarn@4.9.2 --activate
           yarn --version
+      - name: Cache Yarn Berry artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            .yarn/cache
+            .yarn/unplugged
+            .yarn/patches
+            .yarn/build-state.yml
+            .pnp.cjs
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-
 
       - name: Provide CI signer key (secret or fallback)
         run: |
@@ -876,13 +944,24 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
 
-      - name: Enable Corepack & pin Yarn 4
+      - name: Enable Corepack + pin Yarn 4.9.2
         run: |
           corepack enable
           corepack prepare yarn@4.9.2 --activate
           yarn --version
+      - name: Cache Yarn Berry artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            .yarn/cache
+            .yarn/unplugged
+            .yarn/patches
+            .yarn/build-state.yml
+            .pnp.cjs
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-
 
       - name: Cache dependencies
         uses: actions/cache@v4
@@ -932,13 +1011,24 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
 
-      - name: Enable Corepack & pin Yarn 4
+      - name: Enable Corepack + pin Yarn 4.9.2
         run: |
           corepack enable
           corepack prepare yarn@4.9.2 --activate
           yarn --version
+      - name: Cache Yarn Berry artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            .yarn/cache
+            .yarn/unplugged
+            .yarn/patches
+            .yarn/build-state.yml
+            .pnp.cjs
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-
 
       - name: Setup Python
         uses: actions/setup-python@v4
@@ -986,13 +1076,24 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
 
-      - name: Enable Corepack & pin Yarn 4
+      - name: Enable Corepack + pin Yarn 4.9.2
         run: |
           corepack enable
           corepack prepare yarn@4.9.2 --activate
           yarn --version
+      - name: Cache Yarn Berry artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            .yarn/cache
+            .yarn/unplugged
+            .yarn/patches
+            .yarn/build-state.yml
+            .pnp.cjs
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-
 
       - name: Cache dependencies
         uses: actions/cache@v4
@@ -1036,26 +1137,16 @@ jobs:
           echo "*Generated by audit bundle diff tool*" >> dist/audit/diff.md
 
       - name: Post PR comment
+        if: ${{ github.event_name == 'pull_request' && !github.event.pull_request.head.repo.fork }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [ -f dist/audit/diff.md ]; then
-            if [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ github.event.pull_request.head.repo.fork }}" = "false" ]; then
-              echo "📊 Audit Bundle Diff Report" > comment.md
-              echo "" >> comment.md
-              echo "Comparing audit bundles between base and head..." >> comment.md
-              echo "" >> comment.md
-              cat dist/audit/diff.md >> comment.md
-              echo "" >> comment.md
-              echo "---" >> comment.md
-              echo "*This comment will be updated on each push*" >> comment.md
-              
-              gh pr comment ${{ github.event.pull_request.number }} --body-file comment.md
-            else
-              echo "Skipping PR comment: forked PR or insufficient permissions."
-            fi
+            gh pr comment ${{ github.event.pull_request.number }} --body-file dist/audit/diff.md || {
+              echo "Skipping PR comment (permissions/gh not available)."; exit 0;
+            }
           else
-            echo "No diff report generated"
+            echo "No diff.md found. Skipping comment."
           fi
 
   audit-bundle:
@@ -1073,21 +1164,37 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
 
-      - name: Enable Corepack & pin Yarn 4
+      - name: Enable Corepack + pin Yarn 4.9.2
         run: |
           corepack enable
           corepack prepare yarn@4.9.2 --activate
           yarn --version
-
-      - name: Cache dependencies
+      - name: Cache Yarn Berry artifacts
         uses: actions/cache@v4
         with:
           path: |
-            ~/.npm
-            node_modules
-          key: ${{ runner.os }}-node${{ env.NODE_VERSION }}-${{ hashFiles('yarn.lock') }}-audit
+            .yarn/cache
+            .yarn/unplugged
+            .yarn/patches
+            .yarn/build-state.yml
+            .pnp.cjs
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-
+
+      - name: Cache Yarn Berry artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            .yarn/cache
+            .yarn/unplugged
+            .yarn/patches
+            .yarn/build-state.yml
+            .pnp.cjs
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-
 
       - name: Install dependencies
         run: |
@@ -1139,13 +1246,24 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
 
-      - name: Enable Corepack & pin Yarn 4
+      - name: Enable Corepack + pin Yarn 4.9.2
         run: |
           corepack enable
           corepack prepare yarn@4.9.2 --activate
           yarn --version
+      - name: Cache Yarn Berry artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            .yarn/cache
+            .yarn/unplugged
+            .yarn/patches
+            .yarn/build-state.yml
+            .pnp.cjs
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-
 
       - name: Cache dependencies
         uses: actions/cache@v4

@@ -35,8 +35,8 @@ export async function getNavRayCompat(oracle: any): Promise<bigint> {
 // Set NAV on mock in a compatible way (no direct storage pokes)
 export async function setNavCompat(oracle: any, navRay: bigint, ts?: number) {
   // Prefer timestamped path if supported and timestamp provided
-  if (ts && oracle.submitNAV) {
-    await oracle.submitNAV(navRay.toString(), ts, []);
+  if (ts != null && oracle.submitNAV) {
+    await oracle.submitNAV(navRay.toString(), ts, []); // updates timestamp
     return;
   }
   if (oracle.setNavRay) {

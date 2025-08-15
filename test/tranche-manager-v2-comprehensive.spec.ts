@@ -734,8 +734,8 @@ describe("TrancheManagerV2 Comprehensive Tests", function () {
       await time.increase(25 * 60 * 60); // 25 hours
       
       // Ensure fresh NAV + forward-only time to avoid OracleStale
-      const nowTs = Number((await ethers.provider.getBlock("latest")).timestamp);
-      await setNavCompat(mockOracle, ethers.parseUnits("1", 27), nowTs);
+      const nowTs = await time.latest();
+      await setNavCompat(mockOracle, ethers.parseUnits("1", 27), Number(nowTs));
       
 
       

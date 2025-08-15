@@ -5,10 +5,17 @@ on:
     - cron: '0 2 * * 1'  # Mondays 02:00 UTC
   workflow_dispatch:  # Manual trigger
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   rotate-fixtures:
     name: Rotate Frozen Fixtures
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -18,8 +25,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20.x'
-          # IMPORTANT: do not use yarn cache here, it triggers yarn 1.x before corepack
-          cache: 'npm'
+          cache: 'yarn'
 
       - name: Enable Corepack & pin Yarn 4
         run: |

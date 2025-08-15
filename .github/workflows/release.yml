@@ -5,6 +5,10 @@ on:
     tags:
       - 'v*'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: write
   security-events: write
@@ -24,24 +28,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          # IMPORTANT: do not use yarn cache here, it triggers yarn 1.x before corepack
-          cache: 'npm'
+          cache: 'yarn'
       
       - name: Enable Corepack & pin Yarn 4
         run: |
           corepack enable
           corepack prepare yarn@4.9.2 --activate
           yarn --version
-      
-      - name: Cache Hardhat artifacts
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.npm
-            node_modules
-            artifacts/
-            cache/
-          key: ${{ runner.os }}-node-${{ hashFiles('yarn.lock') }}-solc-0.8.24-${{ hashFiles('hardhat.config.ts') }}
       
       - name: Install dependencies
         run: |

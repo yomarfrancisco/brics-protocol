@@ -10,6 +10,10 @@ on:
     - cron: '0 2 * * *'  # 2 AM UTC daily
     - cron: '0 14 * * *' # 2 PM UTC daily (additional Replay run)
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
   security-events: write
@@ -33,8 +37,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          # IMPORTANT: do not use yarn cache here, it triggers yarn 1.x before corepack
-          cache: 'npm'
+          cache: 'yarn'
 
       - name: Enable Corepack & pin Yarn 4
         run: |
@@ -51,16 +54,6 @@ jobs:
             echo "WARNING: CI_SIGNER_PRIVKEY not set; using dev fallback"
             echo "CI_SIGNER_PRIVKEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80" >> $GITHUB_ENV
           fi
-
-      - name: Cache Hardhat & node_modules
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.npm
-            node_modules
-            artifacts
-            cache
-          key: ${{ runner.os }}-node${{ env.NODE_VERSION }}-${{ hashFiles('yarn.lock') }}-tests
 
       - name: Install dependencies
         run: |

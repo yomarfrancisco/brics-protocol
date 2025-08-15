@@ -7,9 +7,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: '20' }
-      - run: yarn install --frozen-lockfile
+      - name: Setup Node (with Yarn cache)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'yarn'
+
+      - name: Enable Corepack + activate Yarn 4.9.2
+        run: |
+          corepack enable
+          corepack prepare yarn@4.9.2 --activate
+          yarn --version
+
+      - name: Install deps (Yarn Berry)
+        run: yarn install --immutable
       # Guardrails: treat as CI gate, not just pre-commit
       - run: bash scripts/check-usdc-ether.sh
       # Fast lanes (env mirrors local runs)

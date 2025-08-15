@@ -54,4 +54,12 @@ if [[ -n "$support_hits" ]]; then
   fail=1
 fi
 
+# Disallow Yarn 1.x install flag in workflows (use --immutable with Yarn 4)
+bad_flag=$(git diff --cached --name-only | grep -E '^\.github/workflows/.*\.yml$' | xargs -r grep -n -- '--frozen-lockfile' || true)
+if [[ -n "$bad_flag" ]]; then
+  echo "❌ Found '--frozen-lockfile' in workflow(s). Use 'yarn install --immutable' with Yarn 4/Corepack."
+  echo "$bad_flag"
+  fail=1
+fi
+
 exit $fail

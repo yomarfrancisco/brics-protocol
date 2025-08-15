@@ -14,16 +14,18 @@ interface IIssuanceControllerV3 {
 
     /**
      * @notice Mint tokens for a recipient
-     * @param recipient Recipient address
-     * @param usdcAmount USDC amount
+     * @param to Recipient address
+     * @param usdcAmt USDC amount
      * @param tailCorrPpm Tail correlation in parts per million
      * @param sovUtilBps Sovereign utilization in basis points
+     * @param sovereignCode Sovereign code identifier
      */
     function mintFor(
-        address recipient,
-        uint256 usdcAmount,
+        address to,
+        uint256 usdcAmt,
         uint256 tailCorrPpm,
-        uint256 sovUtilBps
+        uint256 sovUtilBps,
+        bytes32 sovereignCode
     ) external;
 }
 

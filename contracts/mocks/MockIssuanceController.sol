@@ -19,19 +19,21 @@ contract MockIssuanceController is IIssuanceControllerV3 {
     }
 
     function mintFor(
-        address recipient,
-        uint256 usdcAmount,
+        address to,
+        uint256 usdcAmt,
         uint256 tailCorrPpm,
-        uint256 sovUtilBps
+        uint256 sovUtilBps,
+        bytes32 sovereignCode
     ) external override {
         // Mock implementation - just emit an event
-        emit MockMint(recipient, usdcAmount, tailCorrPpm, sovUtilBps);
+        emit MockMint(to, usdcAmt, tailCorrPpm, sovUtilBps, sovereignCode);
     }
 
     event MockMint(
-        address recipient,
-        uint256 usdcAmount,
+        address to,
+        uint256 usdcAmt,
         uint256 tailCorrPpm,
-        uint256 sovUtilBps
+        uint256 sovUtilBps,
+        bytes32 sovereignCode
     );
 }

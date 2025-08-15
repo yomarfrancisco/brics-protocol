@@ -7,7 +7,7 @@ SHELL := /bin/bash
 bootstrap:
 	# fresh clone bootstrap (CI and local)
 	corepack enable
-	yarn install --frozen-lockfile
+	yarn install --immutable
 	# add any build steps here (tsc, typechain, etc.)
 	yarn build || true
 

@@ -5,6 +5,13 @@ on:
     - cron: "0 3 * * *"
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 env:
   NODE_VERSION: "20"
 
@@ -29,24 +36,25 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          # IMPORTANT: do not use yarn cache here, it triggers yarn 1.x before corepack
-          cache: 'npm'
 
-      - name: Enable Corepack & pin Yarn 4
+      - name: Enable Corepack + pin Yarn 4.9.2
         run: |
           corepack enable
           corepack prepare yarn@4.9.2 --activate
           yarn --version
 
-      - name: Cache Hardhat & node_modules
+      - name: Cache Yarn Berry artifacts
         uses: actions/cache@v4
         with:
           path: |
-            ~/.npm
-            node_modules
-            artifacts
-            cache
-          key: ${{ runner.os }}-node${{ env.NODE_VERSION }}-${{ hashFiles('yarn.lock') }}-heavy-${{ matrix.shard }}
+            .yarn/cache
+            .yarn/unplugged
+            .yarn/patches
+            .yarn/build-state.yml
+            .pnp.cjs
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-
 
       - name: Install dependencies
         run: |

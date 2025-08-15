@@ -195,3 +195,9 @@ dmypy.json
 deployments-localhost.json
 deployments-sepolia.json
 deployments-mainnet.json
+
+# Audit and support artifacts
+support/
+*.zip
+dist/audit/**
+coverage/**

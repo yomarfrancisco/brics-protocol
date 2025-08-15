@@ -475,7 +475,7 @@ describe("TrancheManagerV2 Comprehensive Tests", function () {
 
     it("should allow ECC_ROLE to enforce soft cap expiry after expiry", async function () {
       // Fast forward past expiry
-      await ethers.provider.send("evm_increaseTime", [31 * 24 * 60 * 60]); // 31 days
+      await time.increase(31 * 24 * 60 * 60); // 31 days
       await time.increase(1);
       
       await expect(trancheManager.connect(eccRole).enforceSoftCapExpiry(10200))
@@ -512,7 +512,7 @@ describe("TrancheManagerV2 Comprehensive Tests", function () {
 
     it("should revert when non-ECC_ROLE tries to enforce expiry", async function () {
       // Fast forward past expiry
-      await ethers.provider.send("evm_increaseTime", [31 * 24 * 60 * 60]);
+      await time.increase(31 * 24 * 60 * 60);
       await time.increase(1);
       
       await expect(
@@ -763,7 +763,7 @@ describe("TrancheManagerV2 Comprehensive Tests", function () {
       expect(hi).to.equal(10500);
       
       // Enforce expiry
-      await ethers.provider.send("evm_increaseTime", [31 * 24 * 60 * 60]);
+      await time.increase(31 * 24 * 60 * 60);
       await time.increase(1);
       await trancheManager.connect(eccRole).enforceSoftCapExpiry(10200);
       

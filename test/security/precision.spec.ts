@@ -154,7 +154,7 @@ describe("Security: Precision Loss Protection", function () {
             // Set a value within the 5% jump limit (1.0 * 1.05 = 1.05)
             await setNavCompat(navOracle, ethers.parseUnits("1.05", 27)); // Convert to RAY format
             const navRay2 = await getNavRayCompat(navOracle);
-            expect(navRay2).to.equal(ethers.parseEther("1.05") * 10n ** 9n); // 1.05 NAV in ray format
+            expect(navRay2).to.equal(ethers.parseUnits("1.05", 27)); // 1.05 NAV in ray format
 
             // Test precision conversion round-trip
             const oneToken = WAD;

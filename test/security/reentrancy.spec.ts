@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import { loadFixture } from "@nomicfoundation/hardhat-toolbox/network-helpers";
-import { setNavCompat } from "../utils/nav-helpers";
+import { setNavCompat, getNavRayCompat } from "../utils/nav-helpers";
 import { MalUSDC } from "../../contracts/malicious/MalUSDC";
 import { MalRedemptionClaim } from "../../contracts/malicious/MalRedemptionClaim";
 
@@ -133,7 +133,7 @@ describe("Security: Reentrancy Protection", function () {
             expect(await issuanceController.getAddress()).to.be.a('string');
 
             // Verify NAV was set correctly
-            const navRay = await navOracle.latestNAVRay();
+            const navRay = await getNavRayCompat(navOracle);
             expect(navRay).to.equal(ethers.parseEther("1.0") * 10n ** 9n); // 1.0 NAV in ray format
         });
 

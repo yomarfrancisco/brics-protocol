@@ -1,7 +1,11 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import { loadFixture } from "@nomicfoundation/hardhat-toolbox/network-helpers";
-import { setNavCompat, getNavRayCompat, WAD } from "../utils/nav-helpers";
+import {
+  RAY, WAD, USDC_ONE,
+  getNavRayCompat, setNavCompat,
+  tokensToUSDC, usdcToTokens
+} from "../utils/nav-helpers";
 
 describe("Security: Precision Loss Protection", function () {
     async function deployPrecisionFixture() {
@@ -70,7 +74,7 @@ describe("Security: Precision Loss Protection", function () {
         await mockUSDC.mint(await treasury.getAddress(), ethers.parseUnits("1000000", 6));
 
         // Setup NAV
-        await setNavCompat(navOracle, ethers.parseEther("1.0"));
+        await setNavCompat(navOracle, ethers.parseEther("1.0") * 10n ** 9n); // Convert to RAY format
 
         // Setup sovereign configuration
         await configRegistry.connect(gov).addSovereign(
@@ -143,14 +147,40 @@ describe("Security: Precision Loss Protection", function () {
             const { navOracle } = await loadFixture(deployPrecisionFixture);
 
             // Test NAV helper functions work
-            await setNavCompat(navOracle, ethers.parseEther("1.0"));
+            await setNavCompat(navOracle, ethers.parseEther("1.0") * 10n ** 9n); // Convert to RAY format
             const navRay = await getNavRayCompat(navOracle);
             expect(navRay).to.equal(ethers.parseEther("1.0") * 10n ** 9n); // 1.0 NAV in ray format
 
             // Set a value within the 5% jump limit (1.0 * 1.05 = 1.05)
-            await setNavCompat(navOracle, ethers.parseEther("1.05"));
+            await setNavCompat(navOracle, ethers.parseEther("1.05") * 10n ** 9n); // Convert to RAY format
             const navRay2 = await getNavRayCompat(navOracle);
             expect(navRay2).to.equal(ethers.parseEther("1.05") * 10n ** 9n); // 1.05 NAV in ray format
+
+            // Test precision conversion round-trip
+            const oneToken = WAD;
+            const price = await getNavRayCompat(navOracle);
+
+            // 1 token -> USDC -> token round-trip should be exact
+            const usdcOut = tokensToUSDC(oneToken, price);
+            const tokenBack = usdcToTokens(usdcOut, price);
+
+            // If (oneToken * price) is divisible by (1e21), equality is strict.
+            // Otherwise allow a 1-unit USDC rounding envelope on the first leg.
+            const num = oneToken * price;
+            const denom = RAY / USDC_ONE;
+            const remainder = num % denom;
+
+            if (remainder === 0n) {
+                expect(tokenBack.toString()).to.equal(oneToken.toString());
+            } else {
+                // Check the USDC leg is within ±1 and the round-trip is within 1 wei
+                const idealUsdc = num / denom;
+                const deltaUsdc = (usdcOut > idealUsdc) ? (usdcOut - idealUsdc) : (idealUsdc - usdcOut);
+                expect(deltaUsdc <= 1n, "USDC rounding beyond 1 unit").to.equal(true);
+
+                const deltaBack = (tokenBack > oneToken) ? (tokenBack - oneToken) : (oneToken - tokenBack);
+                expect(deltaBack <= 1n, "Token round-trip drift beyond 1 wei").to.equal(true);
+            }
         });
 
         it("should maintain precision across different NAV values", async function () {

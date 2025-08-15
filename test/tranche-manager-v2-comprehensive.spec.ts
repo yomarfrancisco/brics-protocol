@@ -1,3 +1,4 @@
+import { time } from "@nomicfoundation/hardhat-toolbox/network-helpers";
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import { TrancheManagerV2 } from "../typechain-types";
@@ -5,6 +6,7 @@ import { MockNAVOracle } from "../typechain-types";
 import { ConfigRegistry } from "../typechain-types";
 import { ClaimRegistry } from "../typechain-types";
 import { setNavCompat, getNavRayCompat } from "./utils/nav-helpers";
+import { safeIncreaseTo } from "./utils/time-helpers";
 
 describe("TrancheManagerV2 Comprehensive Tests", function () {
   let trancheManager: TrancheManagerV2;
@@ -474,7 +476,7 @@ describe("TrancheManagerV2 Comprehensive Tests", function () {
     it("should allow ECC_ROLE to enforce soft cap expiry after expiry", async function () {
       // Fast forward past expiry
       await ethers.provider.send("evm_increaseTime", [31 * 24 * 60 * 60]); // 31 days
-      await ethers.provider.send("evm_mine", []);
+      await time.increase(1);
       
       await expect(trancheManager.connect(eccRole).enforceSoftCapExpiry(10200))
         .to.emit(trancheManager, "SoftCapReverted")
@@ -511,7 +513,7 @@ describe("TrancheManagerV2 Comprehensive Tests", function () {
     it("should revert when non-ECC_ROLE tries to enforce expiry", async function () {
       // Fast forward past expiry
       await ethers.provider.send("evm_increaseTime", [31 * 24 * 60 * 60]);
-      await ethers.provider.send("evm_mine", []);
+      await time.increase(1);
       
       await expect(
         trancheManager.enforceSoftCapExpiry(10200)
@@ -723,19 +725,22 @@ describe("TrancheManagerV2 Comprehensive Tests", function () {
     it("should handle multiple detachment raises with cooldown", async function () {
       await trancheManager.setTriggersBreached(true);
       
+
+      
       // First raise
-      await trancheManager.raiseBRICSDetachment(10100, 10300);
+      await trancheManager.connect(eccRole).raiseBRICSDetachment(10100, 10300);
       
-      // Fast forward past cooldown but not too far to avoid oracle staleness
-      await ethers.provider.send("evm_increaseTime", [25 * 60 * 60]); // 25 hours
-      await ethers.provider.send("evm_mine", []);
+      // Fast forward past cooldown (24 hours) with buffer to avoid timing issues
+      await time.increase(25 * 60 * 60); // 25 hours
       
-      // Update oracle timestamp to avoid staleness
-      const currentBlock = await ethers.provider.getBlock("latest");
-      await setNavCompat(mockOracle, await getNavRayCompat(mockOracle));
+      // Ensure fresh NAV + forward-only time to avoid OracleStale
+      const nowTs = Number((await ethers.provider.getBlock("latest")).timestamp);
+      await setNavCompat(mockOracle, ethers.parseUnits("1", 27), nowTs);
+      
+
       
       // Second raise (stay within 103% limit)
-      await trancheManager.raiseBRICSDetachment(10100, 10300);
+      await trancheManager.connect(eccRole).raiseBRICSDetachment(10100, 10300);
       
       expect(await trancheManager.bricsLo()).to.equal(10100);
       expect(await trancheManager.bricsHi()).to.equal(10300);
@@ -759,7 +764,7 @@ describe("TrancheManagerV2 Comprehensive Tests", function () {
       
       // Enforce expiry
       await ethers.provider.send("evm_increaseTime", [31 * 24 * 60 * 60]);
-      await ethers.provider.send("evm_mine", []);
+      await time.increase(1);
       await trancheManager.connect(eccRole).enforceSoftCapExpiry(10200);
       
       [lo, hi] = await trancheManager.getEffectiveDetachment();

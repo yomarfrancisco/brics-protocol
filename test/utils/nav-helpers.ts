@@ -5,7 +5,10 @@ import { ethers } from "hardhat";
 export const USDC_DECIMALS = 6n;
 export const RAY = 10n ** 27n;
 export const WAD = 10n ** 18n;
-export const USDC_ONE = 10n ** USDC_DECIMALS;
+export const USDC_ONE = 10n ** 6n;
+
+// Scale factor for WAD×RAY→USDC conversion
+const SCALE_TOK_RAY_TO_USDC = (WAD * RAY) / USDC_ONE;
 
 // Round-half-up division for BigInt
 export function divRoundHalfUp(n: bigint, d: bigint): bigint {
@@ -53,11 +56,9 @@ export async function setNavCompat(oracle: any, navRay: bigint, ts?: number) {
 // Token (WAD) -> USDC using NAV ray (1e27)
 export function tokensToUSDC(tokenAmountWad: bigint, navRay: bigint): bigint {
   // token WAD * price(RAY) -> scale to USDC (1e6)
-  // Divide by ray to clear 1e27, then by 1e12 (WAD/USDC) to go 1e18 → 1e6
-  // Combined single division by 1e39:
+  // amountUSDC = round((token * nav) / (WAD * RAY / USDC_ONE)) = round(token * nav / 1e39)
   const num = tokenAmountWad * navRay;         // up to 1e45
-  const denom = RAY * (WAD / USDC_ONE);        // 1e39
-  return divRoundHalfUp(num, denom);
+  return divRoundHalfUp(num, SCALE_TOK_RAY_TO_USDC);
 }
 
 // Alias for consistency with requirements
@@ -67,8 +68,8 @@ export function toUSDCfromTokens(tokens: bigint, navRay: bigint): bigint {
 
 // USDC -> Token (WAD) using NAV ray (1e27)
 export function usdcToTokens(usdcAmount: bigint, navRay: bigint): bigint {
-  // inverse of above: token = round(USDC * (1e21) / nav)
-  const num = usdcAmount * (RAY / USDC_ONE);
+  // inverse of above: token = round(USDC * SCALE_TOK_RAY_TO_USDC / nav)
+  const num = usdcAmount * SCALE_TOK_RAY_TO_USDC;
   return divRoundHalfUp(num, navRay);
 }
 

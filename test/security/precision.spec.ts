@@ -74,7 +74,7 @@ describe("Security: Precision Loss Protection", function () {
         await mockUSDC.mint(await treasury.getAddress(), ethers.parseUnits("1000000", 6));
 
         // Setup NAV
-        await setNavCompat(navOracle, ethers.parseEther("1.0") * 10n ** 9n); // Convert to RAY format
+        await setNavCompat(navOracle, ethers.parseUnits("1", 27)); // Convert to RAY format
 
         // Setup sovereign configuration
         await configRegistry.connect(gov).addSovereign(
@@ -113,7 +113,7 @@ describe("Security: Precision Loss Protection", function () {
             const { issuanceController, navOracle } = await loadFixture(deployPrecisionFixture);
 
             // Test with very small amounts through canIssue
-            await setNavCompat(navOracle, ethers.parseEther("1.0")); // 1.0 NAV
+            await setNavCompat(navOracle, ethers.parseUnits("1", 27)); // 1.0 NAV
             const smallResult = await issuanceController.canIssue(
                 ethers.parseUnits("1", 6), // 1 USDC
                 0, // tailCorrPpm
@@ -123,7 +123,7 @@ describe("Security: Precision Loss Protection", function () {
             expect(typeof smallResult).to.equal("boolean");
 
             // Test with very large amounts
-            await setNavCompat(navOracle, ethers.parseEther("1000.0")); // 1000 NAV
+            await setNavCompat(navOracle, ethers.parseUnits("1000", 27)); // 1000 NAV
             const largeResult = await issuanceController.canIssue(
                 ethers.parseUnits("1000000", 6), // 1M USDC
                 0, // tailCorrPpm
@@ -147,18 +147,21 @@ describe("Security: Precision Loss Protection", function () {
             const { navOracle } = await loadFixture(deployPrecisionFixture);
 
             // Test NAV helper functions work
-            await setNavCompat(navOracle, ethers.parseEther("1.0") * 10n ** 9n); // Convert to RAY format
+            await setNavCompat(navOracle, ethers.parseUnits("1", 27)); // Set to RAY format
             const navRay = await getNavRayCompat(navOracle);
-            expect(navRay).to.equal(ethers.parseEther("1.0") * 10n ** 9n); // 1.0 NAV in ray format
+            expect(navRay).to.equal(10n ** 27n); // Hard assert: NAV must be exactly 1e27
 
             // Set a value within the 5% jump limit (1.0 * 1.05 = 1.05)
-            await setNavCompat(navOracle, ethers.parseEther("1.05") * 10n ** 9n); // Convert to RAY format
+            await setNavCompat(navOracle, ethers.parseUnits("1.05", 27)); // Convert to RAY format
             const navRay2 = await getNavRayCompat(navOracle);
             expect(navRay2).to.equal(ethers.parseEther("1.05") * 10n ** 9n); // 1.05 NAV in ray format
 
             // Test precision conversion round-trip
             const oneToken = WAD;
             const price = await getNavRayCompat(navOracle);
+
+            // Hard assert: 1 token at NAV 1.0 should equal exactly 1 USDC
+            expect(tokensToUSDC(1n * WAD, navRay)).to.equal(USDC_ONE);
 
             // 1 token -> USDC -> token round-trip should be exact
             const usdcOut = tokensToUSDC(oneToken, price);

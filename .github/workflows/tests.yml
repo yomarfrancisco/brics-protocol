@@ -38,8 +38,8 @@ jobs:
         run: yarn install --immutable
       - name: Guardrails (tests)
         run: bash scripts/check-usdc-ether.sh
-      - name: Run tests (fast reporter)
+      - name: Run tests
         env:
           PRICING_PROVIDER: stub
           BANK_DATA_MODE: off
-        run: yarn test --reporter min
+        run: yarn test

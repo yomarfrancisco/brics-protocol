@@ -72,7 +72,7 @@ const config: HardhatUserConfig = {
   },
 
   mocha: {
-    // No reporter override here - let hardhat-gas-reporter plugin handle it
+    reporter: 'min', // Centralized minimal reporter (was previously --reporter min CLI flag)
     timeout: 60000,
     retries: 1,
     bail: true,

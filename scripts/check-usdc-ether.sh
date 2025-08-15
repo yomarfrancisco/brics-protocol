@@ -62,4 +62,20 @@ if [[ -n "$bad_flag" ]]; then
   fail=1
 fi
 
+# Block legacy Yarn v1 install flag (exclude this script itself)
+bad_frozen=$(git diff --cached --name-only | grep -v 'scripts/check-usdc-ether.sh' | xargs -I{} grep -nH -- '--frozen-lockfile' {} 2>/dev/null || true)
+if [[ -n "$bad_frozen" ]]; then
+  echo "❌ Found '--frozen-lockfile' (use '--immutable' with Yarn 4):"
+  echo "$bad_frozen"
+  fail=1
+fi
+
+# Block Hardhat reporter CLI flag (HH305) (exclude this script itself)
+bad_reporter=$(git diff --cached --name-only | grep -v 'scripts/check-usdc-ether.sh' | xargs -I{} grep -nH -E 'yarn\s+test.*--reporter\s+min' {} 2>/dev/null || true)
+if [[ -n "$bad_reporter" ]]; then
+  echo "❌ Found 'yarn test --reporter min' (set reporter in hardhat.config.ts instead):"
+  echo "$bad_reporter"
+  fail=1
+fi
+
 exit $fail

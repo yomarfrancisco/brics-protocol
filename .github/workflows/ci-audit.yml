@@ -71,9 +71,11 @@ jobs:
             const smokesMeds = median(jobDurations.map(r => r.smokes));
             const testMeds   = median(jobDurations.map(r => r.test));
 
-            // 5) Timing analysis from artifacts (7-day medians)
+            // 5) Timing analysis from artifacts (preferred over run metadata)
             const { execSync } = require('child_process');
             let timingAnalysis = '';
+            let usedArtifacts = false;
+            
             try {
               // Get recent runs and download timing artifacts
               const recentRuns = okRuns.slice(0, 20); // Last 20 successful runs
@@ -106,6 +108,7 @@ jobs:
               }
               
               if (timingData.length > 0) {
+                usedArtifacts = true;
                 const smokesTimings = timingData.filter(t => t.job === 'smokes').map(t => t.duration);
                 const testTimings = timingData.filter(t => t.job === 'test').map(t => t.duration);
                 
@@ -119,7 +122,11 @@ jobs:
                 timingAnalysis = `\n**Timing Analysis (7-day medians from artifacts):**\n- Smokes: ${smokesMedian}s (${smokesDelta})\n- Test: ${testMedian}s (${testDelta})\n`;
               }
             } catch (e) {
-              timingAnalysis = '\n**Timing Analysis:** No timing data available yet.\n';
+              // Fall back to run metadata
+            }
+            
+            if (!usedArtifacts) {
+              timingAnalysis = `\n**Timing Analysis (fallback to run metadata):**\n- Smokes: ${smokesMeds ? smokesMeds + 's' : 'n/a'}\n- Test: ${testMeds ? testMeds + 's' : 'n/a'}\n`;
             }
 
             // 6) Open PRs with failing checks

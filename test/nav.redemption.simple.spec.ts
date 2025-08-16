@@ -13,46 +13,52 @@ describe("Redemption SMOKE Tests", function () {
     const MockUSDC = await ethers.getContractFactory("MockUSDC");
     const MemberRegistry = await ethers.getContractFactory("MemberRegistry");
     const ConfigRegistry = await ethers.getContractFactory("ConfigRegistry");
-    const MockNAVOracle = await ethers.getContractFactory("MockNAVOracle");
     const RedemptionClaim = await ethers.getContractFactory("RedemptionClaim");
 
     const [gov, ops] = await ethers.getSigners();
+    const govAddress = await gov.getAddress();
     const opsAddress = await ops.getAddress();
 
+    // Deploy contracts with correct constructor args
     const usdc = await MockUSDC.deploy();
-    const memberRegistry = await MemberRegistry.deploy();
-    const configRegistry = await ConfigRegistry.deploy();
-    const navOracle = await MockNAVOracle.deploy();
+    const memberRegistry = await MemberRegistry.deploy(govAddress);
+    const configRegistry = await ConfigRegistry.deploy(govAddress);
     const redemptionClaim = await RedemptionClaim.deploy(
-      await usdc.getAddress(),
+      govAddress,
       await memberRegistry.getAddress(),
-      await configRegistry.getAddress(),
-      await navOracle.getAddress()
+      await configRegistry.getAddress()
     );
 
-    // Set NAV to 1e27 (1.0)
-    await navOracle.setLatestNAVRay(ethers.parseUnits("1", 27));
+    // Setup member registry (need registrar first)
+    await memberRegistry.connect(gov).setRegistrar(govAddress);
+    await memberRegistry.connect(gov).setMember(opsAddress, true);
 
-    // Grant roles
+    // Grant roles to ops
     await redemptionClaim.connect(gov).grantRole(await redemptionClaim.ISSUER_ROLE(), opsAddress);
     await redemptionClaim.connect(gov).grantRole(await redemptionClaim.BURNER_ROLE(), opsAddress);
 
-    // Grant membership
-    await memberRegistry.connect(gov).setMember(opsAddress, true);
-
-    // Mint a tiny claim to ops (1 USDC)
+    // Mint a tiny claim to ops (1 USDC, strike time = now + 1 hour)
     const claimAmount = ethers.parseUnits("1", 6);
-    await redemptionClaim.connect(ops).mintClaim(opsAddress, claimAmount);
+    const strikeTs = await time.latest() + 3600; // 1 hour from now
+    const tx = await redemptionClaim.connect(ops).mintClaim(opsAddress, strikeTs, claimAmount);
+    const receipt = await tx.wait();
+    const claimId = 1; // First claim gets ID 1
 
     // Verify claim was created
-    const claimBalance = await redemptionClaim.balanceOf(opsAddress);
-    expect(claimBalance).to.equal(claimAmount);
+    const claimBalance = await redemptionClaim.balanceOf(opsAddress, claimId);
+    expect(claimBalance).to.equal(1); // ERC1155 balance is count of tokens, not amount
+
+    // Verify claim info
+    const claimInfo = await redemptionClaim.claimInfo(claimId);
+    expect(claimInfo.owner).to.equal(opsAddress);
+    expect(claimInfo.amount).to.equal(claimAmount);
+    expect(claimInfo.settled).to.equal(false);
 
     // Burn/settle the claim
-    await redemptionClaim.connect(ops).settleAndBurn(opsAddress, claimAmount);
+    await redemptionClaim.connect(ops).settleAndBurn(claimId, opsAddress);
 
     // Assert post-burn balance is zero
-    const postBurnBalance = await redemptionClaim.balanceOf(opsAddress);
+    const postBurnBalance = await redemptionClaim.balanceOf(opsAddress, claimId);
     expect(postBurnBalance).to.equal(0);
   });
 });

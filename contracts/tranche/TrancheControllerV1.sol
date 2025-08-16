@@ -25,6 +25,12 @@ contract TrancheControllerV1 is AccessControl {
     /// @notice Maximum super-senior shares outstanding
     uint256 public superSeniorCap;
     
+    /// @notice Stress threshold in basis points (default 8000 = 80.00%)
+    uint16 public stressThresholdBps;
+    
+    /// @notice Whether system is in stress mode
+    bool public stress;
+    
     /// @notice Whether issuance is locked
     bool public issuanceLocked;
     
@@ -52,6 +58,8 @@ contract TrancheControllerV1 is AccessControl {
     event SovereignBufferSet(address indexed buffer);
     event ProtectionModeEntered(string reason);
     event EngineSet(address indexed engine);
+    event TrancheResized(uint256 newCap, bool stress);
+    event StressSet(bool stress);
     
     // ============ Errors ============
     
@@ -82,6 +90,8 @@ contract TrancheControllerV1 is AccessControl {
         token = BRICSTokenV1(_token);
         ssAttachBps = 10000; // 100.00%
         ssDetachBps = 10200; // 102.00%
+        stressThresholdBps = 8000; // 80.00%
+        stress = false;
         issuanceLocked = false;
     }
     
@@ -109,6 +119,29 @@ contract TrancheControllerV1 is AccessControl {
         
         superSeniorCap = newCap;
         emit CapAdjusted(newCap);
+    }
+    
+    /**
+     * @notice Set caps and stress threshold (admin only)
+     * @param newCap New cap in shares
+     * @param newStressThresholdBps New stress threshold in basis points
+     */
+    function setCaps(uint256 newCap, uint16 newStressThresholdBps) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (newCap == 0) revert InvalidAmount();
+        if (newStressThresholdBps > 10000) revert InvalidAmount();
+        
+        superSeniorCap = newCap;
+        stressThresholdBps = newStressThresholdBps;
+        emit TrancheResized(newCap, stress);
+    }
+    
+    /**
+     * @notice Set stress flag (admin only)
+     * @param _stress New stress state
+     */
+    function setStressFlag(bool _stress) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        stress = _stress;
+        emit StressSet(_stress);
     }
     
     /**
@@ -182,6 +215,26 @@ contract TrancheControllerV1 is AccessControl {
         token.burnFrom(from, shares);
     }
     
+    /**
+     * @notice Record a mint operation (called by token)
+     * @param amount Amount minted
+     */
+    function recordMint(uint256 amount) external {
+        // Only token can call this
+        if (msg.sender != address(token)) revert OnlyOwnerOrEngine();
+        // Bookkeeping only for MVP - could add more logic here
+    }
+    
+    /**
+     * @notice Record a redemption request (called by token)
+     * @param amount Amount requested for redemption
+     */
+    function recordRedemptionRequest(uint256 amount) external {
+        // Only token can call this
+        if (msg.sender != address(token)) revert OnlyOwnerOrEngine();
+        // Bookkeeping only for MVP - could add more logic here
+    }
+    
     // ============ View Functions ============
     
     /**
@@ -216,5 +269,33 @@ contract TrancheControllerV1 is AccessControl {
         if (issuanceLocked) return 0;
         if (token.totalSupply() >= superSeniorCap) return 0;
         return superSeniorCap - token.totalSupply();
+    }
+    
+    /**
+     * @notice Get maximum mintable amount given current supply and share price
+     * @param totalSupply Current total supply
+     * @param sharePriceRay Share price in RAY (1e27)
+     * @return Maximum amount that can be minted
+     */
+    function maxMintable(uint256 totalSupply, uint256 sharePriceRay) external view returns (uint256) {
+        if (issuanceLocked) return 0;
+        if (totalSupply >= superSeniorCap) return 0;
+        
+        uint256 remaining = superSeniorCap - totalSupply;
+        
+        // In stress mode, reduce capacity
+        if (stress) {
+            remaining = (remaining * stressThresholdBps) / 10000;
+        }
+        
+        return remaining;
+    }
+    
+    /**
+     * @notice Check if system is in stress mode
+     * @return True if stress mode is active
+     */
+    function isStress() external view returns (bool) {
+        return stress;
     }
 }

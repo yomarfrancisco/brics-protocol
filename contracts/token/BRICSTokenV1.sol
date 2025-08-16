@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
+import "../tranche/TrancheControllerV1.sol";
 
 /**
  * @title BRICSTokenV1
@@ -61,6 +62,16 @@ contract BRICSTokenV1 is ERC20, AccessControl {
     function mintTo(address to, uint256 shares) external onlyRole(MINTER_ROLE) {
         if (to == address(0)) revert ZeroAddress();
         if (shares == 0) revert InvalidAmount();
+        
+        // Check controller cap if controller is set
+        if (controller != address(0)) {
+            uint256 sharePriceRay = sharePrice * 1e9; // Convert to RAY format
+            uint256 maxMintable = TrancheControllerV1(controller).maxMintable(totalSupply(), sharePriceRay);
+            if (shares > maxMintable) revert InvalidAmount();
+            
+            // Record the mint
+            TrancheControllerV1(controller).recordMint(shares);
+        }
         
         _mint(to, shares);
     }

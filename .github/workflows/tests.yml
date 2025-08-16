@@ -58,8 +58,8 @@ jobs:
         run: |
           echo "Scanning for raw time ops and legacy RAY..."
           set +e
-          grep -RIn --include="*.ts" "evm_(increaseTime|setNextBlockTimestamp)|evm_mine" test/ || true
-          grep -RIn --include="*.ts" 'parseEther("1(\.[0-9]+)?"\) \* 10n \*\* 9n' test/ || true
+          grep -RIn --include="*.ts" "evm_\(increaseTime\|setNextBlockTimestamp\)\|evm_mine" test/ || true
+          grep -RIn --include="*.ts" 'parseEther("1\.[0-9]*") \* 10n \*\* 9n' test/ || true
           set -e
       - name: Run fast smokes
         env:
@@ -132,8 +132,8 @@ jobs:
         run: |
           echo "Scanning for raw time ops and legacy RAY..."
           set +e
-          grep -RIn --include="*.ts" "evm_(increaseTime|setNextBlockTimestamp)|evm_mine" test/ || true
-          grep -RIn --include="*.ts" 'parseEther("1(\.[0-9]+)?"\) \* 10n \*\* 9n' test/ || true
+          grep -RIn --include="*.ts" "evm_\(increaseTime\|setNextBlockTimestamp\)\|evm_mine" test/ || true
+          grep -RIn --include="*.ts" 'parseEther("1\.[0-9]*") \* 10n \*\* 9n' test/ || true
           set -e
       - name: Guardrails (tests)
         run: bash scripts/check-usdc-ether.sh

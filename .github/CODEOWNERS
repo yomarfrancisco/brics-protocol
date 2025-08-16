@@ -1,38 +1,4 @@
-# Global owners
-* @yomarfrancisco
-
-# Smart contracts
-/contracts/ @yomarfrancisco
-
-# Risk API
-/risk_api/ @yomarfrancisco
-
-# CI/CD and workflows
-/.github/workflows/ @yomarfrancisco
-
-# Audit and observability scripts
-/scripts/audit/ @yomarfrancisco
-/scripts/gas/ @yomarfrancisco
-
-# Fixture management
-/scripts/fixtures/ @yomarfrancisco
-/pricing-fixtures/ @yomarfrancisco
-
-# Release automation
-/scripts/release/ @yomarfrancisco
-
-# Documentation
-/docs/ @yomarfrancisco
-/README.md @yomarfrancisco
-/CONTRIBUTING.md @yomarfrancisco
-
-# Configuration files
-/hardhat.config.ts @yomarfrancisco
-/package.json @yomarfrancisco
-/yarn.lock @yomarfrancisco
-
-# Test files
-/test/ @yomarfrancisco
-
-# Deployment scripts
-/deploy/ @yomarfrancisco
+# CI & tests ownership
+.github/workflows/*   @yomarfrancisco
+scripts/guardrails/*  @yomarfrancisco
+test/**               @yomarfrancisco

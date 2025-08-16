@@ -121,6 +121,22 @@ describe("Pause Functionality", () => {
         .to.emit(instantLane, "Unpaused")
         .withArgs(await gov.getAddress());
     });
+
+    it("SMOKE: should toggle pause/resume and assert revert on paused path", async () => {
+      // Initial state: should work
+      await expect(instantLane.connect(user).instantRedeem(ethers.parseUnits("50", 18)))
+        .to.not.be.reverted;
+      
+      // Pause: should revert
+      await instantLane.connect(gov).pause();
+      await expect(instantLane.connect(user).instantRedeem(ethers.parseUnits("50", 18)))
+        .to.be.revertedWithCustomError(instantLane, "EnforcedPause");
+      
+      // Resume: should work again
+      await instantLane.connect(gov).unpause();
+      await expect(instantLane.connect(user).instantRedeem(ethers.parseUnits("50", 18)))
+        .to.not.be.reverted;
+    });
   });
 });
 

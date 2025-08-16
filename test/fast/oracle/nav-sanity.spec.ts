@@ -116,5 +116,16 @@ describe("NAV/TWAP Sanity Guard", () => {
     await setNavCompat(mockOracle, ethers.parseUnits("1.02", 27));
     expect(await mockOracle.lastNavRay()).to.equal(ethers.parseUnits("1.02", 27));
   });
+
+  it("SMOKE: should set fresh NAV via setLatestNAVRay", async () => {
+    const navValue = ethers.parseUnits("1.05", 27);
+    
+    // Set NAV directly
+    await mockOracle.setLatestNAVRay(navValue);
+    
+    // Verify NAV was set correctly
+    expect(await getNavRayCompat(mockOracle)).to.equal(navValue);
+    expect(await mockOracle.lastNavRay()).to.equal(navValue);
+  });
 });
 

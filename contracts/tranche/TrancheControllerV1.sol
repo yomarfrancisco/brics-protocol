@@ -37,6 +37,9 @@ contract TrancheControllerV1 is AccessControl {
     /// @notice Sovereign buffer adapter address
     address public sovereignBuffer;
     
+    /// @notice Sovereign buffer controller address
+    address public sovereignBufferController;
+    
     /// @notice Optional privileged engine address
     address public engine;
     
@@ -56,6 +59,7 @@ contract TrancheControllerV1 is AccessControl {
     event IssuanceLocked();
     event IssuanceUnlocked();
     event SovereignBufferSet(address indexed buffer);
+    event SovereignBufferControllerSet(address indexed controller);
     event ProtectionModeEntered(string reason);
     event EngineSet(address indexed engine);
     event TrancheResized(uint256 newCap, bool stress);
@@ -167,6 +171,15 @@ contract TrancheControllerV1 is AccessControl {
     function setSovereignBuffer(address _buffer) external onlyRole(DEFAULT_ADMIN_ROLE) {
         sovereignBuffer = _buffer;
         emit SovereignBufferSet(_buffer);
+    }
+    
+    /**
+     * @notice Set sovereign buffer controller (admin only)
+     * @param _controller Buffer controller address
+     */
+    function setSovereignBufferController(address _controller) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        sovereignBufferController = _controller;
+        emit SovereignBufferControllerSet(_controller);
     }
     
     /**

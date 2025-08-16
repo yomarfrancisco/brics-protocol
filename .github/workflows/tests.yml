@@ -80,10 +80,22 @@ jobs:
             }
             const txt = fs.readFileSync(path, 'utf8');
             function count(sectionTitle) {
-              const re = new RegExp(`^== ${sectionTitle} ==[\\s\\S]*?(?=^== |\\Z)`, 'm');
-              const m = txt.match(re);
-              if (!m) return 0;
-              return m[0].split('\n').slice(1).filter(l => l.trim().length > 0).length;
+              const lines = txt.split('\n');
+              let inSection = false;
+              let count = 0;
+              for (const line of lines) {
+                if (line.startsWith('==== ') && line.includes(sectionTitle)) {
+                  inSection = true;
+                  continue;
+                }
+                if (inSection && line.startsWith('==== ')) {
+                  break;
+                }
+                if (inSection && line.trim().length > 0) {
+                  count++;
+                }
+              }
+              return count;
             }
             const counts = {
               'raw time ops (evm_*)': count('raw time ops (evm_*)'),
@@ -208,10 +220,22 @@ jobs:
             }
             const txt = fs.readFileSync(path, 'utf8');
             function count(sectionTitle) {
-              const re = new RegExp(`^== ${sectionTitle} ==[\\s\\S]*?(?=^== |\\Z)`, 'm');
-              const m = txt.match(re);
-              if (!m) return 0;
-              return m[0].split('\n').slice(1).filter(l => l.trim().length > 0).length;
+              const lines = txt.split('\n');
+              let inSection = false;
+              let count = 0;
+              for (const line of lines) {
+                if (line.startsWith('==== ') && line.includes(sectionTitle)) {
+                  inSection = true;
+                  continue;
+                }
+                if (inSection && line.startsWith('==== ')) {
+                  break;
+                }
+                if (inSection && line.trim().length > 0) {
+                  count++;
+                }
+              }
+              return count;
             }
             const counts = {
               'raw time ops (evm_*)': count('raw time ops (evm_*)'),

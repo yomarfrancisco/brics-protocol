@@ -18,17 +18,21 @@ jobs:
           fetch-depth: 0
           submodules: false
           persist-credentials: false
+      # Assert no submodules and clean any cached submodule state
+      - name: Assert no submodules
+        run: |
+          # Fail fast if someone reintroduces malformed submodules
+          test ! -f .gitmodules || ! git config --file .gitmodules --name-only --get-regexp '^submodule\..*\.url' || (echo "ERROR: Malformed .gitmodules detected" && exit 1)
+          # Clean any cached submodule state
+          git config --local --remove-section submodule.frontend/brics-ui 2>/dev/null || true
+          git config --local --remove-section submodule.frontend.brics-ui 2>/dev/null || true
+          echo "Submodule state cleaned"
       # Guarded safety step; do NOT touch submodules
       - name: Safe git (guarded)
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git config --local --unset-all extensions.worktreeConfig || true
-          # If (and only if) a .gitmodules file with valid URLs exists, you may operate on submodules.
-          if [ -f .gitmodules ] && git config --file .gitmodules --name-only --get-regexp '^submodule\..*\.url' >/dev/null 2>&1; then
-            echo "Submodules present; leaving them alone because checkout submodules:false"
-          else
-            echo "No usable submodules detected; skipping any submodule commands."
-          fi
+          echo "Git safety configured; no submodule operations"
       - uses: actions/setup-node@v4
         with:
           node-version: '20'

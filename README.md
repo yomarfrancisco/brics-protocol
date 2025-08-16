@@ -127,6 +127,11 @@ npm test -- --grep "Per-Sovereign Soft-Cap Damping"
 REPORT_GAS=true npm test
 ```
 
+**CI Smokes Lane**: Fast feedback tests run in parallel (`~30s`):
+- Oracle NAV sanity checks
+- Governance pause/resume functionality  
+- Redemption claim mint+burn (gated to smokes lane via `CI_SMOKES_ONLY`)
+
 ### Deployment
 ```bash
 # Deploy to local network

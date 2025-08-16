@@ -54,13 +54,17 @@ jobs:
           key: ${{ runner.os }}-hardhat-${{ hashFiles('hardhat.config.ts') }}-${{ hashFiles('yarn.lock') }}
           restore-keys: |
             ${{ runner.os }}-hardhat-
-      - name: Guardrails scan (non-blocking)
-        run: |
-          echo "Scanning for raw time ops and legacy RAY..."
-          set +e
-          grep -RIn --include="*.ts" "evm_\(increaseTime\|setNextBlockTimestamp\)\|evm_mine" test/ || true
-          grep -RIn --include="*.ts" 'parseEther("1\.[0-9]*") \* 10n \*\* 9n' test/ || true
-          set -e
+      - name: Guardrails v2 scan (non-blocking)
+        run: bash scripts/guardrails/scan.sh || true
+        shell: bash
+      - name: Upload guardrails report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: guardrails-report
+          path: guardrails-report.txt
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Run fast smokes
         env:
           PRICING_PROVIDER: stub
@@ -128,13 +132,17 @@ jobs:
           key: ${{ runner.os }}-hardhat-${{ hashFiles('hardhat.config.ts') }}-${{ hashFiles('yarn.lock') }}
           restore-keys: |
             ${{ runner.os }}-hardhat-
-      - name: Guardrails scan (non-blocking)
-        run: |
-          echo "Scanning for raw time ops and legacy RAY..."
-          set +e
-          grep -RIn --include="*.ts" "evm_\(increaseTime\|setNextBlockTimestamp\)\|evm_mine" test/ || true
-          grep -RIn --include="*.ts" 'parseEther("1\.[0-9]*") \* 10n \*\* 9n' test/ || true
-          set -e
+      - name: Guardrails v2 scan (non-blocking)
+        run: bash scripts/guardrails/scan.sh || true
+        shell: bash
+      - name: Upload guardrails report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: guardrails-report
+          path: guardrails-report.txt
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Guardrails (tests)
         run: bash scripts/check-usdc-ether.sh
       - name: Run tests

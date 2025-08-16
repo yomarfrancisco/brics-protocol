@@ -4,6 +4,56 @@ import { ethers } from "hardhat";
 import { loadFixture, time } from "@nomicfoundation/hardhat-toolbox/network-helpers";
 import { getNavRayCompat } from "./utils/nav-helpers";
 
+describe("Redemption SMOKE Tests", function () {
+  it("SMOKE: redemption claim mint+burn with roles and membership", async () => {
+    // Deploy minimal contracts
+    const MockUSDC = await ethers.getContractFactory("MockUSDC");
+    const MemberRegistry = await ethers.getContractFactory("MemberRegistry");
+    const ConfigRegistry = await ethers.getContractFactory("ConfigRegistry");
+    const MockNAVOracle = await ethers.getContractFactory("MockNAVOracle");
+    const RedemptionClaim = await ethers.getContractFactory("RedemptionClaim");
+
+    const [gov, ops] = await ethers.getSigners();
+    const opsAddress = await ops.getAddress();
+
+    const usdc = await MockUSDC.deploy();
+    const memberRegistry = await MemberRegistry.deploy();
+    const configRegistry = await ConfigRegistry.deploy();
+    const navOracle = await MockNAVOracle.deploy();
+    const redemptionClaim = await RedemptionClaim.deploy(
+      await usdc.getAddress(),
+      await memberRegistry.getAddress(),
+      await configRegistry.getAddress(),
+      await navOracle.getAddress()
+    );
+
+    // Set NAV to 1e27 (1.0)
+    await navOracle.setLatestNAVRay(ethers.parseUnits("1", 27));
+
+    // Grant roles
+    await redemptionClaim.connect(gov).grantRole(await redemptionClaim.ISSUER_ROLE(), opsAddress);
+    await redemptionClaim.connect(gov).grantRole(await redemptionClaim.BURNER_ROLE(), opsAddress);
+
+    // Grant membership
+    await memberRegistry.connect(gov).setMember(opsAddress, true);
+
+    // Mint a tiny claim to ops (1 USDC)
+    const claimAmount = ethers.parseUnits("1", 6);
+    await redemptionClaim.connect(ops).mintClaim(opsAddress, claimAmount);
+
+    // Verify claim was created
+    const claimBalance = await redemptionClaim.balanceOf(opsAddress);
+    expect(claimBalance).to.equal(claimAmount);
+
+    // Burn/settle the claim
+    await redemptionClaim.connect(ops).settleAndBurn(opsAddress, claimAmount);
+
+    // Assert post-burn balance is zero
+    const postBurnBalance = await redemptionClaim.balanceOf(opsAddress);
+    expect(postBurnBalance).to.equal(0);
+  });
+});
+
 describe("NAV Redemption Lane - Simple Test", function () {
     async function deployFixture() {
         const [gov, ops] = await ethers.getSigners();

@@ -61,7 +61,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: guardrails-report
+          name: guardrails-report-smokes
           path: guardrails-report.txt
           if-no-files-found: ignore
           retention-days: 7
@@ -139,7 +139,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: guardrails-report
+          name: guardrails-report-test
           path: guardrails-report.txt
           if-no-files-found: ignore
           retention-days: 7

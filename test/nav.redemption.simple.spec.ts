@@ -136,6 +136,27 @@ describe("NAV Redemption Lane - Simple Test", function () {
         const closedWindow = await fx.issuanceController.currentNavWindow();
         expect(closedWindow.state).to.equal(2); // CLOSED = 2
     });
+
+    it("SMOKE: basic redemption claim functionality", async function () {
+        const fx = await loadFixture(deployFixture);
+
+        // Setup roles for redemption
+        await fx.redemptionClaim.connect(fx.gov).grantRole(await fx.redemptionClaim.ISSUER_ROLE(), fx.opsAddress);
+        
+        // Set NAV to 1e27 (1.0)
+        await fx.navOracle.setLatestNAVRay(ethers.parseUnits("1", 27));
+        expect(await getNavRayCompat(fx.navOracle)).to.equal(ethers.parseUnits("1", 27));
+
+        // Test basic redemption claim minting
+        const redeemAmount = ethers.parseUnits("100", 18);
+        const strikeTs = await time.latest();
+        const claimId = await fx.redemptionClaim.connect(fx.ops).mintClaim(fx.opsAddress, strikeTs, redeemAmount);
+        
+        // Verify claim was created
+        const claimInfo = await fx.redemptionClaim.claimInfo(claimId);
+        expect(claimInfo.owner).to.equal(fx.opsAddress);
+        expect(claimInfo.amount).to.equal(redeemAmount);
+    });
 });
 
 function anyValue() {

@@ -71,7 +71,58 @@ jobs:
             const smokesMeds = median(jobDurations.map(r => r.smokes));
             const testMeds   = median(jobDurations.map(r => r.test));
 
-            // 5) Open PRs with failing checks
+            // 5) Timing analysis from artifacts (7-day medians)
+            const { execSync } = require('child_process');
+            let timingAnalysis = '';
+            try {
+              // Get recent runs and download timing artifacts
+              const recentRuns = okRuns.slice(0, 20); // Last 20 successful runs
+              const timingData = [];
+              
+              for (const run of recentRuns) {
+                try {
+                  // Try to download timing artifacts
+                  execSync(`gh run download ${run.id} -n ci-timings-smokes -D /tmp/timing-${run.id}-smokes 2>/dev/null || true`);
+                  execSync(`gh run download ${run.id} -n ci-timings-test -D /tmp/timing-${run.id}-test 2>/dev/null || true`);
+                  
+                  // Parse timing data
+                  const smokesFile = `/tmp/timing-${run.id}-smokes/ci-timings.txt`;
+                  const testFile = `/tmp/timing-${run.id}-test/ci-timings.txt`;
+                  
+                  if (require('fs').existsSync(smokesFile)) {
+                    const smokesLine = require('fs').readFileSync(smokesFile, 'utf8').trim();
+                    const [, , duration, cacheHit] = smokesLine.split(',');
+                    timingData.push({ job: 'smokes', duration: parseInt(duration), cacheHit: cacheHit === 'true', runId: run.id });
+                  }
+                  
+                  if (require('fs').existsSync(testFile)) {
+                    const testLine = require('fs').readFileSync(testFile, 'utf8').trim();
+                    const [, , duration, cacheHit] = testLine.split(',');
+                    timingData.push({ job: 'test', duration: parseInt(duration), cacheHit: cacheHit === 'true', runId: run.id });
+                  }
+                } catch (e) {
+                  // Skip runs without timing data
+                }
+              }
+              
+              if (timingData.length > 0) {
+                const smokesTimings = timingData.filter(t => t.job === 'smokes').map(t => t.duration);
+                const testTimings = timingData.filter(t => t.job === 'test').map(t => t.duration);
+                
+                const smokesMedian = median(smokesTimings);
+                const testMedian = median(testTimings);
+                
+                // Calculate deltas (placeholder for now)
+                const smokesDelta = 'N/A'; // Would need previous median to calculate
+                const testDelta = 'N/A';
+                
+                timingAnalysis = `\n**Timing Analysis (7-day medians from artifacts):**\n- Smokes: ${smokesMedian}s (${smokesDelta})\n- Test: ${testMedian}s (${testDelta})\n`;
+              }
+            } catch (e) {
+              timingAnalysis = '\n**Timing Analysis:** No timing data available yet.\n';
+            }
+
+            // 6) Open PRs with failing checks
             const { data: prs } = await github.rest.pulls.list({ owner, repo, state: 'open', per_page: 50 });
             const failingPRs = [];
             for (const pr of prs) {
@@ -97,6 +148,7 @@ jobs:
             lines.push(`**Recent Performance (medians across last ${jobDurations.length} successful "tests" runs on main):**`);
             lines.push(`- Smokes: ${smokesMeds ? smokesMeds + 's' : 'n/a'}`);
             lines.push(`- Test: ${testMeds ? testMeds + 's' : 'n/a'}`);
+            lines.push(timingAnalysis);
             lines.push('');
             if (jobDurations.length) {
               lines.push(`<details><summary>Sample of recent runs</summary>`);

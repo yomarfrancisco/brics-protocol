@@ -137,6 +137,22 @@ jobs:
           yarn hardhat test test/security/reentrancy.spec.ts --grep SMOKE
           # Include redemption smoke only in the smokes lane
           yarn hardhat test test/nav.redemption.simple.spec.ts --grep "SMOKE"
+      - name: Record timing
+        if: always()
+        run: |
+          duration=$(($(date +%s) - $(date -d "${{ env.GITHUB_JOB_STARTED_AT }}" +%s)))
+          echo "$(date -u +%Y-%m-%dT%H:%M:%SZ),smokes,$duration,${{ steps.cache-yarn.outputs.cache-hit == 'true' || 'false'}}" >> ci-timings.txt
+          if [ $duration -gt 120 ]; then
+            echo "⚠️ Budget warning: smokes job took ${duration}s (threshold: 120s)" | tee -a $GITHUB_STEP_SUMMARY
+          fi
+      - name: Upload timing data
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-timings-smokes
+          path: ci-timings.txt
+          if-no-files-found: ignore
+          retention-days: 30
 
   test:
     runs-on: ubuntu-latest
@@ -274,3 +290,19 @@ jobs:
           PRICING_PROVIDER: stub
           BANK_DATA_MODE: off
         run: yarn test
+      - name: Record timing
+        if: always()
+        run: |
+          duration=$(($(date +%s) - $(date -d "${{ env.GITHUB_JOB_STARTED_AT }}" +%s)))
+          echo "$(date -u +%Y-%m-%dT%H:%M:%SZ),test,$duration,${{ steps.cache-yarn.outputs.cache-hit == 'true' || 'false'}}" >> ci-timings.txt
+          if [ $duration -gt 180 ]; then
+            echo "⚠️ Budget warning: test job took ${duration}s (threshold: 180s)" | tee -a $GITHUB_STEP_SUMMARY
+          fi
+      - name: Upload timing data
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-timings-test
+          path: ci-timings.txt
+          if-no-files-found: ignore
+          retention-days: 30

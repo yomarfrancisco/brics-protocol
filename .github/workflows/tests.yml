@@ -54,6 +54,9 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        shard: [1, 2]
     permissions:
       contents: read
     steps:
@@ -96,12 +99,29 @@ jobs:
           key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
             ${{ runner.os }}-yarn-
+      - name: Cache Hardhat artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            cache/
+            artifacts/
+            typechain/
+          key: ${{ runner.os }}-hardhat-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-hardhat-
       - name: Install deps (immutable)
         run: yarn install --immutable
       - name: Guardrails (tests)
         run: bash scripts/check-usdc-ether.sh
-      - name: Run tests
+      - name: Run tests (shard ${{ matrix.shard }})
         env:
           PRICING_PROVIDER: stub
           BANK_DATA_MODE: off
-        run: yarn test
+        run: |
+          if [ "${{ matrix.shard }}" = "1" ]; then
+            # Shard 1: Long-running specs (tranche, mezzanine, instant-lane)
+            yarn hardhat test --grep "(tranche|mezzanine|instant-lane)"
+          else
+            # Shard 2: Everything else
+            yarn hardhat test --grep -v "(tranche|mezzanine|instant-lane)"
+          fi

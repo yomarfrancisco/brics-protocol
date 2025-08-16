@@ -12,6 +12,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      GUARDRAILS_ARTIFACT_NAME: guardrails-report-smokes
     steps:
       - uses: actions/checkout@v3
         with:
@@ -65,6 +67,66 @@ jobs:
           path: guardrails-report.txt
           if-no-files-found: ignore
           retention-days: 7
+      - name: Guardrails PR comment (non-blocking)
+        if: ${{ always() && (github.event_name == 'pull_request' || github.event_name == 'pull_request_target') }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = 'guardrails-report.txt';
+            if (!fs.existsSync(path)) {
+              core.info('No guardrails-report.txt found (skipping comment).');
+              return;
+            }
+            const txt = fs.readFileSync(path, 'utf8');
+            function count(sectionTitle) {
+              const lines = txt.split('\n');
+              let inSection = false;
+              let count = 0;
+              for (const line of lines) {
+                if (line.startsWith('==== ') && line.includes(sectionTitle)) {
+                  inSection = true;
+                  continue;
+                }
+                if (inSection && line.startsWith('==== ')) {
+                  break;
+                }
+                if (inSection && line.trim().length > 0) {
+                  count++;
+                }
+              }
+              return count;
+            }
+            const counts = {
+              'raw time ops (evm_*)': count('raw time ops (evm_*)'),
+              'legacy RAY math (parseEther(...) * 10n ** 9n)': count('legacy RAY math (parseEther(...) * 10n ** 9n)'),
+              'focused tests (.only)': count('focused tests (.only)'),
+              'console.log in tests': count('console.log in tests'),
+              'hardcoded 0x addresses (excluding mocks/fixtures/json)': count('hardcoded 0x addresses (excluding mocks/fixtures/json)')
+            };
+            const total = Object.values(counts).reduce((a,b)=>a+b,0);
+            core.info(`Guardrails counts: ${JSON.stringify(counts)}`);
+            if (total === 0) return; // nothing to report
+            const runUrl = `https://github.com/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+            const artifact = process.env.GUARDRAILS_ARTIFACT_NAME || 'guardrails-report';
+            const lines = Object.entries(counts)
+              .filter(([,c])=>c>0)
+              .map(([k,c])=>`- ${k}: **${c}**`)
+              .join('\n');
+            const body = [
+              '🛡️ **Guardrails findings**',
+              '',
+              lines,
+              '',
+              `Details: download artifact **${artifact}**`,
+              `Run: ${runUrl}`
+            ].join('\n');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body
+            });
       - name: Run fast smokes
         env:
           PRICING_PROVIDER: stub
@@ -80,6 +142,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      GUARDRAILS_ARTIFACT_NAME: guardrails-report-test
     steps:
       - uses: actions/checkout@v3
         with:
@@ -143,6 +207,66 @@ jobs:
           path: guardrails-report.txt
           if-no-files-found: ignore
           retention-days: 7
+      - name: Guardrails PR comment (non-blocking)
+        if: ${{ always() && (github.event_name == 'pull_request' || github.event_name == 'pull_request_target') }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = 'guardrails-report.txt';
+            if (!fs.existsSync(path)) {
+              core.info('No guardrails-report.txt found (skipping comment).');
+              return;
+            }
+            const txt = fs.readFileSync(path, 'utf8');
+            function count(sectionTitle) {
+              const lines = txt.split('\n');
+              let inSection = false;
+              let count = 0;
+              for (const line of lines) {
+                if (line.startsWith('==== ') && line.includes(sectionTitle)) {
+                  inSection = true;
+                  continue;
+                }
+                if (inSection && line.startsWith('==== ')) {
+                  break;
+                }
+                if (inSection && line.trim().length > 0) {
+                  count++;
+                }
+              }
+              return count;
+            }
+            const counts = {
+              'raw time ops (evm_*)': count('raw time ops (evm_*)'),
+              'legacy RAY math (parseEther(...) * 10n ** 9n)': count('legacy RAY math (parseEther(...) * 10n ** 9n)'),
+              'focused tests (.only)': count('focused tests (.only)'),
+              'console.log in tests': count('console.log in tests'),
+              'hardcoded 0x addresses (excluding mocks/fixtures/json)': count('hardcoded 0x addresses (excluding mocks/fixtures/json)')
+            };
+            const total = Object.values(counts).reduce((a,b)=>a+b,0);
+            core.info(`Guardrails counts: ${JSON.stringify(counts)}`);
+            if (total === 0) return; // nothing to report
+            const runUrl = `https://github.com/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+            const artifact = process.env.GUARDRAILS_ARTIFACT_NAME || 'guardrails-report';
+            const lines = Object.entries(counts)
+              .filter(([,c])=>c>0)
+              .map(([k,c])=>`- ${k}: **${c}**`)
+              .join('\n');
+            const body = [
+              '🛡️ **Guardrails findings**',
+              '',
+              lines,
+              '',
+              `Details: download artifact **${artifact}**`,
+              `Run: ${runUrl}`
+            ].join('\n');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body
+            });
       - name: Guardrails (tests)
         run: bash scripts/check-usdc-ether.sh
       - name: Run tests

@@ -132,6 +132,16 @@ REPORT_GAS=true npm test
 - Governance pause/resume functionality  
 - Redemption claim mint+burn (gated to smokes lane via `CI_SMOKES_ONLY`)
 
+#### CI smokes & guardrails
+
+- **Smokes lane** runs a tiny set of <~30s tests (precision, reentrancy, governance, redemption) for fast signal.  
+- **Guardrails v2** runs on every job (non-blocking) and uploads a `guardrails-report` artifact. It scans for:
+  - Raw EVM time ops (`evm_increaseTime`, `evm_mine`, etc.)
+  - Legacy RAY math (WAD×1e9 patterns)
+  - Focused tests (`.only`), `console.log` in tests
+  - Hardcoded `0x…` addrs (excluding mocks/fixtures/json)
+- If findings exist on a PR, the workflow auto-comments with counts + artifact link.
+
 ### Deployment
 ```bash
 # Deploy to local network

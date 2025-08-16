@@ -32,3 +32,23 @@ if [ -s guardrails-report.txt ]; then
 else
   echo "No guardrails findings."
 fi
+
+# ---- summary (logs) ----
+if [ -f guardrails-report.txt ]; then
+  sec_count () {
+    # print lines between "== <section> ==" and next "== " section, count non-empty
+    awk "/^== $1 ==/{flag=1;next}/^== /{flag=0} flag" guardrails-report.txt | grep -c . || true
+  }
+  c_time=$(sec_count "raw time ops (evm_*)")
+  c_ray=$(sec_count "legacy RAY math (parseEther(...) * 10n ** 9n)")
+  c_only=$(sec_count "focused tests (.only)")
+  c_log=$(sec_count "console.log in tests")
+  c_addr=$(sec_count "hardcoded 0x addresses (excluding mocks/fixtures/json)")
+  echo "::group::Guardrails summary"
+  echo "RAW EVM TIME OPS:     $c_time"
+  echo "LEGACY RAY MATH:      $c_ray"
+  echo "FOCUSED TESTS (.only):$c_only"
+  echo "CONSOLE LOGS:         $c_log"
+  echo "HARDCODED 0x ADDRS:   $c_addr"
+  echo "::endgroup::"
+fi

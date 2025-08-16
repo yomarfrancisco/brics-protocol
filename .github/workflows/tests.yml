@@ -125,3 +125,66 @@ jobs:
           PRICING_PROVIDER: stub
           BANK_DATA_MODE: off
         run: yarn test --retries 1
+
+  tests-sharded:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      matrix:
+        pattern:
+          - "(tranche|mezzanine|instant-lane)"
+          - "^(?!.*(tranche|mezzanine|instant-lane)).*$"
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          submodules: false
+      - name: Safe git (guarded)
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config --local --unset-all extensions.worktreeConfig || true
+          echo "Git safety configured; no submodule operations"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Enable Corepack + pin Yarn 4.9.2
+        run: |
+          corepack enable
+          corepack prepare yarn@4.9.2 --activate
+          yarn --version
+      - name: Cache Yarn Berry artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            .yarn/cache
+            .yarn/unplugged
+            .yarn/patches
+            .yarn/build-state.yml
+            .pnp.cjs
+          key: ${{ runner.os }}-yarnpnp-${{ hashFiles('yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarnpnp-
+      - name: Install deps (immutable)
+        run: yarn install --immutable
+      - name: Cache Hardhat artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            cache
+            artifacts
+            typechain
+          key: ${{ runner.os }}-hardhat-${{ hashFiles('hardhat.config.ts') }}-${{ hashFiles('yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-hardhat-
+      - name: Run sharded tests (pattern: ${{ matrix.pattern }})
+        env:
+          PRICING_PROVIDER: stub
+          BANK_DATA_MODE: off
+        run: |
+          FILES=$(rg -n --glob 'test/**/*.spec.ts' -e "${{ matrix.pattern }}" -l || true)
+          if [ -z "$FILES" ]; then echo "No files matched pattern: ${{ matrix.pattern }}"; exit 0; fi
+          echo "Running tests for pattern: ${{ matrix.pattern }}"
+          echo "Files: $FILES"
+          yarn hardhat test $FILES --retries 1

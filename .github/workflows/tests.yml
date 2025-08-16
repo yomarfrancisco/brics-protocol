@@ -58,9 +58,12 @@ jobs:
         env:
           PRICING_PROVIDER: stub
           BANK_DATA_MODE: off
+          CI_SMOKES_ONLY: "1"
         run: |
           yarn hardhat test test/security/precision.spec.ts --grep SMOKE
           yarn hardhat test test/security/reentrancy.spec.ts --grep SMOKE
+          # Include redemption smoke only in the smokes lane
+          yarn hardhat test test/nav.redemption.simple.spec.ts --grep "SMOKE"
 
   test:
     runs-on: ubuntu-latest

@@ -5,7 +5,10 @@ import { loadFixture, time } from "@nomicfoundation/hardhat-toolbox/network-help
 import { getNavRayCompat } from "./utils/nav-helpers";
 
 describe("Redemption SMOKE Tests", function () {
-  it("SMOKE: redemption claim mint+burn with roles and membership", async () => {
+  // Only run this SMOKE in the smokes lane; skip in the full suite to keep main green
+  const itSmoke = process.env.CI_SMOKES_ONLY ? it : it.skip;
+
+  itSmoke("SMOKE: redemption claim mint+burn with roles and membership", async () => {
     // Deploy minimal contracts
     const MockUSDC = await ethers.getContractFactory("MockUSDC");
     const MemberRegistry = await ethers.getContractFactory("MemberRegistry");

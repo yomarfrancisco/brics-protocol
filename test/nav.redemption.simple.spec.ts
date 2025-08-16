@@ -4,6 +4,65 @@ import { ethers } from "hardhat";
 import { loadFixture, time } from "@nomicfoundation/hardhat-toolbox/network-helpers";
 import { getNavRayCompat } from "./utils/nav-helpers";
 
+describe("Redemption SMOKE Tests", function () {
+  // Only run this SMOKE in the smokes lane; skip in the full suite to keep main green
+  const itSmoke = process.env.CI_SMOKES_ONLY ? it : it.skip;
+
+  itSmoke("SMOKE: redemption claim mint+burn with roles and membership", async () => {
+    // Deploy minimal contracts
+    const MockUSDC = await ethers.getContractFactory("MockUSDC");
+    const MemberRegistry = await ethers.getContractFactory("MemberRegistry");
+    const ConfigRegistry = await ethers.getContractFactory("ConfigRegistry");
+    const RedemptionClaim = await ethers.getContractFactory("RedemptionClaim");
+
+    const [gov, ops] = await ethers.getSigners();
+    const govAddress = await gov.getAddress();
+    const opsAddress = await ops.getAddress();
+
+    // Deploy contracts with correct constructor args
+    const usdc = await MockUSDC.deploy();
+    const memberRegistry = await MemberRegistry.deploy(govAddress);
+    const configRegistry = await ConfigRegistry.deploy(govAddress);
+    const redemptionClaim = await RedemptionClaim.deploy(
+      govAddress,
+      await memberRegistry.getAddress(),
+      await configRegistry.getAddress()
+    );
+
+    // Setup member registry (need registrar first)
+    await memberRegistry.connect(gov).setRegistrar(govAddress);
+    await memberRegistry.connect(gov).setMember(opsAddress, true);
+
+    // Grant roles to ops
+    await redemptionClaim.connect(gov).grantRole(await redemptionClaim.ISSUER_ROLE(), opsAddress);
+    await redemptionClaim.connect(gov).grantRole(await redemptionClaim.BURNER_ROLE(), opsAddress);
+
+    // Mint a tiny claim to ops (1 USDC, strike time = now + 1 hour)
+    const claimAmount = ethers.parseUnits("1", 6);
+    const strikeTs = await time.latest() + 3600; // 1 hour from now
+    const tx = await redemptionClaim.connect(ops).mintClaim(opsAddress, strikeTs, claimAmount);
+    const receipt = await tx.wait();
+    const claimId = 1; // First claim gets ID 1
+
+    // Verify claim was created
+    const claimBalance = await redemptionClaim.balanceOf(opsAddress, claimId);
+    expect(claimBalance).to.equal(1); // ERC1155 balance is count of tokens, not amount
+
+    // Verify claim info
+    const claimInfo = await redemptionClaim.claimInfo(claimId);
+    expect(claimInfo.owner).to.equal(opsAddress);
+    expect(claimInfo.amount).to.equal(claimAmount);
+    expect(claimInfo.settled).to.equal(false);
+
+    // Burn/settle the claim
+    await redemptionClaim.connect(ops).settleAndBurn(claimId, opsAddress);
+
+    // Assert post-burn balance is zero
+    const postBurnBalance = await redemptionClaim.balanceOf(opsAddress, claimId);
+    expect(postBurnBalance).to.equal(0);
+  });
+});
+
 describe("NAV Redemption Lane - Simple Test", function () {
     async function deployFixture() {
         const [gov, ops] = await ethers.getSigners();

@@ -1,6 +1,7 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import { Contract, ContractFactory, Signer } from "ethers";
+import { time } from "@nomicfoundation/hardhat-network-helpers";
 import { USDC, expectNonZero } from "./utils/units";
 import { echoMintArgs } from "./helpers/tx-echo";
 import { setNavCompat, getNavRayCompat } from "./utils/nav-helpers";
@@ -295,8 +296,7 @@ describe("Sovereign Guarantee Integration", function () {
       await trancheManager.connect(ecc).expandToTier2(1, irbBalance, preBufferBalance);
 
       // Fast forward time to expire Tier 2
-      await ethers.provider.send("evm_increaseTime", [15 * 24 * 3600]); // 15 days
-      await ethers.provider.send("evm_mine", []);
+      await time.increase(15 * 24 * 3600); // 15 days
 
       await expect(
         trancheManager.connect(ecc).enforceTier2Expiry(10200)

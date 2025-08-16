@@ -1,5 +1,6 @@
 // test/utils/nav-helpers.ts
 import { ethers } from "hardhat";
+import { time } from "@nomicfoundation/hardhat-network-helpers";
 
 // Constants as BigInt
 export const USDC_DECIMALS = 6n;
@@ -89,6 +90,5 @@ export async function safeIncreaseTo(ts: number | bigint) {
   const target = Number(ts);
   const cur = await now();
   const next = Math.max(target, cur + 1);
-  await ethers.provider.send("evm_setNextBlockTimestamp", [ next ]);
-  await ethers.provider.send("evm_mine", []);
+  await time.increaseTo(next);
 }

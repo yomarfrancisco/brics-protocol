@@ -1,5 +1,6 @@
 import { ethers } from "hardhat";
 import { safeIncreaseTo } from "./utils/time-helpers";
+import { time } from "@nomicfoundation/hardhat-network-helpers";
 
 
 export async function chainNow() {
@@ -18,6 +19,5 @@ export async function fastForwardTo(ts: number) {
 }
 
 export async function fastForwardBy(seconds: number) {
-  await ethers.provider.send("evm_increaseTime", [seconds]);
-
+  await time.increase(seconds);
 }

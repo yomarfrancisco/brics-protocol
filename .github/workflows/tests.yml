@@ -1,4 +1,9 @@
 name: tests
+permissions:
+  contents: read
+  checks: read
+  issues: write       # for guardrails comments (already used)
+  pull-requests: write
 on:
   push:
     branches: ['**']

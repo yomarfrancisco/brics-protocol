@@ -1,0 +1,96 @@
+name: Nightly Flake Detection
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # Daily at 2 AM UTC
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  flake-sampler:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          submodules: false
+      
+      - name: Safe git (guarded)
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config --local --unset-all extensions.worktreeConfig || true
+          echo "Git safety configured; no submodule operations"
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Enable Corepack + pin Yarn 4.9.2
+        run: |
+          corepack enable
+          corepack prepare yarn@4.9.2 --activate
+          yarn --version
+      
+      - name: Cache Yarn Berry artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            .yarn/cache
+            .yarn/unplugged
+            .yarn/patches
+            .yarn/build-state.yml
+            .pnp.cjs
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-
+      
+      - name: Install deps (immutable)
+        run: yarn install --immutable
+      
+      - name: Run flake sampler
+        env:
+          PRICING_PROVIDER: stub
+          BANK_DATA_MODE: off
+          CI: 1
+          FORCE_COLOR: 0
+        run: |
+          # Run a randomized subset of tests (SMOKE + CRITICAL patterns)
+          # Always upload results even on non-zero exit
+          set +e
+          yarn hardhat test --grep 'SMOKE|CRITICAL' > flake-sampler.log 2>&1
+          exit_code=$?
+          
+          # Create summary
+          echo "## Flake Sampler Results" > flake-summary.md
+          echo "**Run:** $(date -u)" >> flake-summary.md
+          echo "**Exit Code:** $exit_code" >> flake-summary.md
+          echo "" >> flake-summary.md
+          
+          if [ $exit_code -eq 0 ]; then
+            echo "✅ **Status:** All sampled tests passed" >> flake-summary.md
+          else
+            echo "❌ **Status:** Some sampled tests failed (potential flakes)" >> flake-summary.md
+            echo "" >> flake-summary.md
+            echo "### Failed Tests:" >> flake-summary.md
+            grep -A 5 -B 5 "FAIL\|Error\|failing" flake-sampler.log >> flake-summary.md || echo "No detailed failure info found" >> flake-summary.md
+          fi
+          
+          echo "" >> flake-summary.md
+          echo "### Full Log:" >> flake-summary.md
+          echo '```' >> flake-summary.md
+          cat flake-sampler.log >> flake-summary.md
+          echo '```' >> flake-summary.md
+          
+          # Always upload artifacts regardless of exit code
+          exit $exit_code
+      
+      - name: Upload flake artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: flake-sampler-${{ github.run_id }}
+          path: |
+            flake-sampler.log
+            flake-summary.md
+          retention-days: 30

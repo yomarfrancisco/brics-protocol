@@ -74,7 +74,7 @@ const config: HardhatUserConfig = {
   mocha: {
     reporter: 'min', // Centralized minimal reporter (was previously --reporter min CLI flag)
     timeout: 60000,
-    retries: 1,
+    retries: process.env.CI ? 1 : 0,
     bail: true,
     require: ["test/bootstrap.ts"]
   }

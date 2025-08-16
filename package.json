@@ -50,6 +50,7 @@
     "fixtures:hashcheck": "ts-node scripts/verify-fixture-hash.ts",
     "fixtures:summary": "ts-node scripts/print-fixture-summary.ts",
     "smoke:dev": "ts-node --transpile-only scripts/smoke-dev.ts",
+    "guard:scan": "bash scripts/guardrails/scan.sh",
     "demo:settlement": "hardhat swap:settle-demo --obligor ACME-LLC --tenor 30 --asof 1600000000 --notional 1000000 --fixedSpread 80 --elapsedDays 15 --outputPath dist/demo/demo_settlement.json",
     "test:settlement:e2e": "hardhat test -g \"settlement demo\"",
     "lint:sol": "solhint 'contracts/**/*.sol'",

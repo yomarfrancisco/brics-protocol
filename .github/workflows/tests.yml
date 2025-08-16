@@ -16,13 +16,19 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          submodules: false
           persist-credentials: false
-      - name: Unshallow & safe git
+      # Guarded safety step; do NOT touch submodules
+      - name: Safe git (guarded)
         run: |
-          git fetch --prune --unshallow || true
-          git config --global --add safe.directory $GITHUB_WORKSPACE
-          git config --global user.name "ci-bot"
-          git config --global user.email "ci@example.com"
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config --local --unset-all extensions.worktreeConfig || true
+          # If (and only if) a .gitmodules file with valid URLs exists, you may operate on submodules.
+          if [ -f .gitmodules ] && git config --file .gitmodules --name-only --get-regexp '^submodule\..*\.url' >/dev/null 2>&1; then
+            echo "Submodules present; leaving them alone because checkout submodules:false"
+          else
+            echo "No usable submodules detected; skipping any submodule commands."
+          fi
       - uses: actions/setup-node@v4
         with:
           node-version: '20'

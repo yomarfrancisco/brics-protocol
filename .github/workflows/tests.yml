@@ -87,7 +87,7 @@ jobs:
           # pull counts from report
           REPORT="guardrails-report.txt"
           if [ -f "$REPORT" ]; then
-            raw_time=$(rg -n "Raw EVM time ops" -n $REPORT | wc -l | xargs); : # count lines section header present
+            raw_time=$(grep -n "Raw EVM time ops" -n $REPORT | wc -l | xargs); : # count lines section header present
           fi
 
           # Robust parse: grab counts by header lines we print in scan.sh
@@ -256,7 +256,7 @@ jobs:
           # pull counts from report
           REPORT="guardrails-report.txt"
           if [ -f "$REPORT" ]; then
-            raw_time=$(rg -n "Raw EVM time ops" -n $REPORT | wc -l | xargs); : # count lines section header present
+            raw_time=$(grep -n "Raw EVM time ops" -n $REPORT | wc -l | xargs); : # count lines section header present
           fi
 
           # Robust parse: grab counts by header lines we print in scan.sh

@@ -13,6 +13,9 @@ Frozen pricing fixture auto-rotates weekly; PRs fail if fixture older than 30 da
 [![Gas](https://img.shields.io/badge/Gas-Trend%20tracking-blue)](https://github.com/yomarfrancisco/brics-protocol/actions)
 [![Audit](https://img.shields.io/badge/Audit-Bundle%20generated-green)](https://github.com/yomarfrancisco/brics-protocol/actions)
 
+# CI
+[![tests](https://github.com/yomarfrancisco/brics-protocol/actions/workflows/tests.yml/badge.svg)](https://github.com/yomarfrancisco/brics-protocol/actions/workflows/tests.yml)
+
 [![Version](https://img.shields.io/badge/Version-v0.2.0-blue)](https://github.com/yomarfrancisco/brics-protocol/releases)
 
 ## 🎯 **AUDIT-READY: Institution-Grade Synthetic Risk Transfer Infrastructure**
@@ -141,6 +144,11 @@ REPORT_GAS=true npm test
   - Focused tests (`.only`), `console.log` in tests
   - Hardcoded `0x…` addrs (excluding mocks/fixtures/json)
 - If findings exist on a PR, the workflow auto-comments with counts + artifact link.
+
+#### CI smokes & timing
+- The **smokes** and **test** jobs both run on every PR and on `main`.  
+- A weekly **CI Health Report (auto)** issue summarizes recent median durations.  
+- Timing medians are computed from per-run CSV artifacts; if missing, the audit falls back to run metadata.
 
 ### Deployment
 ```bash

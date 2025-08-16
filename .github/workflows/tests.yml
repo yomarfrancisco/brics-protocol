@@ -1,9 +1,15 @@
 name: tests
+permissions:
+  contents: read
+  checks: read
+  issues: write       # for guardrails comments (already used)
+  pull-requests: write
 on:
   push:
     branches: ['**']
   pull_request:
     branches: ['**']
+  workflow_dispatch:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -70,84 +76,65 @@ jobs:
           path: guardrails-report.txt
           if-no-files-found: ignore
           retention-days: 7
-      - name: Guardrails PR comment (non-blocking)
-        if: ${{ always() && (github.event_name == 'pull_request' || github.event_name == 'pull_request_target') }}
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            const path = 'guardrails-report.txt';
-            if (!fs.existsSync(path)) {
-              core.info('No guardrails-report.txt found (skipping comment).');
-              return;
-            }
-            const txt = fs.readFileSync(path, 'utf8');
-            function count(sectionTitle) {
-              const lines = txt.split('\n');
-              let inSection = false;
-              let count = 0;
-              for (const line of lines) {
-                if (line.startsWith('==== ') && line.includes(sectionTitle)) {
-                  inSection = true;
-                  continue;
-                }
-                if (inSection && line.startsWith('==== ')) {
-                  break;
-                }
-                if (inSection && line.trim().length > 0) {
-                  count++;
-                }
-              }
-              return count;
-            }
-            const counts = {
-              'raw time ops (evm_*)': count('raw time ops (evm_*)'),
-              'legacy RAY math (parseEther(...) * 10n ** 9n)': count('legacy RAY math (parseEther(...) * 10n ** 9n)'),
-              'focused tests (.only)': count('focused tests (.only)'),
-              'console.log in tests': count('console.log in tests'),
-              'hardcoded 0x addresses (excluding mocks/fixtures/json)': count('hardcoded 0x addresses (excluding mocks/fixtures/json)')
-            };
-            const total = Object.values(counts).reduce((a,b)=>a+b,0);
-            core.info(`Guardrails counts: ${JSON.stringify(counts)}`);
-            if (total === 0) return; // nothing to report
-            
-            // Check for existing comment to avoid duplicates
-            const marker = `[guardrails-report:${process.env.GITHUB_RUN_ID}:${process.env.GITHUB_JOB}]`;
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.payload.pull_request.number,
-              per_page: 100
-            });
-            
-            const existingComment = comments.find(c => c.body && c.body.includes(marker));
-            if (existingComment) {
-              core.info('Guardrails comment already exists, skipping duplicate.');
-              return;
-            }
-            
-            const runUrl = `https://github.com/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
-            const artifact = process.env.GUARDRAILS_ARTIFACT_NAME || 'guardrails-report';
-            const lines = Object.entries(counts)
-              .filter(([,c])=>c>0)
-              .map(([k,c])=>`- ${k}: **${c}**`)
-              .join('\n');
-            const body = [
-              '🛡️ **Guardrails findings**',
-              '',
-              lines,
-              '',
-              `Details: download artifact **${artifact}**`,
-              `Run: ${runUrl}`,
-              '',
-              marker
-            ].join('\n');
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.payload.pull_request.number,
-              body
-            });
+      - name: Guardrails — PR auto-comment + label (non-blocking)
+        if: ${{ always() && github.event_name == 'pull_request' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ARTIFACT_NAME: ${{ env.GUARDRAILS_ARTIFACT_NAME }}
+        run: |
+          set -euo pipefail
+          # pull counts from report
+          REPORT="guardrails-report.txt"
+          if [ -f "$REPORT" ]; then
+            raw_time=$(rg -n "Raw EVM time ops" -n $REPORT | wc -l | xargs); : # count lines section header present
+          fi
+
+          # Robust parse: grab counts by header lines we print in scan.sh
+          counts=$(grep -E "count\(" -n "$REPORT" | sed 's/.*count(\(.*\)).*/\1/' || true)
+          # extract specific counts; default 0
+          c_time=$(grep -E "^Raw EVM time ops:" "$REPORT" | awk '{print $NF+0}' || echo 0)
+          c_ray=$(grep -E "^Legacy RAY math:" "$REPORT" | awk '{print $NF+0}' || echo 0)
+          c_only=$(grep -E "^Mocha .only markers:" "$REPORT" | awk '{print $NF+0}' || echo 0)
+          c_console=$(grep -E "^console.log in tests:" "$REPORT" | awk '{print $NF+0}' || echo 0)
+          c_addr=$(grep -E "^Hardcoded 0x addresses" "$REPORT" | awk '{print $NF+0}' || echo 0)
+          c_todo=$(grep -E "^TODO/FIXME markers" "$REPORT" | awk '{print $NF+0}' || echo 0)
+          c_hhconsole=$(grep -E "^hardhat/console imports" "$REPORT" | awk '{print $NF+0}' || echo 0)
+          c_only_bk=$(grep -E "^mocha only markers \(backup\)" "$REPORT" | awk '{print $NF+0}' || echo 0)
+
+          total=$((c_time+c_ray+c_only+c_console+c_addr+c_todo+c_hhconsole+c_only_bk))
+
+          # severity emoji (highest hit wins)
+          sev="🟢"
+          [ "$c_time" -gt 0 ] && sev="🔴"
+          if [ "$sev" = "🟢" ]; then
+            ([ "$c_only" -gt 0 ] || [ "$c_only_bk" -gt 0 ]) && sev="🟡"
+          fi
+
+          pr="${{ github.event.pull_request.number }}"
+          marker="[guardrails-report:${{ github.run_id }}:${{ job.name }}]"
+          body="$sev Guardrails summary for **${{ job.name }}** $marker
+          - Raw EVM time ops: $c_time
+          - Legacy RAY math: $c_ray
+          - .only markers: $((c_only+c_only_bk))
+          - console.log (tests): $c_console
+          - hardcoded 0x addrs: $c_addr
+          - TODO/FIXME: $c_todo
+          - hardhat/console imports: $c_hhconsole
+          
+          Run: $RUN_URL  
+          Artifact: **$ARTIFACT_NAME**"
+
+          # de-dup: skip if same marker already exists
+          if gh pr view "$pr" --json comments --jq '.comments[].body' | grep -qF "$marker"; then
+            echo "Guardrails comment already posted (marker seen)."
+          else
+            # add label if hits > 0
+            if [ "$total" -gt 0 ]; then
+              gh pr edit "$pr" --add-label "ci/guardrails" || true
+            fi
+            gh pr comment "$pr" --body "$body" || true
+          fi
       - name: Run fast smokes
         env:
           PRICING_PROVIDER: stub
@@ -258,84 +245,65 @@ jobs:
           path: guardrails-report.txt
           if-no-files-found: ignore
           retention-days: 7
-      - name: Guardrails PR comment (non-blocking)
-        if: ${{ always() && (github.event_name == 'pull_request' || github.event_name == 'pull_request_target') }}
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            const path = 'guardrails-report.txt';
-            if (!fs.existsSync(path)) {
-              core.info('No guardrails-report.txt found (skipping comment).');
-              return;
-            }
-            const txt = fs.readFileSync(path, 'utf8');
-            function count(sectionTitle) {
-              const lines = txt.split('\n');
-              let inSection = false;
-              let count = 0;
-              for (const line of lines) {
-                if (line.startsWith('==== ') && line.includes(sectionTitle)) {
-                  inSection = true;
-                  continue;
-                }
-                if (inSection && line.startsWith('==== ')) {
-                  break;
-                }
-                if (inSection && line.trim().length > 0) {
-                  count++;
-                }
-              }
-              return count;
-            }
-            const counts = {
-              'raw time ops (evm_*)': count('raw time ops (evm_*)'),
-              'legacy RAY math (parseEther(...) * 10n ** 9n)': count('legacy RAY math (parseEther(...) * 10n ** 9n)'),
-              'focused tests (.only)': count('focused tests (.only)'),
-              'console.log in tests': count('console.log in tests'),
-              'hardcoded 0x addresses (excluding mocks/fixtures/json)': count('hardcoded 0x addresses (excluding mocks/fixtures/json)')
-            };
-            const total = Object.values(counts).reduce((a,b)=>a+b,0);
-            core.info(`Guardrails counts: ${JSON.stringify(counts)}`);
-            if (total === 0) return; // nothing to report
-            
-            // Check for existing comment to avoid duplicates
-            const marker = `[guardrails-report:${process.env.GITHUB_RUN_ID}:${process.env.GITHUB_JOB}]`;
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.payload.pull_request.number,
-              per_page: 100
-            });
-            
-            const existingComment = comments.find(c => c.body && c.body.includes(marker));
-            if (existingComment) {
-              core.info('Guardrails comment already exists, skipping duplicate.');
-              return;
-            }
-            
-            const runUrl = `https://github.com/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
-            const artifact = process.env.GUARDRAILS_ARTIFACT_NAME || 'guardrails-report';
-            const lines = Object.entries(counts)
-              .filter(([,c])=>c>0)
-              .map(([k,c])=>`- ${k}: **${c}**`)
-              .join('\n');
-            const body = [
-              '🛡️ **Guardrails findings**',
-              '',
-              lines,
-              '',
-              `Details: download artifact **${artifact}**`,
-              `Run: ${runUrl}`,
-              '',
-              marker
-            ].join('\n');
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.payload.pull_request.number,
-              body
-            });
+      - name: Guardrails — PR auto-comment + label (non-blocking)
+        if: ${{ always() && github.event_name == 'pull_request' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ARTIFACT_NAME: ${{ env.GUARDRAILS_ARTIFACT_NAME }}
+        run: |
+          set -euo pipefail
+          # pull counts from report
+          REPORT="guardrails-report.txt"
+          if [ -f "$REPORT" ]; then
+            raw_time=$(rg -n "Raw EVM time ops" -n $REPORT | wc -l | xargs); : # count lines section header present
+          fi
+
+          # Robust parse: grab counts by header lines we print in scan.sh
+          counts=$(grep -E "count\(" -n "$REPORT" | sed 's/.*count(\(.*\)).*/\1/' || true)
+          # extract specific counts; default 0
+          c_time=$(grep -E "^Raw EVM time ops:" "$REPORT" | awk '{print $NF+0}' || echo 0)
+          c_ray=$(grep -E "^Legacy RAY math:" "$REPORT" | awk '{print $NF+0}' || echo 0)
+          c_only=$(grep -E "^Mocha .only markers:" "$REPORT" | awk '{print $NF+0}' || echo 0)
+          c_console=$(grep -E "^console.log in tests:" "$REPORT" | awk '{print $NF+0}' || echo 0)
+          c_addr=$(grep -E "^Hardcoded 0x addresses" "$REPORT" | awk '{print $NF+0}' || echo 0)
+          c_todo=$(grep -E "^TODO/FIXME markers" "$REPORT" | awk '{print $NF+0}' || echo 0)
+          c_hhconsole=$(grep -E "^hardhat/console imports" "$REPORT" | awk '{print $NF+0}' || echo 0)
+          c_only_bk=$(grep -E "^mocha only markers \(backup\)" "$REPORT" | awk '{print $NF+0}' || echo 0)
+
+          total=$((c_time+c_ray+c_only+c_console+c_addr+c_todo+c_hhconsole+c_only_bk))
+
+          # severity emoji (highest hit wins)
+          sev="🟢"
+          [ "$c_time" -gt 0 ] && sev="🔴"
+          if [ "$sev" = "🟢" ]; then
+            ([ "$c_only" -gt 0 ] || [ "$c_only_bk" -gt 0 ]) && sev="🟡"
+          fi
+
+          pr="${{ github.event.pull_request.number }}"
+          marker="[guardrails-report:${{ github.run_id }}:${{ job.name }}]"
+          body="$sev Guardrails summary for **${{ job.name }}** $marker
+          - Raw EVM time ops: $c_time
+          - Legacy RAY math: $c_ray
+          - .only markers: $((c_only+c_only_bk))
+          - console.log (tests): $c_console
+          - hardcoded 0x addrs: $c_addr
+          - TODO/FIXME: $c_todo
+          - hardhat/console imports: $c_hhconsole
+          
+          Run: $RUN_URL  
+          Artifact: **$ARTIFACT_NAME**"
+
+          # de-dup: skip if same marker already exists
+          if gh pr view "$pr" --json comments --jq '.comments[].body' | grep -qF "$marker"; then
+            echo "Guardrails comment already posted (marker seen)."
+          else
+            # add label if hits > 0
+            if [ "$total" -gt 0 ]; then
+              gh pr edit "$pr" --add-label "ci/guardrails" || true
+            fi
+            gh pr comment "$pr" --body "$body" || true
+          fi
       - name: Guardrails (tests)
         run: bash scripts/check-usdc-ether.sh
       - name: Run tests

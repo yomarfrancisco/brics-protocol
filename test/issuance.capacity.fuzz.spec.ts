@@ -1,3 +1,4 @@
+import { setNavCompat } from "./utils/nav-helpers";
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import { Contract, Signer } from "ethers";
@@ -31,7 +32,7 @@ describe("SPEC §3 — canIssue vs cap maths (light fuzz)", function () {
       const MockNAVOracle = await ethers.getContractFactory("MockNAVOracle");
       const oracle = await MockNAVOracle.deploy();
       await oracle.waitForDeployment();
-      await oracle.setNavRay(ethers.parseEther("1")); // Use setNavRay, not setNAV
+      await setNavCompat(oracle, ethers.parseEther("1")); // Use setNavRay, not setNAV
 
       const MemberRegistry = await ethers.getContractFactory("MemberRegistry");
       const member = await MemberRegistry.deploy(govAddr);

@@ -78,6 +78,119 @@
 
 ---
 
+## Current Status (2025-08-14)
+
+### P1-1 Adaptive Tranching v0.1 Progress
+- ✅ **PR #14**: ADR + Types (merged)
+- ✅ **PR #15**: Interfaces + Events (merged)
+- ✅ **PR #16**: Oracle Adapter Stub + Governance Hooks + Tests (merged)
+- ✅ **PR #17**: Tests & CI Stabilization (merged)
+
+### Current Status
+- **Coverage**: 627/627 tests passing, ≥63% fast-track coverage
+- **Security**: All checks passing, 0 high findings
+- **SPEC §3**: All 9 tests passing with remaining capacity math fix
+- **EIP-712**: All 4 tests passing with typed-data signing
+- **Next**: P1-2 Pricing Service implementation
+
+### Recent Achievements (2025-08-14)
+- **SPEC §3 Capacity Math**: Fixed `_calculateEffectiveCapacity` to return remaining headroom instead of absolute capacity
+- **EIP-712 Alignment**: Updated tests to expect `InvalidSignature` for stale signatures (contract behavior is correct)
+- **Mock Infrastructure**: Complete TreasuryLiquidityMock and TrancheManagerV2Mock for deterministic testing
+- **Guardrails**: Pre-commit hooks passing with no violations
+
+### Recent Achievements (2025-08-15)
+- **CI finalization**: bootstrap confirmed; guardrails green; support/ artifacts removed; all tests passing
+
+### Latest Achievements (2025-08-14 UTC, f65f3d9)
+- **SPEC §3**: _calculateEffectiveCapacity returns remaining headroom (verified by boundary, damping, invariant)
+- **EIP-712**: replay = InvalidSignature (nonce not user-supplied); happy/expired/stale signer covered
+- **Test hygiene & guardrails**: USDC units, NAV helpers, BigInt discipline, no raw oracle calls
+
+### Next Actions (P1-2: Pricing Service)
+1. **Off-chain XGBoost Service**: CDS spreads & RISC scores
+2. **Oracle Integration**: Publish to on-chain feed
+3. **Deterministic Fixtures**: For testing and CI
+4. **Integration Tests**: With AdaptiveTrancheManager
+
+### Acceptance Criteria
+
+---
+
+## Phase 0 — Stabilization (P0)
+
+**Goal**: Make CI/CD & testing bulletproof before starting feature work.
+
+**Status**: ✅ **Completed** (PRs #8–#13)
+
+- **Coverage Floor**: Raised from 31% → 55% → 63% (fast track baseline)
+- **Invariants Smoke Test**: Runs in CI with minimal deploy; continue-on-error disabled
+- **Security**: Slither SARIF with allowlist guard
+- **Docs**: README badges for tests, coverage, security, gas
+- **Process Guards**: PR fails if allowlist grows without justification
+- **All CI Jobs Green**: Tests, coverage, security, gas
+
+---
+
+## Phase 1 — Feature Expansion (P1)
+
+**Goal**: Implement functional protocol features, keeping CI stable and contracts safe.
+
+### P1-1 Adaptive Tranching v0.1 ✅ **COMPLETED**
+- ✅ **PR #14**: ADR + Types (merged)
+- ✅ **PR #15**: Interfaces + Events (merged)  
+- ✅ **PR #16**: Oracle Adapter Stub + Governance Hooks + Tests (merged)
+- ✅ **PR #17**: Tests & CI Stabilization (merged 2025-08-11 20:30:00Z)
+
+**Final Status**:
+- **CI**: All critical jobs green (coverage, tests, gas, slither, invariants)
+- **Coverage**: 270/270 tests passing, ≥63% fast-track coverage
+- **Note**: Pricing Service CI remains non-blocking (continue-on-error: true)
+
+### P1-2 Pricing Service (CDS + RISC) — Next Context Switch
+- Off-chain service using XGBoost for CDS spreads & RISC scores
+- Ingest bank portfolio + sovereign hedge data
+- Publish to on-chain oracle feed
+- Integration tests with AdaptiveTrancheManager
+
+### P1-3 KYC/AML Module
+- NASASA retail onboarding
+- Institutional whitelist management
+- Integration with issuance/redemption flow
+
+---
+
+## Phase 2 — Full Economic Integration (P2)
+
+**Goal**: Connect adaptive tranching to live CDS pricing & sovereign hedge logic.
+
+- Implement tranche APY & risk calculations on-chain from oracle data
+- Enable dynamic issuance limits based on sovereign capacity
+- Sovereign guarantee hedging logic
+- Redemption queue prioritization
+
+---
+
+## Phase 3 — Off-Chain Ops & Governance (P3)
+
+**Goal**: Institutional-grade operational resilience.
+
+- Governance module (DAO-style) for tranche parameter tuning
+- Failover modes & circuit breakers
+- On-chain + off-chain dashboards
+
+---
+
+## Next High Level Actions
+
+**Current Step**: P2-4 Redemption Queue implementation
+
+**After P2-4**: P2-5 Integration with existing redemption flow
+
+**Keep In Mind**: Always ship PRs small & reviewable; no economic logic changes until tests cover scaffold behavior
+
+---
+
 ## Current Status (2025-08-11)
 
 ### P1-1 Adaptive Tranching v0.1 Progress

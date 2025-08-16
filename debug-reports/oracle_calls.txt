@@ -1,0 +1,2 @@
+test//utils/nav-helpers.ts:19:    const v = await oracle.latestNAVRay();
+test//utils/nav-helpers.ts:35:    await oracle.setNavRay(navRay.toString());

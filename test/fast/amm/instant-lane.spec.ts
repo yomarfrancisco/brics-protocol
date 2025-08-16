@@ -1,5 +1,6 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
+import { getNavRayCompat } from "../../utils/nav-helpers";
 
 describe("InstantLane - member gating, daily cap, AMM bounds", function () {
   it("enforces member gating, cap, and price bounds; performs instant redeem", async function () {

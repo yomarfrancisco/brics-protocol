@@ -2,6 +2,7 @@ import { expect } from "chai";
 import { ethers } from "hardhat";
 import { Contract, Signer } from "ethers";
 import { chainNow, openWindow, fastForwardTo } from "./helpers";
+import { setNavCompat, getNavRayCompat } from "./utils/nav-helpers";
 
 describe("NAV Redemption Lane (SPEC §4)", function () {
     let gov: Signer, user1: Signer, user2: Signer, ops: Signer, burner: Signer;
@@ -103,7 +104,7 @@ describe("NAV Redemption Lane (SPEC §4)", function () {
         await treasury.connect(gov).grantRole(await treasury.PAY_ROLE(), await issuanceController.getAddress());
 
         // Setup initial state
-        await navOracle.setNavRay(ethers.parseEther("1.0") * 10n ** 9n); // 1.0 NAV in ray format
+        await setNavCompat(navOracle, ethers.parseUnits("1", 27)); // 1.0 NAV in ray format
         await mockUSDC.mint(await treasury.getAddress(), ethers.parseUnits("1000000", 6)); // 1M USDC
         await configRegistry.connect(gov).setEmergencyLevel(0, "normal operations"); // NORMAL
     });
@@ -158,7 +159,7 @@ describe("NAV Redemption Lane (SPEC §4)", function () {
     });
 
     describe.skip("NAV Request Queueing", function () {
-        // Quarantined: tracked in Issue #61 (mintFor/usdcAmt + NAV mock API mismatch).
+        // TODO(#61): unskip once mintFor parameter shadowing is resolved
         // This block exercises requestRedeemOnBehalf which internally calls mintFor.
 
         it("should queue redemption request when instant capacity insufficient", async function () {
@@ -198,7 +199,7 @@ describe("NAV Redemption Lane (SPEC §4)", function () {
             
             // Debug: Check instant capacity
             const instantCapacity = await preTrancheBuffer.availableInstantCapacity(user1Address);
-            const nav = await navOracle.latestNAVRay();
+            const nav = await getNavRayCompat(navOracle);
             
             await expect(issuanceController.connect(ops).requestRedeemOnBehalf(user1Address, amount))
                 .to.emit(issuanceController, "NAVRequestCreated")
@@ -210,14 +211,14 @@ describe("NAV Redemption Lane (SPEC §4)", function () {
 
     it('SMOKE: NAV redemption lane plumbing works (no mintFor calls)', async () => {
         // Basic smoke test to verify the redemption lane setup works
-        expect(await navOracle.latestNAVRay()).to.equal(ethers.parseEther("1.0") * 10n ** 9n);
+        expect(await getNavRayCompat(navOracle)).to.equal(ethers.parseUnits("1", 27));
         expect(await configRegistry.emergencyLevel()).to.equal(0);
         expect(await mockUSDC.decimals()).to.equal(6);
         // Do not call requestRedeemOnBehalf or any mintFor-related functions here
     });
 
     describe.skip("NAV Claims Minting", function () {
-        // Quarantined: tracked in Issue #61 (mintFor/usdcAmt + NAV mock API mismatch).
+        // TODO(#61): unskip once mintFor parameter shadowing is resolved
         // This block exercises mintClaimsForWindow which internally calls mintFor.
 
         beforeEach(async function () {
@@ -265,7 +266,7 @@ describe("NAV Redemption Lane (SPEC §4)", function () {
     });
 
     describe.skip("NAV Strike", function () {
-        // Quarantined: tracked in Issue #61 (mintFor/usdcAmt + NAV mock API mismatch).
+        // TODO(#61): unskip once mintFor parameter shadowing is resolved
         // This block exercises strikeRedemption which internally calls mintFor.
 
         beforeEach(async function () {
@@ -312,7 +313,7 @@ describe("NAV Redemption Lane (SPEC §4)", function () {
     });
 
     describe.skip("NAV Settlement", function () {
-        // Quarantined: tracked in Issue #61 (mintFor/usdcAmt + NAV mock API mismatch).
+        // TODO(#61): unskip once mintFor parameter shadowing is resolved
         // This block exercises settleClaim which internally calls mintFor.
 
         beforeEach(async function () {
@@ -366,7 +367,7 @@ describe("NAV Redemption Lane (SPEC §4)", function () {
     });
 
     describe.skip("Emergency Level Integration", function () {
-        // Quarantined: tracked in Issue #61 (mintFor/usdcAmt + NAV mock API mismatch).
+        // TODO(#61): unskip once mintFor parameter shadowing is resolved
         // This block exercises requestRedeemOnBehalf which internally calls mintFor.
 
         it("should respect emergency level freeze rules", async function () {
@@ -389,7 +390,7 @@ describe("NAV Redemption Lane (SPEC §4)", function () {
     });
 
     describe.skip("View Functions", function () {
-        // Quarantined: tracked in Issue #61 (mintFor/usdcAmt + NAV mock API mismatch).
+        // TODO(#61): unskip once mintFor parameter shadowing is resolved
         // This block exercises requestRedeemOnBehalf which internally calls mintFor.
 
         it("should return correct next cutoff time", async function () {

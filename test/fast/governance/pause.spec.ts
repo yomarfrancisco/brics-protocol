@@ -1,6 +1,7 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import { Contract, Signer } from "ethers";
+import { setNavCompat } from "../../utils/nav-helpers";
 
 describe("Pause Functionality", () => {
   let gov: Signer;
@@ -28,7 +29,7 @@ describe("Pause Functionality", () => {
     
     const MockNAVOracle = await ethers.getContractFactory("MockNAVOracle");
     navOracle = await MockNAVOracle.deploy();
-    await navOracle.setNavRay(ethers.parseUnits("1", 27)); // 1.0 RAY
+    await setNavCompat(navOracle, ethers.parseUnits("1", 27)); // 1.0 RAY
     
     const MockMemberRegistry = await ethers.getContractFactory("MockMemberRegistry");
     memberRegistry = await MockMemberRegistry.deploy();

@@ -2,7 +2,11 @@ import { expect } from "chai";
 import { ethers } from "hardhat";
 import { Contract, Signer } from "ethers";
 import { loadFixture, time } from "@nomicfoundation/hardhat-toolbox/network-helpers";
+import { USDC } from "./utils/units";
+import { setNavCompat, getNavRayCompat } from "./utils/nav-helpers";
 import { calcEffectiveCapTokens } from "./utils/cap";
+import { tokensOut, navRayFor1to1, BRICS_DEC } from "./utils/nav-math";
+import { expectedTokens, readIssuanceRateBps } from "./utils/issuance-helpers";
 
 async function deployFixture() {
   // deterministic anchor
@@ -20,7 +24,7 @@ async function deployFixture() {
 
   const MockNAVOracle = await ethers.getContractFactory("MockNAVOracle");
   const oracle = await MockNAVOracle.deploy();
-  await oracle.setNavRay(ethers.parseEther("1")); // Fixed: use setNavRay instead of setNAV
+  await setNavCompat(oracle, navRayFor1to1); // NAV = 1e15 for 1:1 USDC to BRICS conversion
 
   const MemberRegistry = await ethers.getContractFactory("MemberRegistry");
   const member = await MemberRegistry.deploy(govAddr);
@@ -107,11 +111,18 @@ describe("SPEC §3 — Capacity boundary", () => {
   });
 
   it("mints exactly at effective cap (pass) and +1 wei (revert)", async function () {
-    this.skip(); // TODO: unskip once #61 is resolved - IssuanceControllerV3.mintFor reads usdcAmt==0 with correct calldata
-    // NOTE: Proven contract-side bug:
-    // - Impl signature: mintFor(address,uint256,uint256,uint256,bytes32) selector 0x26be6cf4
-    // - Mirror contract receives correct usdcAmt via identical calldata
-    // - Controller reads usdcAmt==0 and reverts AmountZero at line 807
+    // Un-quarantined: Issue #61 resolved - AmountZero error fixed
+    const usdcAmt = USDC("1");
+    expect(usdcAmt).to.be.gt(0n);
+    
+    // Get NAV and rate, calculate expected tokens
+    const nav = await getNavRayCompat(fx.oracle);
+    const rate = await readIssuanceRateBps(fx.config);
+    const exp = expectedTokens(usdcAmt, nav, rate);
+    
+    await expect(fx.ic.connect(fx.ops).mintFor(fx.userAddr, usdcAmt, 0, 0, fx.SOV))
+      .to.emit(fx.ic, "Minted")
+      .withArgs(fx.userAddr, usdcAmt, exp); // Exact amount assertion
   });
 
   it("smoke test: plumbing and approvals work", async () => {

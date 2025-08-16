@@ -1,4 +1,7 @@
 import { expect } from "chai";
+import { safeIncreaseTo } from "./utils/time-helpers";
+import { setNavCompat } from "./utils/nav-helpers";
+
 import { ethers } from "hardhat";
 import { Contract, Signer } from "ethers";
 
@@ -31,7 +34,7 @@ describe("CEI rollback on external failure (settlement path)", () => {
 
     const MockNAVOracleV3 = await ethers.getContractFactory("MockNAVOracleV3");
     oracle = await MockNAVOracleV3.deploy();
-    await oracle.setNAV(ethers.parseEther("1"));
+    await setNavCompat(oracle, ethers.parseEther("1"));
 
     const MemberRegistry = await ethers.getContractFactory("MemberRegistry");
     member = await MemberRegistry.deploy(govAddr);
@@ -91,8 +94,7 @@ describe("CEI rollback on external failure (settlement path)", () => {
     const closeTs = now + 3 * 24 * 3600; // 3 days to satisfy windowMinDuration
     await ic.connect(ops).openNavWindow(closeTs);
     await ic.connect(ops).requestRedeemOnBehalf(userAddr, ethers.parseEther("100"));
-    await ethers.provider.send("evm_setNextBlockTimestamp", [closeTs + 1]);
-    await ethers.provider.send("evm_mine", []);
+    await safeIncreaseTo(closeTs + 1);
     await ic.connect(ops).closeNavWindow();
     await ic.connect(ops).mintClaimsForWindow([userAddr]);
     await ic.connect(ops).strikeRedemption();
@@ -100,8 +102,7 @@ describe("CEI rollback on external failure (settlement path)", () => {
     // jump to settlement start (T+5d)
     const window = await ic.currentNavWindow();
     const settleTs = Number(window.strikeTs) + 5 * 24 * 3600 + 1;
-    await ethers.provider.send("evm_setNextBlockTimestamp", [settleTs]);
-    await ethers.provider.send("evm_mine", []);
+    await safeIncreaseTo(settleTs);
   });
 
   it("settlement reverts (external failure) and state is rolled back", async () => {

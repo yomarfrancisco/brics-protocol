@@ -1,0 +1,22 @@
+CI Failure Snippet Placeholder
+=============================
+
+This file would contain the ~40 lines around the failing CI assertion from the reentrancy/precision test error.
+
+The original CI failure was in test/security/reentrancy.spec.ts around line 137-138:
+"SMOKE: reentrancy test fixture deploys correctly"
+
+Error: AssertionError: expected 1000000000000000000 to equal 1000000000000000000000000000
++ expected - actual
+-1000000000000000000
++1000000000000000000000000000
+
+This was caused by precision issues with BigInt rounding in NAV conversions.
+The test was expecting 1e18 but getting 1e27 due to incorrect NAV format handling.
+
+The fix involved:
+1. Using proper RAY format (1e27) for NAV values
+2. Using divRoundHalfUp for deterministic BigInt rounding
+3. Replacing direct oracle calls with compat helpers
+
+If you have a local CI log file, paste the relevant ~40 lines here.

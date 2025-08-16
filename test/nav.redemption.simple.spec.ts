@@ -1,6 +1,7 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import { loadFixture, time } from "@nomicfoundation/hardhat-toolbox/network-helpers";
+import { getNavRayCompat } from "./utils/nav-helpers";
 
 describe("NAV Redemption Lane - Simple Test", function () {
     async function deployFixture() {
@@ -93,7 +94,7 @@ describe("NAV Redemption Lane - Simple Test", function () {
 
         // Basic checks
         expect(await fx.mockUSDC.decimals()).to.equal(6);
-        expect(await fx.navOracle.latestNAVRay()).to.equal(ethers.parseEther("1.0") * 10n ** 9n); // 1.0 NAV in ray format (1e27)
+        expect(await getNavRayCompat(fx.navOracle)).to.equal(ethers.parseUnits("1", 27)); // 1e27 RAY
 
         expect(await fx.configRegistry.emergencyLevel()).to.equal(0);
     });
@@ -113,7 +114,7 @@ describe("NAV Redemption Lane - Simple Test", function () {
         await fx.configRegistry.connect(fx.gov).setEmergencyLevel(0, "normal operations");
 
         // Test NAV window lifecycle
-        const now = Number(await time.latest());
+        const now = await time.latest();
         const closeTime = now + 3 * 24 * 3600; // 3 days from now
         
         // Open window

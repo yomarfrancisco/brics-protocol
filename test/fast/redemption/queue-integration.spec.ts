@@ -1,4 +1,6 @@
 import { expect } from "chai";
+import { safeIncreaseTo } from "../../utils/time-helpers";
+
 import { ethers } from "hardhat";
 import { Contract, ContractFactory, Signer } from "ethers";
 import { loadFixture } from "@nomicfoundation/hardhat-toolbox/network-helpers";
@@ -71,8 +73,7 @@ describe("RedemptionQueue Priority Integration", function () {
         await mockRiskAdapter.setRisk(1, 500, FIXED_TIMESTAMP); // 5% risk adj
 
         // Set deterministic timestamp
-        await ethers.provider.send("evm_setNextBlockTimestamp", [FIXED_TIMESTAMP]);
-        await ethers.provider.send("evm_mine", []);
+        await safeIncreaseTo(FIXED_TIMESTAMP);
 
         return {
             configRegistry,
@@ -119,72 +120,72 @@ describe("RedemptionQueue Priority Integration", function () {
         });
 
         it("should process higher priority claims first when enabled", async function () {
-            // Skip this test for now - focus on basic functionality
+            // TODO(unblock): implement priority queue processing logic
             this.skip();
         });
     });
 
     describe("Monotonicity & Ties", function () {
         it("should process earlier enqueue first for equal scores", async function () {
-            // Skip this test for now - focus on basic functionality
+            // TODO(unblock): implement tie-breaking logic for equal priority scores
             this.skip();
         });
 
         it("should be monotonic with respect to priority scores", async function () {
-            // Skip this test for now - focus on basic functionality
+            // TODO(unblock): implement priority score monotonicity validation
             this.skip();
         });
     });
 
     describe("Bounds & Safety", function () {
         it("should handle changing weights/thresholds deterministically", async function () {
-            // Skip this test for now - focus on basic functionality
+            // TODO(unblock): implement dynamic weight/threshold handling
             this.skip();
         });
 
         it("should respect max per batch limit when set", async function () {
-            // Skip this test for now - focus on basic functionality
+            // TODO(unblock): implement batch size limit enforcement
             this.skip();
         });
     });
 
     describe("Determinism", function () {
         it("should return consistent results for same inputs", async function () {
-            // Skip this test for now - focus on basic functionality
+            // TODO(unblock): implement deterministic result validation
             this.skip();
         });
 
         it("should not use randomization", async function () {
-            // Skip this test for now - focus on basic functionality
+            // TODO(unblock): implement randomization-free validation
             this.skip();
         });
     });
 
     describe("No State Migration", function () {
         it("should handle old claims enqueued pre-flag in both modes", async function () {
-            // Skip this test for now - focus on basic functionality
+            // TODO(unblock): implement backward compatibility for pre-flag claims
             this.skip();
         });
     });
 
     describe("Edge Cases", function () {
         it("should handle zero amounts", async function () {
-            // Skip this test for now - focus on basic functionality
+            // TODO(unblock): implement zero amount edge case handling
             this.skip();
         });
 
         it("should handle very large amounts", async function () {
-            // Skip this test for now - focus on basic functionality
+            // TODO(unblock): implement large amount overflow protection
             this.skip();
         });
 
         it("should handle empty queue", async function () {
-            // Skip this test for now - focus on basic functionality
+            // TODO(unblock): implement empty queue state handling
             this.skip();
         });
 
         it("should handle missing config registry gracefully", async function () {
-            // Skip this test for now - focus on core functionality
+            // TODO(unblock): implement graceful config registry fallback
             this.skip();
         });
     });

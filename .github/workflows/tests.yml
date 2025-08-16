@@ -44,6 +44,16 @@ jobs:
             ${{ runner.os }}-yarn-
       - name: Install deps (immutable)
         run: yarn install --immutable
+      - name: Cache Hardhat artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            cache
+            artifacts
+            typechain
+          key: ${{ runner.os }}-hardhat-${{ hashFiles('hardhat.config.ts') }}-${{ hashFiles('yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-hardhat-
       - name: Run fast smokes
         env:
           PRICING_PROVIDER: stub
@@ -98,6 +108,16 @@ jobs:
             ${{ runner.os }}-yarn-
       - name: Install deps (immutable)
         run: yarn install --immutable
+      - name: Cache Hardhat artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            cache
+            artifacts
+            typechain
+          key: ${{ runner.os }}-hardhat-${{ hashFiles('hardhat.config.ts') }}-${{ hashFiles('yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-hardhat-
       - name: Guardrails (tests)
         run: bash scripts/check-usdc-ether.sh
       - name: Run tests

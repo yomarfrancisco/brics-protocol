@@ -1,8 +1,8 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import { loadFixture } from "@nomicfoundation/hardhat-toolbox/network-helpers";
-import { setNavCompat, getNavRayCompat, toUSDCfromTokens, RAY, tokensToUSDC, WAD, USDC_ONE } from "../../test/utils/nav-helpers";
-import { safeNow, safeIncreaseTo } from "../../test/utils/time-helpers";
+import { setNavCompat, getNavRayCompat, toUSDCfromTokens, RAY, tokensToUSDC, WAD, USDC_ONE } from "../utils/nav-helpers";
+import { safeNow, safeIncreaseTo } from "../utils/time-helpers";
 import { MalUSDC } from "../../contracts/malicious/MalUSDC";
 import { MalRedemptionClaim } from "../../contracts/malicious/MalRedemptionClaim";
 

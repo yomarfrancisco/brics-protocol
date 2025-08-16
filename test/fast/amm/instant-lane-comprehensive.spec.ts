@@ -1,6 +1,6 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
-import { loadFixture } from "@nomicfoundation/hardhat-toolbox/network-helpers";
+import { loadFixture, time } from "@nomicfoundation/hardhat-toolbox/network-helpers";
 
 describe("InstantLane Comprehensive Tests", function () {
   async function deployInstantLaneFixture() {
@@ -168,8 +168,7 @@ describe("InstantLane Comprehensive Tests", function () {
       expect(used).to.equal(1_000n * 1_000_000n);
       
       // Fast forward 1 day
-      await ethers.provider.send("evm_increaseTime", [86400]);
-      await ethers.provider.send("evm_mine", []);
+      await time.increase(86400);
       
       // Check daily usage should be reset
       const [ok2, cap2, used2, need2] = await lane.canInstantRedeem(await alice.getAddress(), 0);

@@ -76,8 +76,8 @@ jobs:
           path: guardrails-report.txt
           if-no-files-found: ignore
           retention-days: 7
-      - name: Guardrails PR comment (non-blocking)
-        if: ${{ always() && (github.event_name == 'pull_request' || github.event_name == 'pull_request_target') }}
+      - name: Guardrails — PR auto-comment + label (non-blocking)
+        if: ${{ always() && github.event_name == 'pull_request' }}
         uses: actions/github-script@v7
         with:
           script: |
@@ -111,7 +111,10 @@ jobs:
               'legacy RAY math (parseEther(...) * 10n ** 9n)': count('legacy RAY math (parseEther(...) * 10n ** 9n)'),
               'focused tests (.only)': count('focused tests (.only)'),
               'console.log in tests': count('console.log in tests'),
-              'hardcoded 0x addresses (excluding mocks/fixtures/json)': count('hardcoded 0x addresses (excluding mocks/fixtures/json)')
+              'hardcoded 0x addresses (excluding mocks/fixtures/json)': count('hardcoded 0x addresses (excluding mocks/fixtures/json)'),
+              'TODO/FIXME markers (excluding docs/README/CHANGELOG/.md)': count('TODO/FIXME markers (excluding docs/README/CHANGELOG/.md)'),
+              'hardhat/console imports': count('hardhat/console imports'),
+              'mocha only markers (backup)': count('mocha only markers (backup)')
             };
             const total = Object.values(counts).reduce((a,b)=>a+b,0);
             core.info(`Guardrails counts: ${JSON.stringify(counts)}`);
@@ -132,6 +135,14 @@ jobs:
               return;
             }
             
+            // severity emoji (highest hit wins)
+            let sev = "🟢";
+            if (counts['raw time ops (evm_*)'] > 0) {
+              sev = "🔴";
+            } else if (counts['focused tests (.only)'] > 0 || counts['mocha only markers (backup)'] > 0) {
+              sev = "🟡";
+            }
+            
             const runUrl = `https://github.com/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
             const artifact = process.env.GUARDRAILS_ARTIFACT_NAME || 'guardrails-report';
             const lines = Object.entries(counts)
@@ -139,7 +150,7 @@ jobs:
               .map(([k,c])=>`- ${k}: **${c}**`)
               .join('\n');
             const body = [
-              '🛡️ **Guardrails findings**',
+              `${sev} **Guardrails findings**`,
               '',
               lines,
               '',
@@ -148,6 +159,21 @@ jobs:
               '',
               marker
             ].join('\n');
+            
+            // add label if hits > 0
+            if (total > 0) {
+              try {
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.payload.pull_request.number,
+                  labels: ['ci/guardrails']
+                });
+              } catch (e) {
+                core.info('Could not add label (may already exist): ' + e.message);
+              }
+            }
+            
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -264,8 +290,8 @@ jobs:
           path: guardrails-report.txt
           if-no-files-found: ignore
           retention-days: 7
-      - name: Guardrails PR comment (non-blocking)
-        if: ${{ always() && (github.event_name == 'pull_request' || github.event_name == 'pull_request_target') }}
+      - name: Guardrails — PR auto-comment + label (non-blocking)
+        if: ${{ always() && github.event_name == 'pull_request' }}
         uses: actions/github-script@v7
         with:
           script: |
@@ -299,7 +325,10 @@ jobs:
               'legacy RAY math (parseEther(...) * 10n ** 9n)': count('legacy RAY math (parseEther(...) * 10n ** 9n)'),
               'focused tests (.only)': count('focused tests (.only)'),
               'console.log in tests': count('console.log in tests'),
-              'hardcoded 0x addresses (excluding mocks/fixtures/json)': count('hardcoded 0x addresses (excluding mocks/fixtures/json)')
+              'hardcoded 0x addresses (excluding mocks/fixtures/json)': count('hardcoded 0x addresses (excluding mocks/fixtures/json)'),
+              'TODO/FIXME markers (excluding docs/README/CHANGELOG/.md)': count('TODO/FIXME markers (excluding docs/README/CHANGELOG/.md)'),
+              'hardhat/console imports': count('hardhat/console imports'),
+              'mocha only markers (backup)': count('mocha only markers (backup)')
             };
             const total = Object.values(counts).reduce((a,b)=>a+b,0);
             core.info(`Guardrails counts: ${JSON.stringify(counts)}`);
@@ -320,6 +349,14 @@ jobs:
               return;
             }
             
+            // severity emoji (highest hit wins)
+            let sev = "🟢";
+            if (counts['raw time ops (evm_*)'] > 0) {
+              sev = "🔴";
+            } else if (counts['focused tests (.only)'] > 0 || counts['mocha only markers (backup)'] > 0) {
+              sev = "🟡";
+            }
+            
             const runUrl = `https://github.com/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
             const artifact = process.env.GUARDRAILS_ARTIFACT_NAME || 'guardrails-report';
             const lines = Object.entries(counts)
@@ -327,7 +364,7 @@ jobs:
               .map(([k,c])=>`- ${k}: **${c}**`)
               .join('\n');
             const body = [
-              '🛡️ **Guardrails findings**',
+              `${sev} **Guardrails findings**`,
               '',
               lines,
               '',
@@ -336,6 +373,21 @@ jobs:
               '',
               marker
             ].join('\n');
+            
+            // add label if hits > 0
+            if (total > 0) {
+              try {
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.payload.pull_request.number,
+                  labels: ['ci/guardrails']
+                });
+              } catch (e) {
+                core.info('Could not add label (may already exist): ' + e.message);
+              }
+            }
+            
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,

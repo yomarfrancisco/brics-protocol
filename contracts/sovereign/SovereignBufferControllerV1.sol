@@ -37,6 +37,12 @@ contract SovereignBufferControllerV1 is AccessControl {
     /// @notice Daily drawdown amount used
     uint256 public dailyDrawdownUsed;
     
+    /// @notice Buffer target in basis points (default 300 = 3%)
+    uint16 public bufferTargetBps;
+    
+    /// @notice Buffer epsilon in basis points to prevent oscillation (default 1 = 0.01%)
+    uint16 public constant BUFFER_EPSILON_BPS = 1;
+    
     // ============ Roles ============
     
     bytes32 public constant BUFFER_MANAGER_ROLE = keccak256("BUFFER_MANAGER");
@@ -50,6 +56,8 @@ contract SovereignBufferControllerV1 is AccessControl {
     event UtilizationThresholdSet(uint16 bps);
     event DailyLimitSet(uint256 limit);
     event BufferNAVUpdated(uint256 newNAV);
+    event BufferTargetSet(uint256 targetBps);
+    event BufferTopUpSuppressed(uint256 target, uint256 bufferNAV, uint256 epsilon);
     
     // ============ Errors ============
     
@@ -70,6 +78,7 @@ contract SovereignBufferControllerV1 is AccessControl {
         
         utilizationThresholdBps = 8000; // 80% default
         dailyDrawdownLimit = 1000e18; // 1000 tokens default
+        bufferTargetBps = 300; // 3% default
     }
     
     // ============ External Functions ============
@@ -123,6 +132,36 @@ contract SovereignBufferControllerV1 is AccessControl {
         
         emit DrawdownRecorded(amount, bufferNAV);
     }
+
+    /**
+     * @notice Draw stablecoins to a recipient (redemption queue only)
+     * @param to Recipient address
+     * @param amount Amount to draw
+     */
+    function drawdown(address to, uint256 amount) external onlyRole(BUFFER_MANAGER_ROLE) {
+        if (amount == 0) revert InvalidAmount();
+        if (to == address(0)) revert ZeroAddress();
+        if (amount > bufferNAV) revert InsufficientBuffer();
+        
+        // Check daily limit
+        uint256 currentDay = block.timestamp / 1 days;
+        if (currentDay > lastDrawdownTimestamp) {
+            dailyDrawdownUsed = 0;
+            lastDrawdownTimestamp = currentDay;
+        }
+        
+        if (dailyDrawdownUsed + amount > dailyDrawdownLimit) {
+            revert DailyLimitExceeded();
+        }
+        
+        bufferNAV -= amount;
+        totalDrawdowns += amount;
+        dailyDrawdownUsed += amount;
+        
+        // In a real implementation, this would transfer stablecoins to the recipient
+        // For now, we just record the drawdown
+        emit DrawdownRecorded(amount, bufferNAV);
+    }
     
     /**
      * @notice Update buffer NAV (NAV updater only)
@@ -151,6 +190,17 @@ contract SovereignBufferControllerV1 is AccessControl {
     function setDailyDrawdownLimit(uint256 limit) external onlyRole(DEFAULT_ADMIN_ROLE) {
         dailyDrawdownLimit = limit;
         emit DailyLimitSet(limit);
+    }
+    
+    /**
+     * @notice Set buffer target in basis points (admin only)
+     * @param targetBps Target in basis points
+     */
+    function setBufferTargetBps(uint16 targetBps) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (targetBps > 10000) revert InvalidUtilization();
+        
+        bufferTargetBps = targetBps;
+        emit BufferTargetSet(targetBps);
     }
     
     /**
@@ -208,5 +258,55 @@ contract SovereignBufferControllerV1 is AccessControl {
         uint256 usedToday = currentDay > lastDrawdownTimestamp ? 0 : dailyDrawdownUsed;
         
         return usedToday + amount <= dailyDrawdownLimit;
+    }
+    
+    /**
+     * @notice Get buffer shortfall amount based on target with epsilon to prevent oscillation
+     * @param totalAssets Total assets in the system
+     * @return Shortfall amount in base units
+     */
+    function bufferShortfall(uint256 totalAssets) external view returns (uint256) {
+        if (totalAssets == 0) return 0;
+        
+        // Calculate target based on token NAV (non-buffer assets)
+        uint256 tokenNAV = totalAssets > bufferNAV ? totalAssets - bufferNAV : totalAssets;
+        uint256 targetAmount = (tokenNAV * bufferTargetBps) / 10000;
+        
+        if (bufferNAV >= targetAmount) return 0;
+        
+        uint256 shortfall = targetAmount - bufferNAV;
+        
+        // Apply epsilon to prevent oscillation for tiny shortfalls
+        uint256 epsilon = (targetAmount * BUFFER_EPSILON_BPS) / 10000;
+        if (shortfall <= epsilon) {
+            return 0;
+        }
+        
+        return shortfall;
+    }
+    
+    /**
+     * @notice Check if buffer top-up was suppressed by epsilon and emit event if so
+     * @param totalAssets Total assets in the system
+     * @return True if suppression occurred
+     */
+    function checkAndEmitSuppression(uint256 totalAssets) external returns (bool) {
+        if (totalAssets == 0) return false;
+        
+        // Calculate target based on token NAV (non-buffer assets)
+        uint256 tokenNAV = totalAssets > bufferNAV ? totalAssets - bufferNAV : totalAssets;
+        uint256 targetAmount = (tokenNAV * bufferTargetBps) / 10000;
+        
+        if (bufferNAV >= targetAmount) return false;
+        
+        uint256 shortfall = targetAmount - bufferNAV;
+        uint256 epsilon = (targetAmount * BUFFER_EPSILON_BPS) / 10000;
+        
+        if (shortfall > 0 && shortfall <= epsilon) {
+            emit BufferTopUpSuppressed(targetAmount, bufferNAV, epsilon);
+            return true;
+        }
+        
+        return false;
     }
 }
